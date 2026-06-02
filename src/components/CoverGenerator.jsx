@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { reorder, bringToFront, sendToBack, displayIndexToArrayIndex } from '../lib/layers'
 import { TEMPLATES, getTemplate, instantiateTemplate } from '../lib/templates'
 import { textStrokeAttrs, textShadowFilter } from '../lib/text'
+import { BUILTIN_FONTS, googleFontCssUrl, parseFontFaces, buildFontFaceRule, addFont } from '../lib/fonts'
 
 const CANVAS_SIZE = 600
 
@@ -15,9 +16,18 @@ const DEFAULT_STATE = {
     majorEvery: 5,
   },
   snapToGrid: true,
+  fonts: [],
 }
 
 let nextId = 1
+
+// Base64-encode an ArrayBuffer (for inlining font files as data URIs).
+function bufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer)
+  let binary = ''
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
+  return btoa(binary)
+}
 
 function snapValue(value, spacing, enabled) {
   if (!enabled) return value
@@ -282,6 +292,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const [displaySize, setDisplaySize] = useState(CANVAS_SIZE)
   const [dragOverArrayIndex, setDragOverArrayIndex] = useState(null)
   const [selectedTemplate, setSelectedTemplate] = useState('')
+  const [customFontInput, setCustomFontInput] = useState('')
   const containerRef = useRef(null)
   const fileInputRef = useRef(null)
   const jsonInputRef = useRef(null)
@@ -335,6 +346,21 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     return () => window.removeEventListener('keydown', onKey)
   }, [undo, redo])
 
+  // Load each custom (Google) font into the document so the live canvas can
+  // render it. Idempotent: a <link> is injected once per family. Re-runs when
+  // the font list changes (add, JSON import, undo/redo).
+  useEffect(() => {
+    for (const family of state.fonts || []) {
+      const id = 'gf-' + family.replace(/\s+/g, '-').toLowerCase()
+      if (document.getElementById(id)) continue
+      const link = document.createElement('link')
+      link.id = id
+      link.rel = 'stylesheet'
+      link.href = googleFontCssUrl(family)
+      document.head.appendChild(link)
+    }
+  }, [state.fonts])
+
   // Image upload
   const handleImageUpload = useCallback((e) => {
     const file = e.target.files[0]
@@ -369,6 +395,16 @@ export default function CoverGenerator({ initialState, onStateChange, className 
       }]
     }))
     setSelectedTextId(id)
+  }, [update])
+
+  // Add a Google font by name to the picker (de-duplicated). The injection
+  // effect loads it; embedding on export makes it portable.
+  const handleAddFont = useCallback((name) => {
+    update(prev => {
+      const next = addFont(prev.fonts || [], name)
+      return next === (prev.fonts || []) ? prev : { ...prev, fonts: next }
+    })
+    setCustomFontInput('')
   }, [update])
 
   // Apply a predefined template. The current background image is kept; text and
@@ -427,14 +463,47 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     update(prev => ({ ...prev, grid: { ...prev.grid, ...patch } }), coalesceKey)
   }, [update])
 
+  // Build @font-face rules with base64-embedded font files for the custom fonts
+  // actually used by text layers, and inject them into the cloned SVG so PNG and
+  // SVG exports render correctly and stay portable. Fetch failures (e.g. CORS on
+  // the Google CSS endpoint) are swallowed so export still succeeds with a
+  // fallback font.
+  const embedFontsInClone = useCallback(async (clone) => {
+    const used = new Set(state.texts.map(t => t.fontFamily))
+    const families = (state.fonts || []).filter(f => used.has(f))
+    if (families.length === 0) return
+    const rules = []
+    for (const family of families) {
+      try {
+        const cssRes = await fetch(googleFontCssUrl(family))
+        if (!cssRes.ok) continue
+        const faces = parseFontFaces(await cssRes.text())
+        for (const face of faces) {
+          const fontRes = await fetch(face.url)
+          if (!fontRes.ok) continue
+          const dataUri = `data:font/woff2;base64,${bufferToBase64(await fontRes.arrayBuffer())}`
+          rules.push(buildFontFaceRule(family, { ...face, url: dataUri }))
+        }
+      } catch {
+        // Font could not be fetched; export proceeds with a fallback face.
+      }
+    }
+    if (rules.length === 0) return
+    const style = document.createElementNS('http://www.w3.org/2000/svg', 'style')
+    style.setAttribute('data-embedded-fonts', '')
+    style.textContent = rules.join('\n')
+    clone.insertBefore(style, clone.firstChild)
+  }, [state.texts, state.fonts])
+
   // Export PNG
-  const exportPNG = useCallback(() => {
+  const exportPNG = useCallback(async () => {
     const svgEl = containerRef.current?.querySelector('svg')
     if (!svgEl) return
     const clone = svgEl.cloneNode(true)
     clone.querySelectorAll('[data-layer="grid"]').forEach(el => el.remove())
     clone.setAttribute('width', CANVAS_SIZE)
     clone.setAttribute('height', CANVAS_SIZE)
+    await embedFontsInClone(clone)
 
     const serializer = new XMLSerializer()
     const svgStr = serializer.serializeToString(clone)
@@ -459,10 +528,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
       }, 'image/png')
     }
     img.src = url
-  }, [])
+  }, [embedFontsInClone])
 
   // Export SVG
-  const exportSVG = useCallback(() => {
+  const exportSVG = useCallback(async () => {
     const svgEl = containerRef.current?.querySelector('svg')
     if (!svgEl) return
     const clone = svgEl.cloneNode(true)
@@ -473,6 +542,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     })
     clone.setAttribute('width', CANVAS_SIZE)
     clone.setAttribute('height', CANVAS_SIZE)
+    await embedFontsInClone(clone)
 
     const serializer = new XMLSerializer()
     const svgStr = serializer.serializeToString(clone)
@@ -481,7 +551,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     a.href = URL.createObjectURL(blob)
     a.download = 'cover.svg'
     a.click()
-  }, [])
+  }, [embedFontsInClone])
 
   // Export JSON
   const exportJSON = useCallback(() => {
@@ -583,6 +653,34 @@ export default function CoverGenerator({ initialState, onStateChange, className 
           <p className="text-[11px] text-gray-400 leading-tight">Replaces text layers and grid; keeps your image. Undo with Ctrl+Z.</p>
         </Section>
 
+        {/* Fonts */}
+        <Section title="Fonts">
+          <div className="flex gap-2">
+            <input
+              className="input flex-1"
+              placeholder="Google font name"
+              value={customFontInput}
+              onChange={e => setCustomFontInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleAddFont(customFontInput) }}
+            />
+            <button
+              className="btn-secondary text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled={!customFontInput.trim()}
+              onClick={() => handleAddFont(customFontInput)}
+            >
+              Add
+            </button>
+          </div>
+          {(state.fonts || []).length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {(state.fonts || []).map(f => (
+                <span key={f} className="text-[11px] bg-gray-100 text-gray-600 rounded px-1.5 py-0.5" style={{ fontFamily: f }}>{f}</span>
+              ))}
+            </div>
+          )}
+          <p className="text-[11px] text-gray-400 leading-tight">Loads from Google Fonts into the picker, and embeds used fonts into PNG and SVG exports.</p>
+        </Section>
+
         {/* Background Image */}
         <Section title="Background Image">
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
@@ -673,7 +771,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                   value={selectedText.fontFamily}
                   onChange={e => updateText(selectedText.id, { fontFamily: e.target.value })}
                 >
-                  {FONTS.map(f => <option key={f} value={f}>{f}</option>)}
+                  {[...BUILTIN_FONTS, ...(state.fonts || [])].map(f => <option key={f} value={f}>{f}</option>)}
                 </select>
               </div>
               <div>
@@ -787,19 +885,6 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     </div>
   )
 }
-
-const FONTS = [
-  'sans-serif',
-  'serif',
-  'monospace',
-  'Georgia',
-  'Trebuchet MS',
-  'Arial',
-  'Verdana',
-  'Impact',
-  'Times New Roman',
-  'Courier New',
-]
 
 function Section({ title, children }) {
   return (

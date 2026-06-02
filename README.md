@@ -13,6 +13,7 @@ Built with React 19, Vite 6, and Tailwind CSS 4. No heavy editor dependencies: t
 * **Drag to position** text directly on the canvas, with optional **snap to grid**.
 * **Reorderable layers** with drag-and-drop plus bring-to-front and send-to-back controls.
 * **Templates** — apply a predefined layout (title and artist, minimal, grid art) from a dropdown, keeping your uploaded image.
+* **Google Fonts** — add any Google font by name; used fonts are embedded into PNG and SVG exports so they stay portable.
 * **Save and load** the full layout as JSON, so a project can be reopened later with any image.
 * **Export** to high-quality PNG (rendered at 2x) and to clean, editable SVG.
 
@@ -87,6 +88,7 @@ Tailwind CSS 4 must be available in the host app, or the component's utility cla
 | [src/lib/layers.js](src/lib/layers.js) | Pure text-layer z-order helpers (unit-tested). |
 | [src/lib/templates.js](src/lib/templates.js) | Predefined cover layouts and the apply helper (unit-tested). |
 | [src/lib/text.js](src/lib/text.js) | Pure text presentation helpers, e.g. stroke/outline attributes (unit-tested). |
+| [src/lib/fonts.js](src/lib/fonts.js) | Built-in font list and Google Fonts URL/CSS helpers (unit-tested). |
 | [src/index.js](src/index.js) | Library entry that re-exports `CoverGenerator`. |
 | [src/App.jsx](src/App.jsx) | Demo application wrapper. |
 | [src/main.jsx](src/main.jsx) | Vite entry point for the demo. |
