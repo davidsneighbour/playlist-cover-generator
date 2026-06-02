@@ -5,6 +5,7 @@ import { textStrokeAttrs, textShadowFilter } from '../lib/text'
 import { BUILTIN_FONTS, googleFontCssUrl, parseFontFaces, buildFontFaceRule, addFont } from '../lib/fonts'
 import { BLEND_MODES, createImageLayer, clampOpacity, fitDimensions, centeredPosition } from '../lib/images'
 import { SHAPE_TYPES, createShape, ellipseGeometry } from '../lib/shapes'
+import { averageRgb, pickContrastColor } from '../lib/color'
 
 const CANVAS_SIZE = 600
 
@@ -441,11 +442,20 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const jsonInputRef = useRef(null)
   const imageInputRef = useRef(null)
   const dragIndexRef = useRef(null)
+  const bgColorRef = useRef({ r: 255, g: 255, b: 255 })
 
   // Only one layer (text, image, or shape) is selected at a time.
   const selectText = useCallback((id) => { setSelectedTextId(id); setSelectedImageId(null); setSelectedShapeId(null) }, [])
   const selectImage = useCallback((id) => { setSelectedImageId(id); setSelectedTextId(null); setSelectedShapeId(null) }, [])
   const selectShape = useCallback((id) => { setSelectedShapeId(id); setSelectedTextId(null); setSelectedImageId(null) }, [])
+
+  // After adding a layer, scroll its freshly shown properties card into view.
+  const [scrollTo, setScrollTo] = useState(null)
+  useEffect(() => {
+    if (!scrollTo) return
+    document.getElementById(scrollTo)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    setScrollTo(null)
+  }, [scrollTo])
 
   useEffect(() => {
     const obs = new ResizeObserver(entries => {
@@ -522,6 +532,26 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     }
   }, [state.fonts])
 
+  // Sample the background image's average color so a new text layer can pick a
+  // contrasting default. Falls back to white (the empty canvas) when no image.
+  useEffect(() => {
+    if (!state.backgroundImageData) { bgColorRef.current = { r: 255, g: 255, b: 255 }; return }
+    const img = new Image()
+    img.onload = () => {
+      const c = document.createElement('canvas')
+      c.width = 16
+      c.height = 16
+      const ctx = c.getContext('2d')
+      ctx.drawImage(img, 0, 0, 16, 16)
+      try {
+        bgColorRef.current = averageRgb(ctx.getImageData(0, 0, 16, 16).data)
+      } catch {
+        bgColorRef.current = { r: 255, g: 255, b: 255 }
+      }
+    }
+    img.src = state.backgroundImageData
+  }, [state.backgroundImageData])
+
   // Image upload
   const handleImageUpload = useCallback((e) => {
     const file = e.target.files[0]
@@ -546,7 +576,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
         y: snapValue(CANVAS_SIZE / 2, prev.grid.spacing, prev.snapToGrid),
         fontSize: 48,
         fontFamily: 'sans-serif',
-        color: '#ffffff',
+        color: pickContrastColor(bgColorRef.current),
         bold: false,
         italic: false,
         anchor: 'middle',
@@ -555,8 +585,9 @@ export default function CoverGenerator({ initialState, onStateChange, className 
         shadow: null,
       }]
     }))
-    setSelectedTextId(id)
-  }, [update])
+    selectText(id)
+    setScrollTo('props-text')
+  }, [update, selectText])
 
   // Add a Google font by name to the picker (de-duplicated). The injection
   // effect loads it; embedding on export makes it portable.
@@ -637,6 +668,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
           images: [...(prev.images || []), createImageLayer(id, { name: file.name, data, width, height, x, y })],
         }))
         selectImage(id)
+        setScrollTo('props-image')
       }
       probe.src = data
     }
@@ -682,6 +714,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     const id = nextId++
     update(prev => ({ ...prev, shapes: [...(prev.shapes || []), createShape(id, type)] }))
     selectShape(id)
+    setScrollTo('props-shape')
   }, [update, selectShape])
 
   const updateShape = useCallback((id, patch, coalesceKey) => {
@@ -1048,7 +1081,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
 
         {/* Selected Image Properties */}
         {selectedImage && (
-          <Section title="Image Properties">
+          <Section title="Image Properties" id="props-image">
             <div>
               <label className="block text-xs text-gray-500 mb-1">Opacity ({Math.round((selectedImage.opacity ?? 1) * 100)}%)</label>
               <input
@@ -1113,7 +1146,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
 
         {/* Selected Shape Properties */}
         {selectedShape && (
-          <Section title="Shape Properties">
+          <Section title="Shape Properties" id="props-shape">
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Fill</label>
@@ -1276,9 +1309,9 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   )
 }
 
-function Section({ title, children }) {
+function Section({ title, children, id }) {
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
+    <div id={id} className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
       <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{title}</h3>
       <div className="flex flex-col gap-2">
         {children}
