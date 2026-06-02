@@ -7,7 +7,7 @@ Built with React 19, Vite 6, and Tailwind CSS 4. No heavy editor dependencies: t
 ## Features
 
 * **Square SVG canvas** with a fixed internal coordinate system that scales responsively.
-* **Background image** upload, displayed edge-to-edge with center-crop.
+* **Background image** upload with zoom and pan (crop) controls; defaults to a centered cover.
 * **Gradient background** — a linear or radial two-color gradient that fills the canvas when no image is loaded.
 * **Image layers** — stack logos or overlays over the background, each with opacity, blend mode, size, and a draggable position.
 * **Shapes** — add rectangles and circles with fill, stroke, and opacity, draggable and snappable.

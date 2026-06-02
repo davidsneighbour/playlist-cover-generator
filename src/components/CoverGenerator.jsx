@@ -6,7 +6,7 @@ import { BUILTIN_FONTS, googleFontCssUrl, buildFontFaceRule, addFont, googleFont
 import { BLEND_MODES, createImageLayer, clampOpacity, centeredPosition, coverDimensions, scaleDimensions, dimensionPercent, aspectHeight, aspectWidth, offCanvasBounds, resizeFromCorner } from '../lib/images'
 import { SHAPE_TYPES, createShape, ellipseGeometry } from '../lib/shapes'
 import { DEFAULT_OVERLAY, OVERLAY_TYPES, gradientVector } from '../lib/overlay'
-import { DEFAULT_BACKGROUND_GRADIENT, BACKGROUND_GRADIENT_TYPES } from '../lib/background'
+import { DEFAULT_BACKGROUND_GRADIENT, BACKGROUND_GRADIENT_TYPES, DEFAULT_BACKGROUND_TRANSFORM, backgroundCrop } from '../lib/background'
 import { CANVAS_PRESETS, DEFAULT_EXPORT_SIZE, exportScale, clampExportSize } from '../lib/canvas'
 import { rulerTicks } from '../lib/rulers'
 import { SHORTCUTS, formatKeys, nudgeDelta, isDeleteKey } from '../lib/shortcuts'
@@ -30,6 +30,9 @@ const ENV_GOOGLE_FONTS_API_KEY = import.meta.env.VITE_GOOGLE_FONTS_API_KEY
 const DEFAULT_STATE = {
   backgroundImage: null,
   backgroundImageData: null,
+  backgroundNaturalWidth: null,
+  backgroundNaturalHeight: null,
+  backgroundTransform: DEFAULT_BACKGROUND_TRANSFORM,
   backgroundGradient: DEFAULT_BACKGROUND_GRADIENT,
   texts: [],
   images: [],
@@ -525,18 +528,33 @@ function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, on
 
       <GradientBackground gradient={state.backgroundGradient} size={CANVAS_SIZE} />
 
-      {state.backgroundImageData && (
-        <image
-          href={state.backgroundImageData}
-          x={0}
-          y={0}
-          width={CANVAS_SIZE}
-          height={CANVAS_SIZE}
-          preserveAspectRatio="xMidYMid slice"
-          clipPath="url(#canvas-clip)"
-          data-layer="background"
-        />
-      )}
+      {state.backgroundImageData && (() => {
+        const nW = state.backgroundNaturalWidth
+        const nH = state.backgroundNaturalHeight
+        // Fall back to slice when the natural size is unknown (e.g. an image
+        // supplied via initialState rather than the uploader).
+        if (!nW || !nH) {
+          return (
+            <image
+              href={state.backgroundImageData}
+              x={0} y={0} width={CANVAS_SIZE} height={CANVAS_SIZE}
+              preserveAspectRatio="xMidYMid slice"
+              clipPath="url(#canvas-clip)"
+              data-layer="background"
+            />
+          )
+        }
+        const c = backgroundCrop(nW, nH, CANVAS_SIZE, state.backgroundTransform || undefined)
+        return (
+          <image
+            href={state.backgroundImageData}
+            x={c.x} y={c.y} width={c.width} height={c.height}
+            preserveAspectRatio="none"
+            clipPath="url(#canvas-clip)"
+            data-layer="background"
+          />
+        )
+      })()}
 
       <ColorOverlay overlay={state.overlay} size={CANVAS_SIZE} />
 
@@ -895,13 +913,25 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     img.src = state.backgroundImageData
   }, [state.backgroundImageData])
 
-  // Image upload
+  // Background image upload. Probe the natural dimensions so the crop/pan/zoom
+  // controls can size it, and reset the transform to centered cover.
   const handleImageUpload = useCallback((e) => {
     const file = e.target.files[0]
     if (!file) return
     const reader = new FileReader()
     reader.onload = (ev) => {
-      update({ backgroundImage: file.name, backgroundImageData: ev.target.result })
+      const data = ev.target.result
+      const probe = new Image()
+      probe.onload = () => {
+        update({
+          backgroundImage: file.name,
+          backgroundImageData: data,
+          backgroundNaturalWidth: probe.naturalWidth,
+          backgroundNaturalHeight: probe.naturalHeight,
+          backgroundTransform: DEFAULT_BACKGROUND_TRANSFORM,
+        })
+      }
+      probe.src = data
     }
     reader.readAsDataURL(file)
     e.target.value = ''
@@ -1166,8 +1196,13 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     update(prev => ({ ...prev, backgroundGradient: { ...(prev.backgroundGradient || DEFAULT_BACKGROUND_GRADIENT), ...patch } }), coalesceKey)
   }, [update])
 
+  // Background image crop/pan/zoom. One object, edited in place.
+  const updateBackgroundTransform = useCallback((patch, coalesceKey) => {
+    update(prev => ({ ...prev, backgroundTransform: { ...(prev.backgroundTransform || DEFAULT_BACKGROUND_TRANSFORM), ...patch } }), coalesceKey)
+  }, [update])
+
   const clearBackgroundImage = useCallback(() => {
-    update({ backgroundImage: null, backgroundImageData: null })
+    update({ backgroundImage: null, backgroundImageData: null, backgroundNaturalWidth: null, backgroundNaturalHeight: null })
   }, [update])
 
   // Grid
@@ -1349,6 +1384,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const selectedShape = (state.shapes || []).find(s => s.id === selectedShapeId)
   const overlay = state.overlay || DEFAULT_OVERLAY
   const bgGradient = state.backgroundGradient || DEFAULT_BACKGROUND_GRADIENT
+  const bgTransform = state.backgroundTransform || DEFAULT_BACKGROUND_TRANSFORM
   const exportSize = clampExportSize(state.exportSize)
 
   // Actions for the right-click menu, resolved to the handlers for its layer kind.
@@ -1517,6 +1553,25 @@ export default function CoverGenerator({ initialState, onStateChange, className 
           </button>
           {state.backgroundImage && (
             <button className="w-full btn-secondary text-sm" onClick={clearBackgroundImage}>Remove image</button>
+          )}
+
+          {state.backgroundImageData && state.backgroundNaturalWidth && (
+            <div className="flex flex-col gap-2 border-t border-gray-100 pt-2 mt-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Crop &amp; position</p>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Zoom ({Math.round(bgTransform.zoom * 100)}%)</label>
+                <input type="range" className="w-full accent-blue-500" min={100} max={400} value={Math.round(bgTransform.zoom * 100)} onChange={e => updateBackgroundTransform({ zoom: Number(e.target.value) / 100 }, 'bg-zoom')} />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Horizontal position</label>
+                <input type="range" className="w-full accent-blue-500" min={0} max={100} value={Math.round((bgTransform.panX ?? 0.5) * 100)} onChange={e => updateBackgroundTransform({ panX: Number(e.target.value) / 100 }, 'bg-panx')} />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Vertical position</label>
+                <input type="range" className="w-full accent-blue-500" min={0} max={100} value={Math.round((bgTransform.panY ?? 0.5) * 100)} onChange={e => updateBackgroundTransform({ panY: Number(e.target.value) / 100 }, 'bg-pany')} />
+              </div>
+              <button className="w-full btn-secondary text-sm" onClick={() => updateBackgroundTransform(DEFAULT_BACKGROUND_TRANSFORM)}>Reset crop</button>
+            </div>
           )}
 
           <div className="border-t border-gray-100 pt-2 mt-1">
