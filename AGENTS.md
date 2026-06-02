@@ -19,7 +19,8 @@ An embeddable React component that generates square playlist cover art. A user u
 |---|---|
 | `npm install` | Install dependencies. |
 | `npm run dev` | Start the Vite dev server. |
-| `npm run build` | Production build into `dist/`. |
+| `npm run build` | Demo app build into `dist/`. |
+| `npm run build:lib` | Library (npm package) build into `dist/`. |
 | `npm run preview` | Serve the production build. |
 | `npm test` | Run the Vitest suite once. |
 | `npm run test:watch` | Run Vitest in watch mode. |
@@ -96,6 +97,7 @@ The single state object is the contract for JSON import/export and the `initialS
 * Styling is Tailwind utility classes plus the shared `.btn-primary`, `.btn-secondary`, and `.input` classes defined in [src/index.css](src/index.css). Reuse those classes instead of repeating utility chains.
 * Follow [DESIGN.md](DESIGN.md) for color, typography, and spacing. The theme is light, minimal, and content-first.
 * Keep the component dependency-free where reasonable. Do not add a heavy SVG-editor library; the value here is clean, portable SVG.
+* The package ships as a library via `npm run build:lib` ([vite.config.lib.js](vite.config.lib.js)): entry [src/index.js](src/index.js), ESM + CJS output, with `react`, `react-dom`, `react/jsx-runtime`, and `@headlessui/react` left external (React/React-DOM are peer dependencies, Headless UI a regular one). The default `npm run build` still builds the demo app. If you add a runtime dependency, decide deliberately whether it should be bundled, a peer, or external, and update both the lib config's `external` list and `package.json`.
 
 ### Tests
 

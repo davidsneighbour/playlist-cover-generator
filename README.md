@@ -51,7 +51,8 @@ Vite prints a local URL (default `http://localhost:5173`). Open it to use the ed
 ### Build
 
 ```bash
-npm run build      # production build into dist/
+npm run build      # demo app build into dist/
+npm run build:lib  # library build (npm package) into dist/
 npm run preview    # serve the production build locally
 ```
 
@@ -83,7 +84,13 @@ Because this is a client-side app the key ships in the built JavaScript, so rest
 
 ## Use as an embeddable component
 
-The editor is a single self-contained component. Import it into any React 19 app:
+The editor is a single self-contained component. Install it alongside its peer dependencies:
+
+```bash
+npm install playlist-cover-generator react react-dom
+```
+
+`react` and `react-dom` (>= 18) are peer dependencies you provide; `@headlessui/react` is bundled as a regular dependency. The package ships ES module and CommonJS builds and is side-effect free for tree-shaking. Import it into any React app:
 
 ```jsx
 import { CoverGenerator } from 'playlist-cover-generator'
@@ -109,6 +116,17 @@ function Example() {
 | `googleFontsApiKey` | `string` | Google Fonts API key for the font-search typeahead. Defaults to `VITE_GOOGLE_FONTS_API_KEY`; pass your own when embedding. |
 
 Tailwind CSS 4 must be available in the host app, or the component's utility classes will not be styled. See [DESIGN.md](DESIGN.md) for the tokens and component classes used.
+
+### Publishing
+
+The package builds to `dist/` via `npm run build:lib` (also run automatically by `prepublishOnly`), producing `playlist-cover-generator.js` (ESM) and `playlist-cover-generator.cjs` (CommonJS) with React and Headless UI left external. To publish:
+
+```bash
+npm run build:lib
+npm publish
+```
+
+Add a `LICENSE` file and a `license` field to `package.json` before publishing a public release.
 
 ## Project structure
 

@@ -16,12 +16,11 @@ import { averageRgb, pickContrastColor } from '../lib/color'
 import { isOpen as isCardOpen, toggleOpen, togglePin, openCard } from '../lib/accordion'
 import { AccordionContext, CollapsibleCard } from './Accordion'
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
-import pkg from '../../package.json'
+import { version as APP_VERSION } from '../../package.json'
 
 const CANVAS_SIZE = 600
 const RULER = 22 // px thickness of each ruler strip
 const DUP_OFFSET = 16 // canvas units a duplicated layer is shifted so it is visible
-const APP_VERSION = pkg.version
 const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent || '')
 
 // Optional Google Fonts API key for the font-search typeahead. Read from the

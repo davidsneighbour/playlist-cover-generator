@@ -1,23 +1,50 @@
 {
   "name": "playlist-cover-generator",
-  "private": true,
   "version": "0.1.0",
   "type": "module",
+  "description": "Embeddable React component for generating square playlist cover art with a clean, exportable SVG canvas.",
+  "keywords": [
+    "react",
+    "svg",
+    "playlist",
+    "cover",
+    "album-art",
+    "editor",
+    "image-editor"
+  ],
+  "main": "./dist/playlist-cover-generator.cjs",
+  "module": "./dist/playlist-cover-generator.js",
+  "exports": {
+    ".": {
+      "import": "./dist/playlist-cover-generator.js",
+      "require": "./dist/playlist-cover-generator.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:lib": "vite build --config vite.config.lib.js",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build:lib"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
   },
   "dependencies": {
-    "@headlessui/react": "2.2.10",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "@headlessui/react": "2.2.10"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.8",
     "@vitejs/plugin-react": "^4.5.2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
     "tailwindcss": "^4.1.8",
     "vite": "^6.3.5",
     "vitest": "^4.1.8"
