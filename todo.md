@@ -20,10 +20,11 @@ Items deferred from the initial implementation.
 
 * [x] **Multiple image layers** — done. Add image layers (logos, overlays) over the background; each has opacity, a CSS blend mode, size, and position, is draggable with snap, and supports bring-to-front / send-to-back. Helpers in [src/lib/images.js](src/lib/images.js), covered by tests; z-order reuses [src/lib/layers.js](src/lib/layers.js).
 * [x] **Shape primitives** — done. Add rectangles and circles (ellipses) with configurable fill, stroke color/width, and opacity; draggable with snap and reorderable. Helpers in [src/lib/shapes.js](src/lib/shapes.js), covered by tests.
-* [ ] **Color overlay layer** — a solid or gradient color fill over the background with adjustable opacity, useful for text legibility.
+* [x] **Color overlay layer** — done. A single full-canvas fill over the background (under every other layer) for text legibility: solid color, or a two-stop linear/radial gradient with per-stop opacity, plus a blend mode (for example "multiply" to darken). Helpers in [src/lib/overlay.js](src/lib/overlay.js) (`DEFAULT_OVERLAY`, `OVERLAY_TYPES`, `gradientVector`), covered by tests; it round-trips through JSON and is kept in exports.
 * [ ] **Gradient backgrounds** — configurable linear and radial SVG gradients.
 * [ ] **Canvas size presets** — quick-switch between 600x600 (default), 1000x1000, 3000x3000 (high-res), and exact Spotify and Apple Music specs.
 * [ ] **Rulers** — horizontal and vertical rulers alongside the canvas showing SVG coordinates.
+* [ ] **Help overlay** — add an overlay on F1 that shows all the shortcuts and their descriptions. Maybe a help text about the program and the version number from package.json as well. This should be a modal that can be closed by clicking outside of it, or pressing F1 again, or clicking an X button on the modal. 
 
 ## Lower priority
 

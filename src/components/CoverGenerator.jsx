@@ -5,6 +5,7 @@ import { textStrokeAttrs, textShadowFilter } from '../lib/text'
 import { BUILTIN_FONTS, googleFontCssUrl, buildFontFaceRule, addFont, googleFontsListUrl, filterFontNames, fontVariantKey, variantFontFace, pickVariantFile } from '../lib/fonts'
 import { BLEND_MODES, createImageLayer, clampOpacity, centeredPosition, coverDimensions, scaleDimensions, dimensionPercent, aspectHeight, aspectWidth, offCanvasBounds, resizeFromCorner } from '../lib/images'
 import { SHAPE_TYPES, createShape, ellipseGeometry } from '../lib/shapes'
+import { DEFAULT_OVERLAY, OVERLAY_TYPES, gradientVector } from '../lib/overlay'
 import { averageRgb, pickContrastColor } from '../lib/color'
 import { isOpen as isCardOpen, toggleOpen, togglePin, openCard } from '../lib/accordion'
 import { AccordionContext, CollapsibleCard } from './Accordion'
@@ -21,6 +22,7 @@ const DEFAULT_STATE = {
   texts: [],
   images: [],
   shapes: [],
+  overlay: DEFAULT_OVERLAY,
   grid: {
     enabled: false,
     spacing: 20,
@@ -328,6 +330,54 @@ function ShapeElement({ shape, onSelect, onDrag, snapToGrid, gridSpacing, canvas
   return <rect x={shape.x} y={shape.y} width={shape.width} height={shape.height} {...common} />
 }
 
+// Full-canvas color overlay painted over the background (under every other
+// layer) to improve text legibility. Solid is a single color; linear/radial are
+// two-stop gradients whose stops carry their own alpha. The blend mode applies
+// to the overlay rect, so e.g. "multiply" darkens only the background beneath.
+// pointer-events stay off so clicks fall through to the canvas for deselection.
+function ColorOverlay({ overlay, size }) {
+  if (!overlay || !overlay.enabled) return null
+  const blend = overlay.blendMode && overlay.blendMode !== 'normal' ? overlay.blendMode : undefined
+
+  if (overlay.type === 'solid') {
+    return (
+      <rect
+        x={0} y={0} width={size} height={size}
+        fill={overlay.color}
+        opacity={clampOpacity(overlay.opacity)}
+        style={{ mixBlendMode: blend, pointerEvents: 'none' }}
+        data-layer="overlay"
+      />
+    )
+  }
+
+  const gradId = 'overlay-gradient'
+  const stops = (
+    <>
+      <stop offset="0%" stopColor={overlay.color} stopOpacity={clampOpacity(overlay.opacity)} />
+      <stop offset="100%" stopColor={overlay.color2} stopOpacity={clampOpacity(overlay.opacity2)} />
+    </>
+  )
+  const v = gradientVector(overlay.angle)
+  return (
+    <>
+      <defs>
+        {overlay.type === 'radial' ? (
+          <radialGradient id={gradId} cx="50%" cy="50%" r="50%">{stops}</radialGradient>
+        ) : (
+          <linearGradient id={gradId} x1={v.x1} y1={v.y1} x2={v.x2} y2={v.y2}>{stops}</linearGradient>
+        )}
+      </defs>
+      <rect
+        x={0} y={0} width={size} height={size}
+        fill={`url(#${gradId})`}
+        style={{ mixBlendMode: blend, pointerEvents: 'none' }}
+        data-layer="overlay"
+      />
+    </>
+  )
+}
+
 function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, onSelectText, onSelectImage, onSelectShape, onDragText, onDragImage, onDragShape, onResizeImage, displaySize }) {
   const svgRef = useRef(null)
   const [textBox, setTextBox] = useState(null)
@@ -386,6 +436,8 @@ function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, on
           data-layer="background"
         />
       )}
+
+      <ColorOverlay overlay={state.overlay} size={CANVAS_SIZE} />
 
       {(state.images || []).map((image) => (
         <ImageElement
@@ -853,6 +905,11 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     })
   }, [update])
 
+  // Color overlay (a single full-canvas fill). One object, edited in place.
+  const updateOverlay = useCallback((patch, coalesceKey) => {
+    update(prev => ({ ...prev, overlay: { ...(prev.overlay || DEFAULT_OVERLAY), ...patch } }), coalesceKey)
+  }, [update])
+
   // Grid
   const updateGrid = useCallback((patch, coalesceKey) => {
     update(prev => ({ ...prev, grid: { ...prev.grid, ...patch } }), coalesceKey)
@@ -991,6 +1048,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const selectedText = state.texts.find(t => t.id === selectedTextId)
   const selectedImage = (state.images || []).find(i => i.id === selectedImageId)
   const selectedShape = (state.shapes || []).find(s => s.id === selectedShapeId)
+  const overlay = state.overlay || DEFAULT_OVERLAY
 
   return (
     <div className={`flex flex-col lg:flex-row gap-6 p-4 lg:p-6 min-h-screen bg-gray-50 lg:items-start ${className}`}>
@@ -1121,6 +1179,56 @@ export default function CoverGenerator({ initialState, onStateChange, className 
           >
             {state.backgroundImage ? `Change image (${state.backgroundImage})` : 'Upload image'}
           </button>
+        </CollapsibleCard>
+
+        {/* Color overlay */}
+        <CollapsibleCard id="overlay" title="Color Overlay">
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" checked={overlay.enabled} onChange={e => updateOverlay({ enabled: e.target.checked })} className="accent-blue-500" />
+            Enable overlay
+          </label>
+          {overlay.enabled && (
+            <>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Type</label>
+                <select className="input w-full" value={overlay.type} onChange={e => updateOverlay({ type: e.target.value })}>
+                  {OVERLAY_TYPES.map(t => <option key={t} value={t}>{t === 'solid' ? 'Solid' : t === 'linear' ? 'Linear gradient' : 'Radial gradient'}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">{overlay.type === 'solid' ? 'Color' : 'Start color'}</label>
+                  <input type="color" className="w-full h-8 rounded border border-gray-200 cursor-pointer" value={overlay.color} onChange={e => updateOverlay({ color: e.target.value }, 'overlay-color')} />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">{overlay.type === 'solid' ? 'Opacity' : 'Start opacity'} ({Math.round(clampOpacity(overlay.opacity) * 100)}%)</label>
+                  <input type="range" className="w-full accent-blue-500 mt-1.5" min={0} max={100} value={Math.round(clampOpacity(overlay.opacity) * 100)} onChange={e => updateOverlay({ opacity: clampOpacity(Number(e.target.value) / 100) }, 'overlay-opacity')} />
+                </div>
+              </div>
+              {overlay.type !== 'solid' && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">End color</label>
+                    <input type="color" className="w-full h-8 rounded border border-gray-200 cursor-pointer" value={overlay.color2} onChange={e => updateOverlay({ color2: e.target.value }, 'overlay-color2')} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">End opacity ({Math.round(clampOpacity(overlay.opacity2) * 100)}%)</label>
+                    <input type="range" className="w-full accent-blue-500 mt-1.5" min={0} max={100} value={Math.round(clampOpacity(overlay.opacity2) * 100)} onChange={e => updateOverlay({ opacity2: clampOpacity(Number(e.target.value) / 100) }, 'overlay-opacity2')} />
+                  </div>
+                </div>
+              )}
+              {overlay.type === 'linear' && (
+                <NumberInput label="Angle" value={overlay.angle} min={0} max={360} onChange={v => updateOverlay({ angle: v }, 'overlay-angle')} hint="0° top→bottom, 90° left→right" />
+              )}
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Blend mode</label>
+                <select className="input w-full" value={overlay.blendMode} onChange={e => updateOverlay({ blendMode: e.target.value })}>
+                  {BLEND_MODES.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+              <p className="text-[11px] text-gray-400 leading-tight">Painted over the background, under your layers. Use a dark fill (or "multiply") to make text more legible.</p>
+            </>
+          )}
         </CollapsibleCard>
 
         {/* Grid */}
