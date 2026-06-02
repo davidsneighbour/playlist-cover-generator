@@ -6,6 +6,8 @@ import { BUILTIN_FONTS, googleFontCssUrl, parseFontFaces, buildFontFaceRule, add
 import { BLEND_MODES, createImageLayer, clampOpacity, centeredPosition, coverDimensions, scaleDimensions, dimensionPercent, aspectHeight, aspectWidth, offCanvasBounds } from '../lib/images'
 import { SHAPE_TYPES, createShape, ellipseGeometry } from '../lib/shapes'
 import { averageRgb, pickContrastColor } from '../lib/color'
+import { isOpen as isCardOpen, toggleOpen, togglePin, openCard } from '../lib/accordion'
+import { AccordionContext, CollapsibleCard } from './Accordion'
 
 const CANVAS_SIZE = 600
 
@@ -450,10 +452,17 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const dragIndexRef = useRef(null)
   const bgColorRef = useRef({ r: 255, g: 255, b: 255 })
 
-  // Only one layer (text, image, or shape) is selected at a time.
-  const selectText = useCallback((id) => { setSelectedTextId(id); setSelectedImageId(null); setSelectedShapeId(null) }, [])
-  const selectImage = useCallback((id) => { setSelectedImageId(id); setSelectedTextId(null); setSelectedShapeId(null) }, [])
-  const selectShape = useCallback((id) => { setSelectedShapeId(id); setSelectedTextId(null); setSelectedImageId(null) }, [])
+  // Accordion: one unpinned control card open at a time; pinned cards stay open.
+  const [accordion, setAccordion] = useState({ openId: 'background', pinned: [] })
+  const accToggleOpen = useCallback((id) => setAccordion(s => toggleOpen(s, id)), [])
+  const accTogglePin = useCallback((id) => setAccordion(s => togglePin(s, id)), [])
+  const accOpenCard = useCallback((id) => setAccordion(s => openCard(s, id)), [])
+
+  // Only one layer (text, image, or shape) is selected at a time. Selecting one
+  // also opens its properties card so its controls are visible.
+  const selectText = useCallback((id) => { setSelectedTextId(id); setSelectedImageId(null); setSelectedShapeId(null); if (id != null) accOpenCard('props-text') }, [accOpenCard])
+  const selectImage = useCallback((id) => { setSelectedImageId(id); setSelectedTextId(null); setSelectedShapeId(null); if (id != null) accOpenCard('props-image') }, [accOpenCard])
+  const selectShape = useCallback((id) => { setSelectedShapeId(id); setSelectedTextId(null); setSelectedImageId(null); if (id != null) accOpenCard('props-shape') }, [accOpenCard])
 
   // After adding a layer, scroll its freshly shown properties card into view.
   const [scrollTo, setScrollTo] = useState(null)
@@ -889,13 +898,12 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const selectedShape = (state.shapes || []).find(s => s.id === selectedShapeId)
 
   return (
-    <div className={`flex flex-col lg:flex-row gap-4 p-4 min-h-screen bg-gray-50 ${className}`}>
-      {/* Canvas */}
-      <div className="flex-1 flex flex-col items-center gap-3">
+    <div className={`flex flex-col lg:flex-row gap-6 p-4 lg:p-6 min-h-screen bg-gray-50 lg:items-start ${className}`}>
+      {/* Canvas — square, stays visible on the left while the controls scroll */}
+      <div className="w-full lg:w-[600px] lg:shrink-0 lg:sticky lg:top-6 lg:self-start flex flex-col items-center gap-3">
         <div
           ref={containerRef}
-          className="w-full max-w-[600px] rounded-lg overflow-hidden shadow-md border border-gray-200"
-          style={{ aspectRatio: '1/1' }}
+          className="w-full max-w-[600px] aspect-square rounded-lg overflow-hidden shadow-md border border-gray-200"
         >
           <SVGCanvas
             state={state}
@@ -915,10 +923,11 @@ export default function CoverGenerator({ initialState, onStateChange, className 
       </div>
 
       {/* Controls */}
-      <div className="w-full lg:w-72 flex flex-col gap-4">
+      <AccordionContext.Provider value={{ isOpen: (id) => isCardOpen(accordion, id), isPinned: (id) => accordion.pinned.includes(id), toggleOpen: accToggleOpen, togglePin: accTogglePin }}>
+      <div className="w-full lg:flex-1 lg:min-w-0 flex flex-col gap-3">
 
         {/* History */}
-        <Section title="History">
+        <CollapsibleCard id="history" title="History">
           <div className="grid grid-cols-2 gap-2">
             <button
               className="btn-secondary text-sm disabled:opacity-40 disabled:cursor-not-allowed"
@@ -937,10 +946,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               ↷ Redo
             </button>
           </div>
-        </Section>
+        </CollapsibleCard>
 
         {/* Template */}
-        <Section title="Template">
+        <CollapsibleCard id="template" title="Template">
           <select
             className="input w-full"
             value={selectedTemplate}
@@ -957,10 +966,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
             Apply template
           </button>
           <p className="text-[11px] text-gray-400 leading-tight">Replaces text layers and grid; keeps your image. Undo with Ctrl+Z.</p>
-        </Section>
+        </CollapsibleCard>
 
         {/* Fonts */}
-        <Section title="Fonts">
+        <CollapsibleCard id="fonts" title="Fonts">
           <div className="flex gap-2">
             <input
               className="input flex-1"
@@ -985,10 +994,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
             </div>
           )}
           <p className="text-[11px] text-gray-400 leading-tight">Loads from Google Fonts into the picker, and embeds used fonts into PNG and SVG exports.</p>
-        </Section>
+        </CollapsibleCard>
 
         {/* Background Image */}
-        <Section title="Background Image">
+        <CollapsibleCard id="background" title="Background Image">
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
           <button
             className="w-full btn-primary"
@@ -996,10 +1005,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
           >
             {state.backgroundImage ? `Change image (${state.backgroundImage})` : 'Upload image'}
           </button>
-        </Section>
+        </CollapsibleCard>
 
         {/* Grid */}
-        <Section title="Grid">
+        <CollapsibleCard id="grid" title="Grid">
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={state.grid.enabled} onChange={e => updateGrid({ enabled: e.target.checked })} className="accent-blue-500" />
             Show grid
@@ -1014,10 +1023,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               <NumberInput label="Major line every N" value={state.grid.majorEvery} min={0} max={20} onChange={v => updateGrid({ majorEvery: v }, 'grid-major')} hint="0 = off" />
             </>
           )}
-        </Section>
+        </CollapsibleCard>
 
         {/* Text Layers */}
-        <Section title="Text Layers">
+        <CollapsibleCard id="text-layers" title="Text Layers">
           <button className="w-full btn-primary" onClick={addText}>+ Add text</button>
           {state.texts.length === 0 && <p className="text-xs text-gray-400 text-center py-1">No text layers yet</p>}
           {state.texts.length > 1 && (
@@ -1057,10 +1066,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               </div>
             )
           })}
-        </Section>
+        </CollapsibleCard>
 
         {/* Image Layers */}
-        <Section title="Image Layers">
+        <CollapsibleCard id="image-layers" title="Image Layers">
           <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={addImageLayer} />
           <button className="w-full btn-primary" onClick={() => imageInputRef.current?.click()}>+ Add image</button>
           {(state.images || []).length === 0 && <p className="text-xs text-gray-400 text-center py-1">No image layers yet</p>}
@@ -1083,7 +1092,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               </div>
             )
           })}
-        </Section>
+        </CollapsibleCard>
 
         {/* Selected Image Properties */}
         {selectedImage && (() => {
@@ -1092,7 +1101,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
           const setWidth = (v) => updateImage(selectedImage.id, selectedImage.lockAspect ? { width: v, height: aspectHeight(v, nW, nH) || selectedImage.height } : { width: v }, `img-w-${selectedImage.id}`)
           const setHeight = (v) => updateImage(selectedImage.id, selectedImage.lockAspect ? { height: v, width: aspectWidth(v, nW, nH) || selectedImage.width } : { height: v }, `img-h-${selectedImage.id}`)
           return (
-          <Section title="Image Properties" id="props-image">
+          <CollapsibleCard id="props-image" title="Image Properties">
             <div>
               <label className="block text-xs text-gray-500 mb-1">Opacity ({Math.round((selectedImage.opacity ?? 1) * 100)}%)</label>
               <input
@@ -1138,12 +1147,12 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               <NumberInput label="Y position" value={selectedImage.y} min={-CANVAS_SIZE} max={CANVAS_SIZE} onChange={v => updateImage(selectedImage.id, { y: v }, `img-y-${selectedImage.id}`)} />
             </div>
             <button className="w-full btn-secondary text-sm" onClick={() => deleteImage(selectedImage.id)}>Delete image</button>
-          </Section>
+          </CollapsibleCard>
           )
         })()}
 
         {/* Shapes */}
-        <Section title="Shapes">
+        <CollapsibleCard id="shapes" title="Shapes">
           <div className="grid grid-cols-2 gap-2">
             <button className="btn-primary text-sm" onClick={() => addShape('rect')}>+ Rectangle</button>
             <button className="btn-primary text-sm" onClick={() => addShape('circle')}>+ Circle</button>
@@ -1169,11 +1178,11 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               </div>
             )
           })}
-        </Section>
+        </CollapsibleCard>
 
         {/* Selected Shape Properties */}
         {selectedShape && (
-          <Section title="Shape Properties" id="props-shape">
+          <CollapsibleCard id="props-shape" title="Shape Properties">
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Fill</label>
@@ -1200,12 +1209,12 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               <NumberInput label="Y position" value={selectedShape.y} min={0} max={CANVAS_SIZE} onChange={v => updateShape(selectedShape.id, { y: v }, `shape-y-${selectedShape.id}`)} />
             </div>
             <button className="w-full btn-secondary text-sm" onClick={() => deleteShape(selectedShape.id)}>Delete shape</button>
-          </Section>
+          </CollapsibleCard>
         )}
 
         {/* Selected Text Properties */}
         {selectedText && (
-          <Section title="Text Properties">
+          <CollapsibleCard id="props-text" title="Text Properties">
             <label className="block text-xs text-gray-500 mb-1">Content</label>
             <input
               className="input w-full"
@@ -1318,11 +1327,11 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               <NumberInput label="X position" value={selectedText.x} min={0} max={CANVAS_SIZE} onChange={v => updateText(selectedText.id, { x: v }, `x-${selectedText.id}`)} />
               <NumberInput label="Y position" value={selectedText.y} min={0} max={CANVAS_SIZE} onChange={v => updateText(selectedText.id, { y: v }, `y-${selectedText.id}`)} />
             </div>
-          </Section>
+          </CollapsibleCard>
         )}
 
         {/* Export / Import */}
-        <Section title="Export & Import">
+        <CollapsibleCard id="export" title="Export & Import">
           <div className="grid grid-cols-2 gap-2">
             <button className="btn-secondary text-sm" onClick={exportPNG}>Export PNG</button>
             <button className="btn-secondary text-sm" onClick={exportSVG}>Export SVG</button>
@@ -1330,19 +1339,9 @@ export default function CoverGenerator({ initialState, onStateChange, className 
           <button className="w-full btn-secondary text-sm" onClick={exportJSON}>Save JSON state</button>
           <input ref={jsonInputRef} type="file" accept=".json,application/json" className="hidden" onChange={handleJSONImport} />
           <button className="w-full btn-secondary text-sm" onClick={() => jsonInputRef.current?.click()}>Load JSON state</button>
-        </Section>
+        </CollapsibleCard>
       </div>
-    </div>
-  )
-}
-
-function Section({ title, children, id }) {
-  return (
-    <div id={id} className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
-      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{title}</h3>
-      <div className="flex flex-col gap-2">
-        {children}
-      </div>
+      </AccordionContext.Provider>
     </div>
   )
 }

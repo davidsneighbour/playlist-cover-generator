@@ -36,9 +36,9 @@ All spacing uses multiples of 4px (Tailwind's default scale). Primary gaps betwe
 
 ## Components
 
-### Section card
+### Collapsible card
 
-A white card with `border border-gray-200 rounded-lg p-3 shadow-sm`. The title is an uppercase label at `text-xs font-semibold text-gray-500`.
+Each control group is a white card (`border border-gray-200 rounded-lg shadow-sm`) with a header (chevron + uppercase `text-xs font-semibold text-gray-500` title) and a collapsible body. The cards behave as an **accordion**: only one unpinned card is open at a time, and opening one collapses the previous. Each header has a **Pin** checkbox that keeps that card open regardless (exempt from auto-collapse), so several can stay open by pinning. Bodies animate with a short fade/slide (Headless UI `Transition`).
 
 ### Primary button
 
@@ -58,7 +58,7 @@ A `rounded-lg overflow-hidden shadow-md border border-gray-200` frame on a white
 
 ## Layout
 
-Two columns on large screens: the canvas (flexible, max 600px square) on the left, the controls panel (fixed 288px) on the right. A single column on smaller screens.
+Two columns on large screens (`lg` and up): the square canvas (up to 600px) on the left and the controls on the right, which fill the remaining width. The canvas column is **sticky** (`lg:sticky lg:top-6`) so it stays visible while the taller controls column scrolls. Below `lg` the layout stacks into a single column (canvas on top, controls below).
 
 ## Motion
 
