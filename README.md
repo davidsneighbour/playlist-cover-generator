@@ -17,7 +17,7 @@ Built with React 19, Vite 6, and Tailwind CSS 4. No heavy editor dependencies: t
 * **Editable text layers** with control over content, font, size, color, weight, style, anchor, position, outline (stroke color and width), and drop shadow.
 * **Drag to position** text directly on the canvas, with optional **snap to grid**.
 * **Keyboard editing** — Delete removes the selected layer; arrow keys nudge it by 1px, or by the grid spacing with Shift.
-* **Reorderable layers** with drag-and-drop plus bring-to-front and send-to-back controls.
+* **Reorderable layers** with drag-and-drop plus bring-to-front and send-to-back controls, and one-click duplicate for text, image, and shape layers.
 * **Templates** — apply a predefined layout (title and artist, minimal, grid art) from a dropdown, keeping your uploaded image.
 * **Google Fonts** — add any Google font by name; used fonts are embedded into PNG and SVG exports so they stay portable.
 * **Save and load** the full layout as JSON, so a project can be reopened later with any image.

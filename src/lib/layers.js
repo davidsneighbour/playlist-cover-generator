@@ -49,3 +49,14 @@ export function sendToBack(layers, id) {
 export function displayIndexToArrayIndex(length, displayIndex) {
   return length - 1 - displayIndex
 }
+
+// Insert a copy of the layer with `id` directly after it, built by
+// makeCopy(original) (which must assign a fresh id). Placing the copy just after
+// the original keeps it one step in front. Returns the same array if not found.
+export function duplicateById(layers, id, makeCopy) {
+  const i = layers.findIndex(l => l.id === id)
+  if (i < 0) return layers
+  const next = layers.slice()
+  next.splice(i + 1, 0, makeCopy(layers[i]))
+  return next
+}

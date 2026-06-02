@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { reorder, bringToFront, sendToBack, displayIndexToArrayIndex } from '../src/lib/layers'
+import { reorder, bringToFront, sendToBack, displayIndexToArrayIndex, duplicateById } from '../src/lib/layers'
 
 // Helper: build a layer list of objects with ids a, b, c, ... and read it back as a string.
 const make = (...ids) => ids.map(id => ({ id, content: id.toUpperCase() }))
@@ -84,6 +84,36 @@ describe('sendToBack', () => {
     const layers = make('a', 'b', 'c')
     sendToBack(layers, 'c')
     expect(ids(layers)).toBe('abc')
+  })
+})
+
+describe('duplicateById', () => {
+  const copy = (orig) => ({ ...orig, id: orig.id + '2' })
+
+  it('inserts the copy directly after the original (one step in front)', () => {
+    const out = duplicateById(make('a', 'b', 'c'), 'b', copy)
+    expect(ids(out)).toBe('abb2c')
+    expect(out).toHaveLength(4)
+  })
+
+  it('uses makeCopy to build the new item', () => {
+    const out = duplicateById(make('a', 'b'), 'a', (o) => ({ ...o, id: 'a2', content: 'COPY' }))
+    expect(out[1]).toEqual({ id: 'a2', content: 'COPY' })
+  })
+
+  it('duplicates the last item at the end', () => {
+    expect(ids(duplicateById(make('a', 'b'), 'b', copy))).toBe('abb2')
+  })
+
+  it('returns the same reference when the id is not found', () => {
+    const layers = make('a', 'b')
+    expect(duplicateById(layers, 'z', copy)).toBe(layers)
+  })
+
+  it('does not mutate the input', () => {
+    const layers = make('a', 'b')
+    duplicateById(layers, 'a', copy)
+    expect(ids(layers)).toBe('ab')
   })
 })
 

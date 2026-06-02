@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react'
-import { reorder, bringToFront, sendToBack, displayIndexToArrayIndex } from '../lib/layers'
+import { reorder, bringToFront, sendToBack, displayIndexToArrayIndex, duplicateById } from '../lib/layers'
 import { TEMPLATES, getTemplate, instantiateTemplate } from '../lib/templates'
 import { textStrokeAttrs, textShadowFilter } from '../lib/text'
 import { BUILTIN_FONTS, googleFontCssUrl, buildFontFaceRule, addFont, googleFontsListUrl, filterFontNames, fontVariantKey, variantFontFace, pickVariantFile } from '../lib/fonts'
@@ -18,6 +18,7 @@ import pkg from '../../package.json'
 
 const CANVAS_SIZE = 600
 const RULER = 22 // px thickness of each ruler strip
+const DUP_OFFSET = 16 // canvas units a duplicated layer is shifted so it is visible
 const APP_VERSION = pkg.version
 const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent || '')
 
@@ -923,6 +924,16 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     setSelectedTextId(null)
   }, [update])
 
+  const duplicateText = useCallback((id) => {
+    const newId = nextId++
+    update(prev => {
+      const src = prev.texts
+      const texts = duplicateById(src, id, (t) => ({ ...t, id: newId, x: t.x + DUP_OFFSET, y: t.y + DUP_OFFSET, shadow: t.shadow ? { ...t.shadow } : null }))
+      return texts === src ? prev : { ...prev, texts }
+    })
+    selectText(newId)
+  }, [update, selectText])
+
   const handleDragText = useCallback((id, x, y) => {
     update(prev => ({
       ...prev,
@@ -991,6 +1002,16 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     setSelectedImageId(null)
   }, [update])
 
+  const duplicateImage = useCallback((id) => {
+    const newId = nextId++
+    update(prev => {
+      const src = prev.images || []
+      const images = duplicateById(src, id, (i) => ({ ...i, id: newId, x: i.x + DUP_OFFSET, y: i.y + DUP_OFFSET }))
+      return images === src ? prev : { ...prev, images }
+    })
+    selectImage(newId)
+  }, [update, selectImage])
+
   const handleDragImage = useCallback((id, x, y) => {
     update(prev => ({
       ...prev,
@@ -1035,6 +1056,16 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     update(prev => ({ ...prev, shapes: (prev.shapes || []).filter(s => s.id !== id) }))
     setSelectedShapeId(null)
   }, [update])
+
+  const duplicateShape = useCallback((id) => {
+    const newId = nextId++
+    update(prev => {
+      const src = prev.shapes || []
+      const shapes = duplicateById(src, id, (s) => ({ ...s, id: newId, x: s.x + DUP_OFFSET, y: s.y + DUP_OFFSET }))
+      return shapes === src ? prev : { ...prev, shapes }
+    })
+    selectShape(newId)
+  }, [update, selectShape])
 
   const handleDragShape = useCallback((id, x, y) => {
     update(prev => ({
@@ -1542,6 +1573,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                   <span className="truncate flex-1" style={{ fontFamily: t.fontFamily, color: t.color !== '#ffffff' ? t.color : '#374151', fontWeight: t.bold ? 'bold' : 'normal', fontStyle: t.italic ? 'italic' : 'normal' }}>
                     {t.content || '(empty)'}
                   </span>
+                  <button className="text-gray-400 hover:text-gray-700 text-xs px-1" title="Duplicate" onClick={(e) => { e.stopPropagation(); duplicateText(t.id) }}>⧉</button>
                   <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Bring to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleBringToFront(t.id) }}>⤒</button>
                   <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Send to back" disabled={isBottom} onClick={(e) => { e.stopPropagation(); handleSendToBack(t.id) }}>⤓</button>
                   <button className="text-gray-400 hover:text-red-500 text-xs px-1" title="Delete" onClick={(e) => { e.stopPropagation(); deleteText(t.id) }}>✕</button>
@@ -1568,6 +1600,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               >
                 <div className="flex items-center gap-1">
                   <span className="truncate flex-1 text-gray-700">{img.name || 'image'}</span>
+                  <button className="text-gray-400 hover:text-gray-700 text-xs px-1" title="Duplicate" onClick={(e) => { e.stopPropagation(); duplicateImage(img.id) }}>⧉</button>
                   <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Bring to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleImageToFront(img.id) }}>⤒</button>
                   <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Send to back" disabled={isBottom} onClick={(e) => { e.stopPropagation(); handleImageToBack(img.id) }}>⤓</button>
                   <button className="text-gray-400 hover:text-red-500 text-xs px-1" title="Delete" onClick={(e) => { e.stopPropagation(); deleteImage(img.id) }}>✕</button>
@@ -1654,6 +1687,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                 <div className="flex items-center gap-1">
                   <span className="inline-block w-3 h-3 border border-gray-300" style={{ background: shape.fill, borderRadius: shape.type === 'circle' ? '9999px' : '2px' }} aria-hidden="true" />
                   <span className="truncate flex-1 text-gray-700 capitalize">{shape.type}</span>
+                  <button className="text-gray-400 hover:text-gray-700 text-xs px-1" title="Duplicate" onClick={(e) => { e.stopPropagation(); duplicateShape(shape.id) }}>⧉</button>
                   <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Bring to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleShapeToFront(shape.id) }}>⤒</button>
                   <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Send to back" disabled={isBottom} onClick={(e) => { e.stopPropagation(); handleShapeToBack(shape.id) }}>⤓</button>
                   <button className="text-gray-400 hover:text-red-500 text-xs px-1" title="Delete" onClick={(e) => { e.stopPropagation(); deleteShape(shape.id) }}>✕</button>
