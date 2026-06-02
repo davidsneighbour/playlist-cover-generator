@@ -56,6 +56,10 @@ The `.input` class: `border border-gray-200 rounded-md px-2 py-1.5 text-sm`. Foc
 
 A `rounded-lg overflow-hidden shadow-md border border-gray-200` frame on a white background. Selection is shown with a blue dashed rectangle (`stroke="#3b82f6"` and `stroke-dasharray="4 2"`).
 
+### Rulers
+
+Optional 22px ruler strips on the top and left edges, on a `bg-gray-50` ground with a `#e5e7eb` baseline. Ticks reuse the grid colors (minor `#cbd5e1`); labels are 8px in `#9ca3af` (left-edge labels rotated `-90`). They are chrome only and reuse existing tokens, so they are never part of an export.
+
 ## Layout
 
 Two columns on large screens (`lg` and up): the square canvas (up to 600px) on the left and the controls on the right, which fill the remaining width. The canvas column is **sticky** (`lg:sticky lg:top-6`) so it stays visible while the taller controls column scrolls. Below `lg` the layout stacks into a single column (canvas on top, controls below).

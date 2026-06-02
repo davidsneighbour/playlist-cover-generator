@@ -13,6 +13,7 @@ Built with React 19, Vite 6, and Tailwind CSS 4. No heavy editor dependencies: t
 * **Shapes** — add rectangles and circles with fill, stroke, and opacity, draggable and snappable.
 * **Color overlay** — a full-canvas solid or gradient (linear or radial) fill over the background with adjustable opacity and a blend mode, for text legibility.
 * **Toggleable grid** with adjustable spacing and an optional heavier line every *N* cells.
+* **Rulers** — optional horizontal and vertical rulers alongside the canvas showing canvas coordinates (never exported).
 * **Editable text layers** with control over content, font, size, color, weight, style, anchor, position, outline (stroke color and width), and drop shadow.
 * **Drag to position** text directly on the canvas, with optional **snap to grid**.
 * **Reorderable layers** with drag-and-drop plus bring-to-front and send-to-back controls.
@@ -119,6 +120,7 @@ Tailwind CSS 4 must be available in the host app, or the component's utility cla
 | [src/lib/overlay.js](src/lib/overlay.js) | Color-overlay defaults and gradient-axis geometry (unit-tested). |
 | [src/lib/background.js](src/lib/background.js) | Gradient-background defaults and type guard (unit-tested). |
 | [src/lib/canvas.js](src/lib/canvas.js) | Export-size presets and scale helpers (unit-tested). |
+| [src/lib/rulers.js](src/lib/rulers.js) | Ruler tick enumeration (unit-tested). |
 | [src/index.js](src/index.js) | Library entry that re-exports `CoverGenerator`. |
 | [src/App.jsx](src/App.jsx) | Demo application wrapper. |
 | [src/main.jsx](src/main.jsx) | Vite entry point for the demo. |

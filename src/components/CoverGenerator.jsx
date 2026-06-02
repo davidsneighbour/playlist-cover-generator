@@ -8,11 +8,13 @@ import { SHAPE_TYPES, createShape, ellipseGeometry } from '../lib/shapes'
 import { DEFAULT_OVERLAY, OVERLAY_TYPES, gradientVector } from '../lib/overlay'
 import { DEFAULT_BACKGROUND_GRADIENT, BACKGROUND_GRADIENT_TYPES } from '../lib/background'
 import { CANVAS_PRESETS, DEFAULT_EXPORT_SIZE, exportScale, clampExportSize } from '../lib/canvas'
+import { rulerTicks } from '../lib/rulers'
 import { averageRgb, pickContrastColor } from '../lib/color'
 import { isOpen as isCardOpen, toggleOpen, togglePin, openCard } from '../lib/accordion'
 import { AccordionContext, CollapsibleCard } from './Accordion'
 
 const CANVAS_SIZE = 600
+const RULER = 22 // px thickness of each ruler strip
 
 // Optional Google Fonts API key for the font-search typeahead. Read from the
 // Vite env by default; a host embedding the component can pass its own.
@@ -147,6 +149,51 @@ function GridOverlay({ grid, size }) {
   }
 
   return <g data-layer="grid" style={{ pointerEvents: 'none' }}>{lines}</g>
+}
+
+// Rulers along the top and left of the canvas, showing canvas-unit coordinates
+// (0..CANVAS_SIZE). They are plain chrome rendered outside the exported SVG, so
+// they never appear in PNG or SVG output. Tick values come from the pure
+// `rulerTicks`; pixel positions scale with the live `displaySize`.
+function RulerMarks({ displaySize, axis }) {
+  const ticks = rulerTicks(CANVAS_SIZE)
+  return ticks.map(({ value, major }) => {
+    const px = (value / CANVAS_SIZE) * displaySize
+    const len = major ? 8 : 5
+    const showLabel = major && value !== 0 && value !== CANVAS_SIZE
+    if (axis === 'top') {
+      return (
+        <g key={value}>
+          <line x1={px} y1={RULER - len} x2={px} y2={RULER} stroke="#cbd5e1" strokeWidth={0.75} />
+          {showLabel && <text x={px} y={9} fontSize={8} fill="#9ca3af" textAnchor="middle">{value}</text>}
+        </g>
+      )
+    }
+    return (
+      <g key={value}>
+        <line x1={RULER - len} y1={px} x2={RULER} y2={px} stroke="#cbd5e1" strokeWidth={0.75} />
+        {showLabel && <text x={11} y={px} fontSize={8} fill="#9ca3af" textAnchor="middle" transform={`rotate(-90 11 ${px})`}>{value}</text>}
+      </g>
+    )
+  })
+}
+
+function TopRuler({ displaySize }) {
+  return (
+    <svg width={displaySize} height={RULER} className="block bg-gray-50" aria-hidden="true">
+      <line x1={0} y1={RULER - 0.5} x2={displaySize} y2={RULER - 0.5} stroke="#e5e7eb" strokeWidth={1} />
+      <RulerMarks displaySize={displaySize} axis="top" />
+    </svg>
+  )
+}
+
+function LeftRuler({ displaySize }) {
+  return (
+    <svg width={RULER} height={displaySize} className="block bg-gray-50" aria-hidden="true">
+      <line x1={RULER - 0.5} y1={0} x2={RULER - 0.5} y2={displaySize} stroke="#e5e7eb" strokeWidth={1} />
+      <RulerMarks displaySize={displaySize} axis="left" />
+    </svg>
+  )
 }
 
 // Shared SVG dragging. Returns an onMouseDown handler that converts pointer
@@ -587,10 +634,12 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const [selectedImageId, setSelectedImageId] = useState(null)
   const [selectedShapeId, setSelectedShapeId] = useState(null)
   const [displaySize, setDisplaySize] = useState(CANVAS_SIZE)
+  const [showRulers, setShowRulers] = useState(false)
   const [dragOverArrayIndex, setDragOverArrayIndex] = useState(null)
   const [selectedTemplate, setSelectedTemplate] = useState('')
   const [customFontInput, setCustomFontInput] = useState('')
   const containerRef = useRef(null)
+  const canvasColRef = useRef(null)
   const fileInputRef = useRef(null)
   const jsonInputRef = useRef(null)
   const imageInputRef = useRef(null)
@@ -617,16 +666,22 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     setScrollTo(null)
   }, [scrollTo])
 
+  // Fit the canvas to the column, leaving room for the rulers when shown. We
+  // observe the column (its width comes from the page layout, not its children)
+  // so sizing the canvas can never feed back into the measurement. Re-runs on
+  // ruler toggle so the canvas reclaims or yields the ruler strip immediately.
   useEffect(() => {
+    const measure = (w) => setDisplaySize(Math.max(0, Math.min(CANVAS_SIZE, w - (showRulers ? RULER : 0))))
     const obs = new ResizeObserver(entries => {
-      for (const entry of entries) {
-        const w = entry.contentRect.width
-        setDisplaySize(Math.min(w, CANVAS_SIZE))
-      }
+      for (const entry of entries) measure(entry.contentRect.width)
     })
-    if (containerRef.current) obs.observe(containerRef.current)
+    const el = canvasColRef.current
+    if (el) {
+      obs.observe(el)
+      measure(el.getBoundingClientRect().width)
+    }
     return () => obs.disconnect()
-  }, [])
+  }, [showRulers])
 
   // Notify the host of state changes, skipping the initial mount.
   const mounted = useRef(false)
@@ -1104,25 +1159,34 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   return (
     <div className={`flex flex-col lg:flex-row gap-6 p-4 lg:p-6 min-h-screen bg-gray-50 lg:items-start ${className}`}>
       {/* Canvas — square, stays visible on the left while the controls scroll */}
-      <div className="w-full lg:w-[600px] lg:shrink-0 lg:sticky lg:top-6 lg:self-start flex flex-col items-center gap-3">
+      <div ref={canvasColRef} className="w-full lg:w-[600px] lg:shrink-0 lg:sticky lg:top-6 lg:self-start flex flex-col items-center gap-3">
         <div
-          ref={containerRef}
-          className="w-full max-w-[600px] aspect-square rounded-lg overflow-hidden shadow-md border border-gray-200"
+          className={showRulers ? 'inline-grid' : 'w-full max-w-[600px]'}
+          style={showRulers ? { gridTemplateColumns: `${RULER}px auto`, gridTemplateRows: `${RULER}px auto` } : undefined}
         >
-          <SVGCanvas
-            state={state}
-            selectedTextId={selectedTextId}
-            selectedImageId={selectedImageId}
-            selectedShapeId={selectedShapeId}
-            onSelectText={selectText}
-            onSelectImage={selectImage}
-            onSelectShape={selectShape}
-            onDragText={handleDragText}
-            onDragImage={handleDragImage}
-            onDragShape={handleDragShape}
-            onResizeImage={handleResizeImage}
-            displaySize={displaySize}
-          />
+          {showRulers && <div className="bg-gray-50" aria-hidden="true" />}
+          {showRulers && <TopRuler displaySize={displaySize} />}
+          {showRulers && <LeftRuler displaySize={displaySize} />}
+          <div
+            ref={containerRef}
+            className={`aspect-square rounded-lg overflow-hidden shadow-md border border-gray-200 ${showRulers ? '' : 'w-full'}`}
+            style={showRulers ? { width: displaySize, height: displaySize } : undefined}
+          >
+            <SVGCanvas
+              state={state}
+              selectedTextId={selectedTextId}
+              selectedImageId={selectedImageId}
+              selectedShapeId={selectedShapeId}
+              onSelectText={selectText}
+              onSelectImage={selectImage}
+              onSelectShape={selectShape}
+              onDragText={handleDragText}
+              onDragImage={handleDragImage}
+              onDragShape={handleDragShape}
+              onResizeImage={handleResizeImage}
+              displaySize={displaySize}
+            />
+          </div>
         </div>
         <p className="text-xs text-gray-400">Exports at {exportSize}×{exportSize}px · click a layer to select · drag to move · Ctrl+Z to undo</p>
       </div>
@@ -1318,8 +1382,8 @@ export default function CoverGenerator({ initialState, onStateChange, className 
           )}
         </CollapsibleCard>
 
-        {/* Grid */}
-        <CollapsibleCard id="grid" title="Grid">
+        {/* Grid & rulers */}
+        <CollapsibleCard id="grid" title="Grid & rulers">
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={state.grid.enabled} onChange={e => updateGrid({ enabled: e.target.checked })} className="accent-blue-500" />
             Show grid
@@ -1327,6 +1391,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={state.snapToGrid} onChange={e => update({ snapToGrid: e.target.checked })} className="accent-blue-500" />
             Snap to grid
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={showRulers} onChange={e => setShowRulers(e.target.checked)} className="accent-blue-500" />
+            Show rulers
           </label>
           {state.grid.enabled && (
             <>
