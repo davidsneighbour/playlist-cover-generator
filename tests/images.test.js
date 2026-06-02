@@ -13,6 +13,7 @@ import {
   aspectHeight,
   aspectWidth,
   offCanvasBounds,
+  resizeFromCorner,
 } from '../src/lib/images'
 
 describe('BLEND_MODES', () => {
@@ -145,5 +146,33 @@ describe('offCanvasBounds', () => {
       maxX: 576,
       maxY: 576,
     })
+  })
+})
+
+describe('resizeFromCorner', () => {
+  it('sizes from a fixed top-left toward the pointer', () => {
+    expect(resizeFromCorner(0, 0, 100, 50)).toEqual({ x: 0, y: 0, width: 100, height: 50 })
+  })
+
+  it('repositions when dragging past the fixed corner (fixed bottom-right)', () => {
+    expect(resizeFromCorner(100, 100, 0, 0)).toEqual({ x: 0, y: 0, width: 100, height: 100 })
+  })
+
+  it('locks the aspect ratio when requested', () => {
+    const box = resizeFromCorner(0, 0, 100, 10, { ratio: 2, lockAspect: true })
+    expect(box.width / box.height).toBe(2)
+    expect(box).toEqual({ x: 0, y: 0, width: 100, height: 50 })
+  })
+
+  it('keeps the fixed corner fixed while locking aspect to the left/up', () => {
+    // fixed bottom-right at (100,100), pointer up-left; ratio 1
+    const box = resizeFromCorner(100, 100, 0, 20, { ratio: 1, lockAspect: true })
+    expect(box.width).toBe(box.height)
+    expect(box.x + box.width).toBe(100)
+    expect(box.y + box.height).toBe(100)
+  })
+
+  it('enforces a minimum size', () => {
+    expect(resizeFromCorner(0, 0, 0, 0, { min: 8 })).toMatchObject({ width: 8, height: 8 })
   })
 })

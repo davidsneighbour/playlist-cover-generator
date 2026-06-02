@@ -121,3 +121,21 @@ export function offCanvasBounds(width, height, canvasSize, margin = OFFCANVAS_MA
     maxY: canvasSize - margin,
   }
 }
+
+// New bounding box when dragging a corner handle. `fixedX/fixedY` is the corner
+// that stays put (opposite the one being dragged); `pointerX/pointerY` is the
+// cursor. With `lockAspect`, the box keeps `ratio` (width / height). Width and
+// height never go below `min`.
+export function resizeFromCorner(fixedX, fixedY, pointerX, pointerY, { ratio, lockAspect = false, min = 8 } = {}) {
+  let width = Math.abs(fixedX - pointerX)
+  let height = Math.abs(fixedY - pointerY)
+  if (lockAspect && ratio) {
+    if (width / ratio >= height) height = width / ratio
+    else width = height * ratio
+  }
+  width = Math.max(min, width)
+  height = Math.max(min, height)
+  const x = pointerX >= fixedX ? fixedX : fixedX - width
+  const y = pointerY >= fixedY ? fixedY : fixedY - height
+  return { x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height) }
+}

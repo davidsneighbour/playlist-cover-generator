@@ -3,7 +3,7 @@ import { reorder, bringToFront, sendToBack, displayIndexToArrayIndex } from '../
 import { TEMPLATES, getTemplate, instantiateTemplate } from '../lib/templates'
 import { textStrokeAttrs, textShadowFilter } from '../lib/text'
 import { BUILTIN_FONTS, googleFontCssUrl, parseFontFaces, buildFontFaceRule, addFont, googleFontsListUrl, parseFontFamilies, filterFontNames } from '../lib/fonts'
-import { BLEND_MODES, createImageLayer, clampOpacity, centeredPosition, coverDimensions, scaleDimensions, dimensionPercent, aspectHeight, aspectWidth, offCanvasBounds } from '../lib/images'
+import { BLEND_MODES, createImageLayer, clampOpacity, centeredPosition, coverDimensions, scaleDimensions, dimensionPercent, aspectHeight, aspectWidth, offCanvasBounds, resizeFromCorner } from '../lib/images'
 import { SHAPE_TYPES, createShape, ellipseGeometry } from '../lib/shapes'
 import { averageRgb, pickContrastColor } from '../lib/color'
 import { isOpen as isCardOpen, toggleOpen, togglePin, openCard } from '../lib/accordion'
@@ -254,6 +254,54 @@ function ImageElement({ image, onSelect, onDrag, snapToGrid, gridSpacing, canvas
   )
 }
 
+// Corner handles for resizing the selected image. The opposite corner stays
+// fixed; holding Shift locks the aspect ratio. Tagged via the wrapping group so
+// exports strip them.
+function ResizeHandles({ box, ratio, onResize }) {
+  const SIZE = 12
+  const corners = [
+    { key: 'tl', x: box.x, y: box.y, fx: box.x + box.width, fy: box.y + box.height, cursor: 'nwse-resize' },
+    { key: 'tr', x: box.x + box.width, y: box.y, fx: box.x, fy: box.y + box.height, cursor: 'nesw-resize' },
+    { key: 'bl', x: box.x, y: box.y + box.height, fx: box.x + box.width, fy: box.y, cursor: 'nesw-resize' },
+    { key: 'br', x: box.x + box.width, y: box.y + box.height, fx: box.x, fy: box.y, cursor: 'nwse-resize' },
+  ]
+  const startResize = (e, corner) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const svg = e.currentTarget.closest('svg')
+    const toSvg = (clientX, clientY) => {
+      const p = svg.createSVGPoint()
+      p.x = clientX
+      p.y = clientY
+      return p.matrixTransform(svg.getScreenCTM().inverse())
+    }
+    const onMove = (ev) => {
+      const m = toSvg(ev.clientX, ev.clientY)
+      onResize(resizeFromCorner(corner.fx, corner.fy, m.x, m.y, { ratio, lockAspect: ev.shiftKey }))
+    }
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+  return corners.map(c => (
+    <rect
+      key={c.key}
+      x={c.x - SIZE / 2}
+      y={c.y - SIZE / 2}
+      width={SIZE}
+      height={SIZE}
+      fill="#ffffff"
+      stroke="#3b82f6"
+      strokeWidth={1.5}
+      style={{ cursor: c.cursor }}
+      onMouseDown={e => startResize(e, c)}
+    />
+  ))
+}
+
 function ShapeElement({ shape, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize }) {
   const handleMouseDown = useSvgDrag({
     getAnchor: () => ({ x: shape.x, y: shape.y }),
@@ -280,7 +328,7 @@ function ShapeElement({ shape, onSelect, onDrag, snapToGrid, gridSpacing, canvas
   return <rect x={shape.x} y={shape.y} width={shape.width} height={shape.height} {...common} />
 }
 
-function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, onSelectText, onSelectImage, onSelectShape, onDragText, onDragImage, onDragShape, displaySize }) {
+function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, onSelectText, onSelectImage, onSelectShape, onDragText, onDragImage, onDragShape, onResizeImage, displaySize }) {
   const svgRef = useRef(null)
   const [textBox, setTextBox] = useState(null)
 
@@ -381,19 +429,22 @@ function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, on
 
       {selectedImageId && (state.images || []).find(i => i.id === selectedImageId) && (() => {
         const img = state.images.find(i => i.id === selectedImageId)
+        const ratio = img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : img.width / img.height
         return (
-          <rect
-            data-layer="selection"
-            x={img.x}
-            y={img.y}
-            width={img.width}
-            height={img.height}
-            fill="none"
-            stroke="#3b82f6"
-            strokeWidth={1.5}
-            strokeDasharray="4 2"
-            style={{ pointerEvents: 'none' }}
-          />
+          <g data-layer="selection">
+            <rect
+              x={img.x}
+              y={img.y}
+              width={img.width}
+              height={img.height}
+              fill="none"
+              stroke="#3b82f6"
+              strokeWidth={1.5}
+              strokeDasharray="4 2"
+              style={{ pointerEvents: 'none' }}
+            />
+            <ResizeHandles box={img} ratio={ratio} onResize={(patch) => onResizeImage(img.id, patch)} />
+          </g>
         )
       })()}
 
@@ -733,6 +784,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     }), `img-drag-${id}`)
   }, [update])
 
+  const handleResizeImage = useCallback((id, patch) => {
+    updateImage(id, patch, `img-resize-${id}`)
+  }, [updateImage])
+
   const handleImageToFront = useCallback((id) => {
     update(prev => {
       const next = bringToFront(prev.images || [], id)
@@ -939,6 +994,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
             onDragText={handleDragText}
             onDragImage={handleDragImage}
             onDragShape={handleDragShape}
+            onResizeImage={handleResizeImage}
             displaySize={displaySize}
           />
         </div>
