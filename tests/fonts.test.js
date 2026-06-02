@@ -6,6 +6,9 @@ import {
   parseFontFaces,
   buildFontFaceRule,
   addFont,
+  googleFontsListUrl,
+  parseFontFamilies,
+  filterFontNames,
 } from '../src/lib/fonts'
 
 describe('BUILTIN_FONTS', () => {
@@ -118,5 +121,44 @@ describe('addFont', () => {
   it('returns the same reference for a duplicate', () => {
     const list = ['Open Sans']
     expect(addFont(list, 'Open Sans')).toBe(list)
+  })
+})
+
+describe('googleFontsListUrl', () => {
+  it('builds the catalog URL with an encoded key and sort', () => {
+    expect(googleFontsListUrl('a b&c')).toBe(
+      'https://www.googleapis.com/webfonts/v1/webfonts?key=a%20b%26c&sort=popularity'
+    )
+  })
+})
+
+describe('parseFontFamilies', () => {
+  it('extracts family names from an API response', () => {
+    expect(parseFontFamilies({ items: [{ family: 'Roboto' }, { family: 'Inter' }] })).toEqual(['Roboto', 'Inter'])
+  })
+
+  it('handles missing or empty items', () => {
+    expect(parseFontFamilies({})).toEqual([])
+    expect(parseFontFamilies(null)).toEqual([])
+  })
+})
+
+describe('filterFontNames', () => {
+  const names = ['Roboto', 'Roboto Slab', 'Slabo 27px', 'Open Sans', 'Rob8 Mono']
+
+  it('returns nothing for an empty query', () => {
+    expect(filterFontNames(names, '  ')).toEqual([])
+  })
+
+  it('ranks prefix matches above substring matches, case-insensitively', () => {
+    expect(filterFontNames(names, 'rob')).toEqual(['Roboto', 'Roboto Slab', 'Rob8 Mono'])
+  })
+
+  it('matches substrings too', () => {
+    expect(filterFontNames(names, 'slab')).toEqual(['Slabo 27px', 'Roboto Slab'])
+  })
+
+  it('respects the limit', () => {
+    expect(filterFontNames(names, 'o', 2)).toHaveLength(2)
   })
 })

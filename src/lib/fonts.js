@@ -79,3 +79,29 @@ export function addFont(list, name) {
   if (!normalized || list.includes(normalized)) return list
   return [...list, normalized]
 }
+
+// URL for the Google Fonts Developer API font list (the whole catalog in one
+// call; there is no server-side search, so we filter client-side).
+export function googleFontsListUrl(apiKey, { sort = 'popularity' } = {}) {
+  return `https://www.googleapis.com/webfonts/v1/webfonts?key=${encodeURIComponent(apiKey)}&sort=${sort}`
+}
+
+// Family names from a Google Fonts API response.
+export function parseFontFamilies(apiResponse) {
+  return (apiResponse?.items || []).map(item => item.family).filter(Boolean)
+}
+
+// Typeahead filter over font names: case-insensitive, names starting with the
+// query rank above names merely containing it, capped at `limit`.
+export function filterFontNames(names, query, limit = 8) {
+  const q = String(query ?? '').trim().toLowerCase()
+  if (!q) return []
+  const starts = []
+  const contains = []
+  for (const name of names) {
+    const lower = name.toLowerCase()
+    if (lower.startsWith(q)) starts.push(name)
+    else if (lower.includes(q)) contains.push(name)
+  }
+  return [...starts, ...contains].slice(0, limit)
+}

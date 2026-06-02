@@ -1,8 +1,8 @@
-import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react'
 import { reorder, bringToFront, sendToBack, displayIndexToArrayIndex } from '../lib/layers'
 import { TEMPLATES, getTemplate, instantiateTemplate } from '../lib/templates'
 import { textStrokeAttrs, textShadowFilter } from '../lib/text'
-import { BUILTIN_FONTS, googleFontCssUrl, parseFontFaces, buildFontFaceRule, addFont } from '../lib/fonts'
+import { BUILTIN_FONTS, googleFontCssUrl, parseFontFaces, buildFontFaceRule, addFont, googleFontsListUrl, parseFontFamilies, filterFontNames } from '../lib/fonts'
 import { BLEND_MODES, createImageLayer, clampOpacity, centeredPosition, coverDimensions, scaleDimensions, dimensionPercent, aspectHeight, aspectWidth, offCanvasBounds } from '../lib/images'
 import { SHAPE_TYPES, createShape, ellipseGeometry } from '../lib/shapes'
 import { averageRgb, pickContrastColor } from '../lib/color'
@@ -10,6 +10,10 @@ import { isOpen as isCardOpen, toggleOpen, togglePin, openCard } from '../lib/ac
 import { AccordionContext, CollapsibleCard } from './Accordion'
 
 const CANVAS_SIZE = 600
+
+// Optional Google Fonts API key for the font-search typeahead. Read from the
+// Vite env by default; a host embedding the component can pass its own.
+const ENV_GOOGLE_FONTS_API_KEY = import.meta.env.VITE_GOOGLE_FONTS_API_KEY
 
 const DEFAULT_STATE = {
   backgroundImage: null,
@@ -432,7 +436,7 @@ function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, on
   )
 }
 
-export default function CoverGenerator({ initialState, onStateChange, className = '' }) {
+export default function CoverGenerator({ initialState, onStateChange, className = '', googleFontsApiKey = ENV_GOOGLE_FONTS_API_KEY }) {
   const { state, canUndo, canRedo, commit, undo, redo } = useHistoryState({
     ...DEFAULT_STATE,
     ...initialState,
@@ -613,6 +617,25 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     })
     setCustomFontInput('')
   }, [update])
+
+  // Lazily fetch the Google Fonts catalog once (for the typeahead) when a key is
+  // configured. Filtering happens client-side; failures degrade to no suggestions.
+  const [googleFonts, setGoogleFonts] = useState(null)
+  const googleFontsLoading = useRef(false)
+  const ensureFontCatalog = useCallback(() => {
+    if (googleFonts !== null || googleFontsLoading.current || !googleFontsApiKey) return
+    googleFontsLoading.current = true
+    fetch(googleFontsListUrl(googleFontsApiKey))
+      .then(r => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then(json => setGoogleFonts(parseFontFamilies(json)))
+      .catch(() => setGoogleFonts([]))
+  }, [googleFonts, googleFontsApiKey])
+
+  const fontSuggestions = useMemo(() => {
+    if (!googleFonts || googleFonts.length === 0) return []
+    const have = new Set([...BUILTIN_FONTS, ...(state.fonts || [])])
+    return filterFontNames(googleFonts, customFontInput, 8).filter(n => !have.has(n))
+  }, [googleFonts, customFontInput, state.fonts])
 
   // Apply a predefined template. The current background image is kept; text and
   // grid are replaced. Goes through history, so it is a single undoable step.
@@ -973,9 +996,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
           <div className="flex gap-2">
             <input
               className="input flex-1"
-              placeholder="Google font name"
+              placeholder={googleFontsApiKey ? 'Search Google Fonts…' : 'Google font name'}
               value={customFontInput}
-              onChange={e => setCustomFontInput(e.target.value)}
+              onFocus={ensureFontCatalog}
+              onChange={e => { setCustomFontInput(e.target.value); ensureFontCatalog() }}
               onKeyDown={e => { if (e.key === 'Enter') handleAddFont(customFontInput) }}
             />
             <button
@@ -986,6 +1010,21 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               Add
             </button>
           </div>
+          {fontSuggestions.length > 0 && (
+            <ul className="border border-gray-200 rounded-md divide-y divide-gray-100 max-h-48 overflow-auto">
+              {fontSuggestions.map(name => (
+                <li key={name}>
+                  <button
+                    type="button"
+                    className="w-full text-left px-2 py-1.5 text-sm text-gray-700 hover:bg-blue-50 cursor-pointer"
+                    onClick={() => handleAddFont(name)}
+                  >
+                    {name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
           {(state.fonts || []).length > 0 && (
             <div className="flex flex-wrap gap-1">
               {(state.fonts || []).map(f => (
@@ -993,7 +1032,11 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               ))}
             </div>
           )}
-          <p className="text-[11px] text-gray-400 leading-tight">Loads from Google Fonts into the picker, and embeds used fonts into PNG and SVG exports.</p>
+          <p className="text-[11px] text-gray-400 leading-tight">
+            {googleFontsApiKey
+              ? 'Type to search Google Fonts, or enter an exact name. Added fonts join the picker and embed into PNG and SVG exports.'
+              : 'Enter an exact Google font name. Set VITE_GOOGLE_FONTS_API_KEY for live search suggestions.'}
+          </p>
         </CollapsibleCard>
 
         {/* Background Image */}

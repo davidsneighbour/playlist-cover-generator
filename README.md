@@ -54,6 +54,25 @@ npm test           # run the Vitest suite once
 npm run test:watch # re-run on change
 ```
 
+### Font search (optional)
+
+The Fonts panel can search the live Google Fonts catalog as you type. This needs a free **Google Fonts Developer API key**:
+
+1. In the [Google Cloud Console](https://console.cloud.google.com/), create or select a project.
+2. Enable the [Web Fonts Developer API](https://console.cloud.google.com/apis/library/webfonts.googleapis.com).
+3. Under **APIs & Services → Credentials**, create an **API key**.
+4. Copy [.env.template](.env.template) to `.env.local` and set the key:
+
+```bash
+cp .env.template .env.local
+# then edit .env.local:
+# VITE_GOOGLE_FONTS_API_KEY=your_key_here
+```
+
+Restart `npm run dev` after changing env files. Without a key you can still add fonts by typing an exact family name; you just do not get search suggestions.
+
+Because this is a client-side app the key ships in the built JavaScript, so restrict it in the Cloud Console to the *Web Fonts Developer API* and to your HTTP referrers (include `http://localhost:5173/*` for local dev).
+
 ## Use as an embeddable component
 
 The editor is a single self-contained component. Import it into any React 19 app:
@@ -79,6 +98,7 @@ function Example() {
 | `initialState` | `object` | Partial state to seed the editor (grid, texts, snap settings). Merged over defaults. |
 | `onStateChange` | `function` | Called with the full state object on every change. Use it to persist or sync. |
 | `className` | `string` | Extra classes applied to the component's root element. |
+| `googleFontsApiKey` | `string` | Google Fonts API key for the font-search typeahead. Defaults to `VITE_GOOGLE_FONTS_API_KEY`; pass your own when embedding. |
 
 Tailwind CSS 4 must be available in the host app, or the component's utility classes will not be styled. See [DESIGN.md](DESIGN.md) for the tokens and component classes used.
 
