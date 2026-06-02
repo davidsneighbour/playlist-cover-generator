@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react'
+import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo, useId } from 'react'
 import { reorder, bringToFront, sendToBack, displayIndexToArrayIndex, duplicateById } from '../lib/layers'
 import { TEMPLATES, getTemplate, instantiateTemplate } from '../lib/templates'
 import { textStrokeAttrs, textShadowFilter } from '../lib/text'
@@ -1677,6 +1677,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
           <select
             className="input w-full"
             value={selectedTemplate}
+            aria-label="Template"
             onChange={e => setSelectedTemplate(e.target.value)}
           >
             <option value="">Select a template…</option>
@@ -1698,6 +1699,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
             <input
               className="input flex-1"
               placeholder={googleFontsApiKey ? 'Search Google Fonts…' : 'Google font name'}
+              aria-label="Search or add a Google font"
               value={customFontInput}
               onFocus={ensureFontCatalog}
               onChange={e => { setCustomFontInput(e.target.value); ensureFontCatalog() }}
@@ -2236,6 +2238,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
             <select
               className="input w-full"
               value={exportSize}
+              aria-label="Export size"
               onChange={e => update({ exportSize: clampExportSize(Number(e.target.value)) })}
             >
               {CANVAS_PRESETS.map(p => <option key={p.id} value={p.size}>{p.label}</option>)}
@@ -2268,10 +2271,12 @@ export default function CoverGenerator({ initialState, onStateChange, className 
 }
 
 function NumberInput({ label, value, min, max, onChange, hint }) {
+  const id = useId()
   return (
     <div>
-      <label className="block text-xs text-gray-500 mb-1">{label}{hint && <span className="text-gray-400 ml-1">({hint})</span>}</label>
+      <label htmlFor={id} className="block text-xs text-gray-500 mb-1">{label}{hint && <span className="text-gray-400 ml-1">({hint})</span>}</label>
       <input
+        id={id}
         type="number"
         className="input w-full"
         value={value}
