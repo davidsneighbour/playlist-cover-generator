@@ -14,6 +14,7 @@ import { SHORTCUTS, formatKeys, nudgeDelta, isDeleteKey } from '../lib/shortcuts
 import { clampMenuPosition } from '../lib/menu'
 import { STORAGE_KEY, serializeState, serializeStateWithoutImage, parseStoredState } from '../lib/storage'
 import { SHARE_PARAM, encodeShareState, decodeShareState, readShareToken } from '../lib/share'
+import { buildZip } from '../lib/zip'
 import { averageRgb, pickContrastColor } from '../lib/color'
 import { isOpen as isCardOpen, toggleOpen, togglePin, openCard } from '../lib/accordion'
 import { AccordionContext, CollapsibleCard } from './Accordion'
@@ -59,6 +60,23 @@ function bufferToBase64(buffer) {
   let binary = ''
   for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
   return btoa(binary)
+}
+
+// Read an image File into a data URL plus its natural dimensions (for batch
+// export, which swaps each uploaded image into the current layout).
+function loadImageFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const data = ev.target.result
+      const probe = new Image()
+      probe.onload = () => resolve({ data, naturalWidth: probe.naturalWidth, naturalHeight: probe.naturalHeight })
+      probe.onerror = () => reject(new Error('decode failed'))
+      probe.src = data
+    }
+    reader.onerror = () => reject(new Error('read failed'))
+    reader.readAsDataURL(file)
+  })
 }
 
 function snapValue(value, spacing, enabled) {
@@ -803,6 +821,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const [helpOpen, setHelpOpen] = useState(false)
   const [contextMenu, setContextMenu] = useState(null)
   const [shareCopied, setShareCopied] = useState(false)
+  const [batchBusy, setBatchBusy] = useState(false)
   const [dragOverArrayIndex, setDragOverArrayIndex] = useState(null)
   const [selectedTemplate, setSelectedTemplate] = useState('')
   const [customFontInput, setCustomFontInput] = useState('')
@@ -811,6 +830,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const fileInputRef = useRef(null)
   const jsonInputRef = useRef(null)
   const imageInputRef = useRef(null)
+  const batchFileInputRef = useRef(null)
   const dragIndexRef = useRef(null)
   const bgColorRef = useRef({ r: 255, g: 255, b: 255 })
 
@@ -1346,6 +1366,31 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     clone.insertBefore(style, clone.firstChild)
   }, [state.texts, state.fonts, loadFontCatalog])
 
+  // Rasterize a prepared SVG clone (grid/selection stripped, fonts embedded,
+  // width/height set) to a PNG Blob at the chosen export size. Shared by the
+  // single PNG export and batch export.
+  const svgCloneToPngBlob = useCallback((clone) => {
+    const size = clampExportSize(state.exportSize)
+    const svgStr = new XMLSerializer().serializeToString(clone)
+    const url = URL.createObjectURL(new Blob([svgStr], { type: 'image/svg+xml' }))
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        canvas.width = size
+        canvas.height = size
+        const ctx = canvas.getContext('2d')
+        const scale = exportScale(size, CANVAS_SIZE)
+        ctx.scale(scale, scale)
+        ctx.drawImage(img, 0, 0)
+        URL.revokeObjectURL(url)
+        canvas.toBlob(b => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/png')
+      }
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('image load failed')) }
+      img.src = url
+    })
+  }, [state.exportSize])
+
   // Export PNG
   const exportPNG = useCallback(async () => {
     const svgEl = containerRef.current?.querySelector('svg')
@@ -1355,32 +1400,68 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     clone.setAttribute('width', CANVAS_SIZE)
     clone.setAttribute('height', CANVAS_SIZE)
     await embedFontsInClone(clone)
+    const blob = await svgCloneToPngBlob(clone)
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = 'cover.png'
+    a.click()
+  }, [embedFontsInClone, svgCloneToPngBlob])
 
-    const serializer = new XMLSerializer()
-    const svgStr = serializer.serializeToString(clone)
-    const blob = new Blob([svgStr], { type: 'image/svg+xml' })
-    const url = URL.createObjectURL(blob)
-
-    const size = clampExportSize(state.exportSize)
-    const img = new Image()
-    img.onload = () => {
-      const canvas = document.createElement('canvas')
-      canvas.width = size
-      canvas.height = size
-      const ctx = canvas.getContext('2d')
-      const scale = exportScale(size, CANVAS_SIZE)
-      ctx.scale(scale, scale)
-      ctx.drawImage(img, 0, 0)
-      URL.revokeObjectURL(url)
-      canvas.toBlob(blob => {
+  // Batch export: apply the current layout to several uploaded images and
+  // download them as a ZIP. Each image is swapped into a clone of the live SVG
+  // as the background (cropped with the current zoom/pan and filtered the same),
+  // rasterized to PNG, and stored (uncompressed) in the archive.
+  const batchExport = useCallback(async (files) => {
+    const list = Array.from(files || [])
+    const svgEl = containerRef.current?.querySelector('svg')
+    if (list.length === 0 || !svgEl) return
+    setBatchBusy(true)
+    try {
+      const filterActive = isFilterActive(state.backgroundFilters)
+      const entries = []
+      for (let i = 0; i < list.length; i++) {
+        let loaded
+        try { loaded = await loadImageFile(list[i]) } catch { continue }
+        const clone = svgEl.cloneNode(true)
+        clone.querySelectorAll('[data-layer="grid"], [data-layer="selection"]').forEach(el => el.remove())
+        clone.setAttribute('width', CANVAS_SIZE)
+        clone.setAttribute('height', CANVAS_SIZE)
+        let bg = clone.querySelector('[data-layer="background"]')
+        if (!bg) {
+          bg = document.createElementNS('http://www.w3.org/2000/svg', 'image')
+          bg.setAttribute('data-layer', 'background')
+          bg.setAttribute('clip-path', 'url(#canvas-clip)')
+          const gradient = clone.querySelector('[data-layer="background-gradient"]')
+          const defs = clone.querySelector('defs')
+          const ref = gradient ? gradient.nextSibling : (defs ? defs.nextSibling : clone.firstChild)
+          clone.insertBefore(bg, ref)
+        }
+        const crop = backgroundCrop(loaded.naturalWidth, loaded.naturalHeight, CANVAS_SIZE, state.backgroundTransform || undefined)
+        bg.setAttribute('href', loaded.data)
+        bg.setAttributeNS('http://www.w3.org/1999/xlink', 'href', loaded.data)
+        bg.setAttribute('x', crop.x)
+        bg.setAttribute('y', crop.y)
+        bg.setAttribute('width', crop.width)
+        bg.setAttribute('height', crop.height)
+        bg.setAttribute('preserveAspectRatio', 'none')
+        if (filterActive) bg.setAttribute('filter', 'url(#bg-filter)')
+        await embedFontsInClone(clone)
+        let blob
+        try { blob = await svgCloneToPngBlob(clone) } catch { continue }
+        const buf = new Uint8Array(await blob.arrayBuffer())
+        const base = (list[i].name || `image-${i + 1}`).replace(/\.[^.]+$/, '')
+        entries.push({ name: `${String(i + 1).padStart(2, '0')}-${base}.png`, data: buf })
+      }
+      if (entries.length > 0) {
         const a = document.createElement('a')
-        a.href = URL.createObjectURL(blob)
-        a.download = 'cover.png'
+        a.href = URL.createObjectURL(new Blob([buildZip(entries)], { type: 'application/zip' }))
+        a.download = 'covers.zip'
         a.click()
-      }, 'image/png')
+      }
+    } finally {
+      setBatchBusy(false)
     }
-    img.src = url
-  }, [embedFontsInClone, state.exportSize])
+  }, [state.backgroundFilters, state.backgroundTransform, embedFontsInClone, svgCloneToPngBlob])
 
   // Export SVG
   const exportSVG = useCallback(async () => {
@@ -2108,6 +2189,15 @@ export default function CoverGenerator({ initialState, onStateChange, className 
           <button className="w-full btn-secondary text-sm" onClick={() => jsonInputRef.current?.click()}>Load JSON state</button>
           <button className="w-full btn-secondary text-sm" onClick={copyShareLink}>{shareCopied ? 'Link copied!' : 'Copy share link'}</button>
           <p className="text-[11px] text-gray-400 leading-tight">The share link encodes the layout in the URL (the background image is not included).</p>
+          <input ref={batchFileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { batchExport(e.target.files); e.target.value = '' }} />
+          <button
+            className="w-full btn-secondary text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+            disabled={batchBusy}
+            onClick={() => batchFileInputRef.current?.click()}
+          >
+            {batchBusy ? 'Exporting…' : 'Batch export (ZIP)'}
+          </button>
+          <p className="text-[11px] text-gray-400 leading-tight">Applies the current layout (text, shapes, crop, filters) to several images and downloads a ZIP of PNGs.</p>
         </CollapsibleCard>
       </div>
       </AccordionContext.Provider>

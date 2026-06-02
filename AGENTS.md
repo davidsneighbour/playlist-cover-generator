@@ -91,7 +91,8 @@ The single state object is the contract for JSON import/export and the `initialS
 ### Export rules
 
 * PNG and SVG exporters clone the live SVG, remove `[data-layer="grid"]`, and clear interaction-only styles. The grid must never appear in exports.
-* PNG rasterizes at `state.exportSize` (via `exportScale(exportSize, CANVAS_SIZE)` from [src/lib/canvas.js](src/lib/canvas.js)); SVG sets its width/height to the same size and keeps the 600 `viewBox`. SVG must stay valid and editable in external tools, so avoid embedding interaction handlers or editor-only attributes in the serialized output.
+* PNG rasterizes at `state.exportSize` (via `exportScale(exportSize, CANVAS_SIZE)` from [src/lib/canvas.js](src/lib/canvas.js)); SVG sets its width/height to the same size and keeps the 600 `viewBox`. PNG rasterization is shared through `svgCloneToPngBlob` (prepare the clone, then it serializes, loads, and draws to a canvas), used by both single and batch export.
+* Batch export clones the live SVG once per uploaded image, swaps that image in as the `data-layer="background"` element (creating one after the gradient/defs when there is no current background), crops it with `backgroundCrop` and the current transform/filter, rasterizes via `svgCloneToPngBlob`, and packs the PNGs with the dependency-free STORE-method ZIP writer (`buildZip`/`crc32` in [src/lib/zip.js](src/lib/zip.js), tested). SVG must stay valid and editable in external tools, so avoid embedding interaction handlers or editor-only attributes in the serialized output.
 
 ## Conventions
 

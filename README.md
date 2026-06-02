@@ -27,6 +27,7 @@ Built with React 19, Vite 6, and Tailwind CSS 4. No heavy editor dependencies: t
 * **Share link** — copy a URL that encodes the layout (background image excluded) so anyone opening it sees the same design.
 * **Export size presets** — 600, 1000, or 3000 (the square Spotify and Apple Music spec) for the PNG and SVG output.
 * **Export** to high-quality PNG and to clean, editable SVG.
+* **Batch export** — apply the current layout to several uploaded images at once and download them as a ZIP of PNGs.
 * **Help overlay** — press F1 (or the help link) for a modal of keyboard shortcuts, tips, and the app version.
 
 ## Getting started
@@ -151,6 +152,7 @@ Add a `LICENSE` file and a `license` field to `package.json` before publishing a
 | [src/lib/menu.js](src/lib/menu.js) | Context-menu viewport clamping (unit-tested). |
 | [src/lib/storage.js](src/lib/storage.js) | localStorage auto-save serialize/parse helpers (unit-tested). |
 | [src/lib/share.js](src/lib/share.js) | Share-link URL-safe state encode/decode (unit-tested). |
+| [src/lib/zip.js](src/lib/zip.js) | Dependency-free ZIP writer (STORE) and CRC-32 for batch export (unit-tested). |
 | [src/index.js](src/index.js) | Library entry that re-exports `CoverGenerator`. |
 | [src/App.jsx](src/App.jsx) | Demo application wrapper. |
 | [src/main.jsx](src/main.jsx) | Vite entry point for the demo. |
@@ -161,6 +163,7 @@ Add a `LICENSE` file and a `license` field to `package.json` before publishing a
 * **PNG** renders the SVG to a canvas at the chosen export size (600, 1000, or 3000px square) for a crisp raster image. The grid overlay is stripped first.
 * **SVG** is serialized directly with the grid removed and interaction styles cleaned up, and its width/height set to the export size; the `viewBox` stays at 600 so it scales cleanly and stays editable in tools such as Inkscape or Illustrator.
 * **JSON** captures the layout (text, positions, grid, snap) without the embedded image data, keeping the file small and portable. Re-importing restores the layout over whichever image is loaded next.
+* **Batch ZIP** renders the current layout over each of several uploaded images (each cropped with the current zoom/pan and filtered the same) and downloads a ZIP of PNGs, built with a small dependency-free ZIP writer.
 
 ## Documentation
 
