@@ -53,6 +53,10 @@ The `.btn-secondary` class: white background, `border-gray-200` stroke, `text-gr
 
 The `.input` class: `border border-gray-200 rounded-md px-2 py-1.5 text-sm`. Focus ring is `ring-2 ring-blue-400`.
 
+### Icons
+
+Icons are from [Lucide](https://lucide.dev) (`lucide-react`). They inherit the current text colour (`currentColor`) and use a consistent size: `h-4 w-4` (16px) inside labeled buttons, `h-3.5 w-3.5` (14px) for icon-only controls such as the layer-row actions. The `.btn-primary` and `.btn-secondary` classes are `inline-flex` with a `gap-1.5`, so an icon placed before the label aligns automatically. Icon-only buttons keep a `title` and `aria-label`; purely decorative icons are `aria-hidden`.
+
 ### Canvas
 
 A `rounded-lg overflow-hidden shadow-md border border-gray-200` frame on a white background. Selection is shown with a blue dashed rectangle (`stroke="#3b82f6"` and `stroke-dasharray="4 2"`).

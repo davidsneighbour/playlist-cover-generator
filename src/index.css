@@ -23,11 +23,11 @@
 @layer components {
   .btn-primary {
     /* blue-600 base: white text on blue-600 is 5.17:1 (AA); blue-500 was 3.68:1. */
-    @apply bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-medium py-2 px-3 rounded-md text-sm transition-colors cursor-pointer border-0;
+    @apply inline-flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-medium py-2 px-3 rounded-md text-sm transition-colors cursor-pointer border-0;
   }
 
   .btn-secondary {
-    @apply bg-white hover:bg-gray-50 active:bg-gray-100 text-gray-700 font-medium py-2 px-3 rounded-md text-sm border border-gray-200 hover:border-gray-300 transition-colors cursor-pointer;
+    @apply inline-flex items-center justify-center gap-1.5 bg-white hover:bg-gray-50 active:bg-gray-100 text-gray-700 font-medium py-2 px-3 rounded-md text-sm border border-gray-200 hover:border-gray-300 transition-colors cursor-pointer;
   }
 
   .input {

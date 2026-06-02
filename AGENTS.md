@@ -12,6 +12,7 @@ An embeddable React component that generates square playlist cover art. A user u
 * **Vite 6** for dev server and build.
 * **Tailwind CSS 4** via the `@tailwindcss/vite` plugin (no `tailwind.config.js`; configuration is CSS-first in [src/index.css](src/index.css)).
 * JavaScript with JSX (`.jsx`). There is no TypeScript in this project.
+* **Headless UI** (`@headlessui/react`) for the accessible dialog and disclosure transitions, and **Lucide** (`lucide-react`) for icons.
 
 ## Commands
 
@@ -99,9 +100,10 @@ The single state object is the contract for JSON import/export and the `initialS
 
 * Match the existing style in [src/components/CoverGenerator.jsx](src/components/CoverGenerator.jsx): functional components, `useCallback` for handlers passed as props, and small helper components within the file.
 * Styling is Tailwind utility classes plus the shared `.btn-primary`, `.btn-secondary`, and `.input` classes defined in [src/index.css](src/index.css). Reuse those classes instead of repeating utility chains.
+* Icons come from `lucide-react`. The `.btn-*` classes are `inline-flex items-center justify-center gap-1.5`, so a leading icon before the label aligns automatically; use `h-4 w-4` for icons in labeled buttons and `h-3.5 w-3.5` for icon-only controls (layer rows). Icon-only buttons keep their `title` and `aria-label`; decorative icons get `aria-hidden`.
 * Follow [DESIGN.md](DESIGN.md) for color, typography, and spacing. The theme is light, minimal, and content-first.
 * Keep the component dependency-free where reasonable. Do not add a heavy SVG-editor library; the value here is clean, portable SVG.
-* The package ships as a library via `npm run build:lib` ([vite.config.lib.js](vite.config.lib.js)): entry [src/index.js](src/index.js), ESM + CJS output, with `react`, `react-dom`, `react/jsx-runtime`, and `@headlessui/react` left external (React/React-DOM are peer dependencies, Headless UI a regular one). The default `npm run build` still builds the demo app. If you add a runtime dependency, decide deliberately whether it should be bundled, a peer, or external, and update both the lib config's `external` list and `package.json`.
+* The package ships as a library via `npm run build:lib` ([vite.config.lib.js](vite.config.lib.js)): entry [src/index.js](src/index.js), ESM + CJS output, with `react`, `react-dom`, `react/jsx-runtime`, `@headlessui/react`, and `lucide-react` left external (React/React-DOM are peer dependencies, Headless UI and Lucide regular ones). The default `npm run build` still builds the demo app. If you add a runtime dependency, decide deliberately whether it should be bundled, a peer, or external, and update both the lib config's `external` list and `package.json`.
 
 ### Tests
 

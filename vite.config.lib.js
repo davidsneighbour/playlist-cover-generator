@@ -18,13 +18,14 @@ export default defineConfig({
       fileName: (format) => `playlist-cover-generator.${format === 'es' ? 'js' : 'cjs'}`,
     },
     rollupOptions: {
-      external: ['react', 'react-dom', 'react/jsx-runtime', '@headlessui/react'],
+      external: ['react', 'react-dom', 'react/jsx-runtime', '@headlessui/react', 'lucide-react'],
       output: {
         globals: {
           react: 'React',
           'react-dom': 'ReactDOM',
           'react/jsx-runtime': 'jsxRuntime',
           '@headlessui/react': 'HeadlessUI',
+          'lucide-react': 'lucide',
         },
       },
     },

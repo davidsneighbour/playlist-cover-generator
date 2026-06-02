@@ -2,7 +2,7 @@
 
 A lightweight, embeddable graphic editor for creating square playlist cover art. Upload a background image, layer editable text on top, and export to high-quality PNG, editable SVG, or a re-loadable JSON project file.
 
-Built with React 19, Vite 6, and Tailwind CSS 4. No heavy editor dependencies: the canvas is plain, exportable SVG.
+Built with React 19, Vite 6, and Tailwind CSS 4, with Headless UI and Lucide icons. No heavy editor dependencies: the canvas is plain, exportable SVG.
 
 ## Features
 
@@ -94,7 +94,7 @@ The editor is a single self-contained component. Install it alongside its peer d
 npm install playlist-cover-generator react react-dom
 ```
 
-`react` and `react-dom` (>= 18) are peer dependencies you provide; `@headlessui/react` is bundled as a regular dependency. The package ships ES module and CommonJS builds and is side-effect free for tree-shaking. Import it into any React app:
+`react` and `react-dom` (>= 18) are peer dependencies you provide; `@headlessui/react` and `lucide-react` (icons) are bundled as regular dependencies. The package ships ES module and CommonJS builds and is side-effect free for tree-shaking. Import it into any React app:
 
 ```jsx
 import { CoverGenerator } from 'playlist-cover-generator'

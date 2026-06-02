@@ -20,6 +20,11 @@ import { averageRgb, pickContrastColor } from '../lib/color'
 import { isOpen as isCardOpen, toggleOpen, togglePin, openCard } from '../lib/accordion'
 import { AccordionContext, CollapsibleCard } from './Accordion'
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
+import {
+  Undo2, Redo2, LayoutTemplate, Plus, Search, Upload, Trash2, RotateCcw,
+  Square, Circle, GripVertical, Copy, BringToFront, SendToBack,
+  FileImage, FileCode, Save, FolderOpen, Link, Package, CircleHelp, X,
+} from 'lucide-react'
 import { version as APP_VERSION } from '../../package.json'
 
 const CANVAS_SIZE = 600
@@ -730,7 +735,7 @@ function HelpDialog({ open, onClose }) {
               <DialogTitle className="text-base font-semibold text-gray-900">Playlist cover generator</DialogTitle>
               <p className="text-xs text-gray-400 mt-0.5">Version {APP_VERSION}</p>
             </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-700 cursor-pointer text-lg leading-none px-1" aria-label="Close help">✕</button>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-700 cursor-pointer p-1 -m-1" aria-label="Close help"><X className="h-5 w-5" /></button>
           </div>
           <div className="p-4 flex flex-col gap-4">
             <p className="text-sm text-gray-600">Build a square playlist cover: set a background, layer text, shapes, and images, then export to PNG, SVG, or a re-loadable JSON project.</p>
@@ -802,9 +807,10 @@ function ContextMenu({ x, y, actions, onClose }) {
         <button
           key={a.label}
           type="button"
-          className={`block w-full text-left px-3 py-1.5 cursor-pointer hover:bg-gray-50 ${a.danger ? 'text-red-600 hover:bg-red-50' : 'text-gray-700'}`}
+          className={`flex w-full items-center gap-2 text-left px-3 py-1.5 cursor-pointer hover:bg-gray-50 ${a.danger ? 'text-red-600 hover:bg-red-50' : 'text-gray-700'}`}
           onClick={() => { a.onClick(); onClose() }}
         >
+          {a.icon && <a.icon className="h-4 w-4" aria-hidden="true" />}
           {a.label}
         </button>
       ))}
@@ -1590,10 +1596,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     const toBack = kind === 'text' ? handleSendToBack : kind === 'image' ? handleImageToBack : handleShapeToBack
     const del = kind === 'text' ? deleteText : kind === 'image' ? deleteImage : deleteShape
     return [
-      { label: 'Duplicate', onClick: () => dup(id) },
-      { label: 'Bring to front', onClick: () => toFront(id) },
-      { label: 'Send to back', onClick: () => toBack(id) },
-      { label: 'Delete', onClick: () => del(id), danger: true },
+      { label: 'Duplicate', icon: Copy, onClick: () => dup(id) },
+      { label: 'Bring to front', icon: BringToFront, onClick: () => toFront(id) },
+      { label: 'Send to back', icon: SendToBack, onClick: () => toBack(id) },
+      { label: 'Delete', icon: Trash2, onClick: () => del(id), danger: true },
     ]
   }, [contextMenu, duplicateText, duplicateImage, duplicateShape, handleBringToFront, handleImageToFront, handleShapeToFront, handleSendToBack, handleImageToBack, handleShapeToBack, deleteText, deleteImage, deleteShape])
 
@@ -1639,10 +1645,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
         <p className="text-xs text-gray-400">Exports at {exportSize}×{exportSize}px · click a layer to select · drag to move · Ctrl+Z to undo</p>
         <button
           type="button"
-          className="text-xs text-gray-400 hover:text-gray-600 underline-offset-2 hover:underline cursor-pointer"
+          className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 underline-offset-2 hover:underline cursor-pointer"
           onClick={() => setHelpOpen(true)}
         >
-          Keyboard shortcuts &amp; help (F1)
+          <CircleHelp className="h-3.5 w-3.5" />Keyboard shortcuts &amp; help (F1)
         </button>
       </div>
 
@@ -1659,7 +1665,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               disabled={!canUndo}
               title="Undo (Ctrl+Z)"
             >
-              ↶ Undo
+              <Undo2 className="h-4 w-4" />Undo
             </button>
             <button
               className="btn-secondary text-sm disabled:opacity-40 disabled:cursor-not-allowed"
@@ -1667,7 +1673,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               disabled={!canRedo}
               title="Redo (Ctrl+Shift+Z)"
             >
-              ↷ Redo
+              <Redo2 className="h-4 w-4" />Redo
             </button>
           </div>
         </CollapsibleCard>
@@ -1688,7 +1694,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
             disabled={!selectedTemplate}
             onClick={() => handleApplyTemplate(selectedTemplate)}
           >
-            Apply template
+            <LayoutTemplate className="h-4 w-4" />Apply template
           </button>
           <p className="text-[11px] text-gray-400 leading-tight">Replaces text layers and grid; keeps your image. Undo with Ctrl+Z.</p>
         </CollapsibleCard>
@@ -1696,21 +1702,24 @@ export default function CoverGenerator({ initialState, onStateChange, className 
         {/* Fonts */}
         <CollapsibleCard id="fonts" title="Fonts">
           <div className="flex gap-2">
-            <input
-              className="input flex-1"
-              placeholder={googleFontsApiKey ? 'Search Google Fonts…' : 'Google font name'}
-              aria-label="Search or add a Google font"
-              value={customFontInput}
-              onFocus={ensureFontCatalog}
-              onChange={e => { setCustomFontInput(e.target.value); ensureFontCatalog() }}
-              onKeyDown={e => { if (e.key === 'Enter') handleAddFont(customFontInput) }}
-            />
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" aria-hidden="true" />
+              <input
+                className="input w-full pl-7"
+                placeholder={googleFontsApiKey ? 'Search Google Fonts…' : 'Google font name'}
+                aria-label="Search or add a Google font"
+                value={customFontInput}
+                onFocus={ensureFontCatalog}
+                onChange={e => { setCustomFontInput(e.target.value); ensureFontCatalog() }}
+                onKeyDown={e => { if (e.key === 'Enter') handleAddFont(customFontInput) }}
+              />
+            </div>
             <button
               className="btn-secondary text-sm disabled:opacity-40 disabled:cursor-not-allowed"
               disabled={!customFontInput.trim()}
               onClick={() => handleAddFont(customFontInput)}
             >
-              Add
+              <Plus className="h-4 w-4" />Add
             </button>
           </div>
           {fontSuggestions.length > 0 && (
@@ -1749,10 +1758,11 @@ export default function CoverGenerator({ initialState, onStateChange, className 
             className="w-full btn-primary"
             onClick={() => fileInputRef.current?.click()}
           >
-            {state.backgroundImage ? `Change image (${state.backgroundImage})` : 'Upload image'}
+            <Upload className="h-4 w-4 shrink-0" />
+            <span className="truncate">{state.backgroundImage ? `Change image (${state.backgroundImage})` : 'Upload image'}</span>
           </button>
           {state.backgroundImage && (
-            <button className="w-full btn-secondary text-sm" onClick={clearBackgroundImage}>Remove image</button>
+            <button className="w-full btn-secondary text-sm" onClick={clearBackgroundImage}><Trash2 className="h-4 w-4" />Remove image</button>
           )}
 
           {state.backgroundImageData && state.backgroundNaturalWidth && (
@@ -1770,7 +1780,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                 <label className="block text-xs text-gray-500 mb-1">Vertical position</label>
                 <input type="range" aria-label="Background vertical position" className="w-full accent-blue-500" min={0} max={100} value={Math.round((bgTransform.panY ?? 0.5) * 100)} onChange={e => updateBackgroundTransform({ panY: Number(e.target.value) / 100 }, 'bg-pany')} />
               </div>
-              <button className="w-full btn-secondary text-sm" onClick={() => updateBackgroundTransform(DEFAULT_BACKGROUND_TRANSFORM)}>Reset crop</button>
+              <button className="w-full btn-secondary text-sm" onClick={() => updateBackgroundTransform(DEFAULT_BACKGROUND_TRANSFORM)}><RotateCcw className="h-4 w-4" />Reset crop</button>
             </div>
           )}
 
@@ -1793,7 +1803,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                 <label className="block text-xs text-gray-500 mb-1">Blur ({bgFilters.blur}px)</label>
                 <input type="range" aria-label="Background blur" className="w-full accent-blue-500" min={0} max={20} step={0.5} value={bgFilters.blur} onChange={e => updateBackgroundFilters({ blur: Number(e.target.value) }, 'bg-blur')} />
               </div>
-              <button className="w-full btn-secondary text-sm" onClick={() => updateBackgroundFilters(DEFAULT_FILTERS)}>Reset filters</button>
+              <button className="w-full btn-secondary text-sm" onClick={() => updateBackgroundFilters(DEFAULT_FILTERS)}><RotateCcw className="h-4 w-4" />Reset filters</button>
             </div>
           )}
 
@@ -1905,7 +1915,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
 
         {/* Text Layers */}
         <CollapsibleCard id="text-layers" title="Text Layers">
-          <button className="w-full btn-primary" onClick={addText}>+ Add text</button>
+          <button className="w-full btn-primary" onClick={addText}><Plus className="h-4 w-4" />Add text</button>
           {state.texts.length === 0 && <p className="text-xs text-gray-400 text-center py-1">No text layers yet</p>}
           {state.texts.length > 1 && (
             <p className="text-[11px] text-gray-400 leading-tight">Drag to reorder · top of list is front</p>
@@ -1933,7 +1943,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                 onClick={() => selectText(selected ? null : t.id)}
               >
                 <div className="flex items-center gap-1">
-                  <span className="text-gray-300 select-none cursor-grab" title="Drag to reorder" aria-hidden="true">⠿</span>
+                  <span className="select-none cursor-grab shrink-0" title="Drag to reorder" aria-hidden="true"><GripVertical className="h-4 w-4 text-gray-300" /></span>
                   <button
                     type="button"
                     className="truncate flex-1 text-left bg-transparent border-0 p-0 cursor-pointer"
@@ -1943,10 +1953,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                   >
                     {t.content || '(empty)'}
                   </button>
-                  <button className="text-gray-400 hover:text-gray-700 text-xs px-1" title="Duplicate" aria-label="Duplicate text layer" onClick={(e) => { e.stopPropagation(); duplicateText(t.id) }}>⧉</button>
-                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Bring to front" aria-label="Bring text layer to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleBringToFront(t.id) }}>⤒</button>
-                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Send to back" aria-label="Send text layer to back" disabled={isBottom} onClick={(e) => { e.stopPropagation(); handleSendToBack(t.id) }}>⤓</button>
-                  <button className="text-gray-400 hover:text-red-500 text-xs px-1" title="Delete" aria-label="Delete text layer" onClick={(e) => { e.stopPropagation(); deleteText(t.id) }}>✕</button>
+                  <button className="text-gray-400 hover:text-gray-700 inline-flex items-center px-1" title="Duplicate" aria-label="Duplicate text layer" onClick={(e) => { e.stopPropagation(); duplicateText(t.id) }}><Copy className="h-3.5 w-3.5" /></button>
+                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 inline-flex items-center px-1" title="Bring to front" aria-label="Bring text layer to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleBringToFront(t.id) }}><BringToFront className="h-3.5 w-3.5" /></button>
+                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 inline-flex items-center px-1" title="Send to back" aria-label="Send text layer to back" disabled={isBottom} onClick={(e) => { e.stopPropagation(); handleSendToBack(t.id) }}><SendToBack className="h-3.5 w-3.5" /></button>
+                  <button className="text-gray-400 hover:text-red-500 inline-flex items-center px-1" title="Delete" aria-label="Delete text layer" onClick={(e) => { e.stopPropagation(); deleteText(t.id) }}><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>
               </div>
             )
@@ -1956,7 +1966,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
         {/* Image Layers */}
         <CollapsibleCard id="image-layers" title="Image Layers">
           <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={addImageLayer} />
-          <button className="w-full btn-primary" onClick={() => imageInputRef.current?.click()}>+ Add image</button>
+          <button className="w-full btn-primary" onClick={() => imageInputRef.current?.click()}><Plus className="h-4 w-4" />Add image</button>
           {(state.images || []).length === 0 && <p className="text-xs text-gray-400 text-center py-1">No image layers yet</p>}
           {[...(state.images || [])].reverse().map((img) => {
             const selected = img.id === selectedImageId
@@ -1977,10 +1987,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                   >
                     {img.name || 'image'}
                   </button>
-                  <button className="text-gray-400 hover:text-gray-700 text-xs px-1" title="Duplicate" aria-label="Duplicate image layer" onClick={(e) => { e.stopPropagation(); duplicateImage(img.id) }}>⧉</button>
-                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Bring to front" aria-label="Bring image layer to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleImageToFront(img.id) }}>⤒</button>
-                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Send to back" aria-label="Send image layer to back" disabled={isBottom} onClick={(e) => { e.stopPropagation(); handleImageToBack(img.id) }}>⤓</button>
-                  <button className="text-gray-400 hover:text-red-500 text-xs px-1" title="Delete" aria-label="Delete image layer" onClick={(e) => { e.stopPropagation(); deleteImage(img.id) }}>✕</button>
+                  <button className="text-gray-400 hover:text-gray-700 inline-flex items-center px-1" title="Duplicate" aria-label="Duplicate image layer" onClick={(e) => { e.stopPropagation(); duplicateImage(img.id) }}><Copy className="h-3.5 w-3.5" /></button>
+                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 inline-flex items-center px-1" title="Bring to front" aria-label="Bring image layer to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleImageToFront(img.id) }}><BringToFront className="h-3.5 w-3.5" /></button>
+                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 inline-flex items-center px-1" title="Send to back" aria-label="Send image layer to back" disabled={isBottom} onClick={(e) => { e.stopPropagation(); handleImageToBack(img.id) }}><SendToBack className="h-3.5 w-3.5" /></button>
+                  <button className="text-gray-400 hover:text-red-500 inline-flex items-center px-1" title="Delete" aria-label="Delete image layer" onClick={(e) => { e.stopPropagation(); deleteImage(img.id) }}><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>
               </div>
             )
@@ -2042,7 +2052,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               <NumberInput label="X position" value={selectedImage.x} min={-CANVAS_SIZE} max={CANVAS_SIZE} onChange={v => updateImage(selectedImage.id, { x: v }, `img-x-${selectedImage.id}`)} />
               <NumberInput label="Y position" value={selectedImage.y} min={-CANVAS_SIZE} max={CANVAS_SIZE} onChange={v => updateImage(selectedImage.id, { y: v }, `img-y-${selectedImage.id}`)} />
             </div>
-            <button className="w-full btn-secondary text-sm" onClick={() => deleteImage(selectedImage.id)}>Delete image</button>
+            <button className="w-full btn-secondary text-sm" onClick={() => deleteImage(selectedImage.id)}><Trash2 className="h-4 w-4" />Delete image</button>
           </CollapsibleCard>
           )
         })()}
@@ -2050,8 +2060,8 @@ export default function CoverGenerator({ initialState, onStateChange, className 
         {/* Shapes */}
         <CollapsibleCard id="shapes" title="Shapes">
           <div className="grid grid-cols-2 gap-2">
-            <button className="btn-primary text-sm" onClick={() => addShape('rect')}>+ Rectangle</button>
-            <button className="btn-primary text-sm" onClick={() => addShape('circle')}>+ Circle</button>
+            <button className="btn-primary text-sm" onClick={() => addShape('rect')}><Square className="h-4 w-4" />Rectangle</button>
+            <button className="btn-primary text-sm" onClick={() => addShape('circle')}><Circle className="h-4 w-4" />Circle</button>
           </div>
           {(state.shapes || []).length === 0 && <p className="text-xs text-gray-400 text-center py-1">No shapes yet</p>}
           {[...(state.shapes || [])].reverse().map((shape) => {
@@ -2074,10 +2084,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                   >
                     {shape.type}
                   </button>
-                  <button className="text-gray-400 hover:text-gray-700 text-xs px-1" title="Duplicate" aria-label="Duplicate shape" onClick={(e) => { e.stopPropagation(); duplicateShape(shape.id) }}>⧉</button>
-                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Bring to front" aria-label="Bring shape to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleShapeToFront(shape.id) }}>⤒</button>
-                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Send to back" aria-label="Send shape to back" disabled={isBottom} onClick={(e) => { e.stopPropagation(); handleShapeToBack(shape.id) }}>⤓</button>
-                  <button className="text-gray-400 hover:text-red-500 text-xs px-1" title="Delete" aria-label="Delete shape" onClick={(e) => { e.stopPropagation(); deleteShape(shape.id) }}>✕</button>
+                  <button className="text-gray-400 hover:text-gray-700 inline-flex items-center px-1" title="Duplicate" aria-label="Duplicate shape" onClick={(e) => { e.stopPropagation(); duplicateShape(shape.id) }}><Copy className="h-3.5 w-3.5" /></button>
+                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 inline-flex items-center px-1" title="Bring to front" aria-label="Bring shape to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleShapeToFront(shape.id) }}><BringToFront className="h-3.5 w-3.5" /></button>
+                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 inline-flex items-center px-1" title="Send to back" aria-label="Send shape to back" disabled={isBottom} onClick={(e) => { e.stopPropagation(); handleShapeToBack(shape.id) }}><SendToBack className="h-3.5 w-3.5" /></button>
+                  <button className="text-gray-400 hover:text-red-500 inline-flex items-center px-1" title="Delete" aria-label="Delete shape" onClick={(e) => { e.stopPropagation(); deleteShape(shape.id) }}><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>
               </div>
             )
@@ -2112,7 +2122,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               <NumberInput label="X position" value={selectedShape.x} min={0} max={CANVAS_SIZE} onChange={v => updateShape(selectedShape.id, { x: v }, `shape-x-${selectedShape.id}`)} />
               <NumberInput label="Y position" value={selectedShape.y} min={0} max={CANVAS_SIZE} onChange={v => updateShape(selectedShape.id, { y: v }, `shape-y-${selectedShape.id}`)} />
             </div>
-            <button className="w-full btn-secondary text-sm" onClick={() => deleteShape(selectedShape.id)}>Delete shape</button>
+            <button className="w-full btn-secondary text-sm" onClick={() => deleteShape(selectedShape.id)}><Trash2 className="h-4 w-4" />Delete shape</button>
           </CollapsibleCard>
         )}
 
@@ -2256,13 +2266,13 @@ export default function CoverGenerator({ initialState, onStateChange, className 
             <p className="text-[11px] text-gray-400 leading-tight mt-1">Sets the PNG pixel size and the SVG width/height. The editing canvas is always square.</p>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <button className="btn-secondary text-sm" onClick={exportPNG}>Export PNG</button>
-            <button className="btn-secondary text-sm" onClick={exportSVG}>Export SVG</button>
+            <button className="btn-secondary text-sm" onClick={exportPNG}><FileImage className="h-4 w-4" />Export PNG</button>
+            <button className="btn-secondary text-sm" onClick={exportSVG}><FileCode className="h-4 w-4" />Export SVG</button>
           </div>
-          <button className="w-full btn-secondary text-sm" onClick={exportJSON}>Save JSON state</button>
+          <button className="w-full btn-secondary text-sm" onClick={exportJSON}><Save className="h-4 w-4" />Save JSON state</button>
           <input ref={jsonInputRef} type="file" accept=".json,application/json" className="hidden" onChange={handleJSONImport} />
-          <button className="w-full btn-secondary text-sm" onClick={() => jsonInputRef.current?.click()}>Load JSON state</button>
-          <button className="w-full btn-secondary text-sm" onClick={copyShareLink}>{shareCopied ? 'Link copied!' : 'Copy share link'}</button>
+          <button className="w-full btn-secondary text-sm" onClick={() => jsonInputRef.current?.click()}><FolderOpen className="h-4 w-4" />Load JSON state</button>
+          <button className="w-full btn-secondary text-sm" onClick={copyShareLink}><Link className="h-4 w-4" />{shareCopied ? 'Link copied!' : 'Copy share link'}</button>
           <p className="text-[11px] text-gray-400 leading-tight">The share link encodes the layout in the URL (the background image is not included).</p>
           <input ref={batchFileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { batchExport(e.target.files); e.target.value = '' }} />
           <button
@@ -2270,7 +2280,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
             disabled={batchBusy}
             onClick={() => batchFileInputRef.current?.click()}
           >
-            {batchBusy ? 'Exporting…' : 'Batch export (ZIP)'}
+            <Package className="h-4 w-4" />{batchBusy ? 'Exporting…' : 'Batch export (ZIP)'}
           </button>
           <p className="text-[11px] text-gray-400 leading-tight">Applies the current layout (text, shapes, crop, filters) to several images and downloads a ZIP of PNGs.</p>
         </CollapsibleCard>
