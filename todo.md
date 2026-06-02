@@ -29,7 +29,7 @@ Items deferred from the initial implementation.
 ## Lower priority
 
 * [x] **Keyboard shortcuts** — done. With a layer selected, Delete/Backspace removes it and the arrow keys nudge it by 1px (or by the grid spacing with Shift); nudges coalesce into one undo step. Ignored while typing in a field or while the help overlay is open. Pure `nudgeDelta`/`isDeleteKey` in [src/lib/shortcuts.js](src/lib/shortcuts.js), covered by tests; the shortcuts also appear in the F1 help overlay.
-* [ ] **Context menu** — right-click an element for delete, duplicate, and bring-forward actions.
+* [x] **Context menu** — done. Right-clicking a text, image, or shape layer selects it and opens a menu with Duplicate, Bring to front, Send to back, and Delete; it closes on an outside click, Escape, scroll, or after an action. The `<svg>` `onContextMenu` is delegated via each layer's `data-*-id`; right-clicking empty canvas falls through to the native menu. Viewport clamping is the pure `clampMenuPosition` in [src/lib/menu.js](src/lib/menu.js), covered by tests.
 * [x] **Duplicate element** — done. A duplicate button (⧉) on each text, image, and shape layer row copies it with one click; the copy is offset by 16 units, inserted one step in front of the original, and selected. Pure `duplicateById` in [src/lib/layers.js](src/lib/layers.js), covered by tests (text duplicates deep-copy the shadow object).
 * [ ] **Image crop and position controls** — pan and zoom the background within the canvas frame instead of always using `xMidYMid slice`.
 * [ ] **Image filters** — brightness, contrast, saturation, and blur sliders on the background.

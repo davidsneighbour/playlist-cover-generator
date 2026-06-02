@@ -18,6 +18,7 @@ Built with React 19, Vite 6, and Tailwind CSS 4. No heavy editor dependencies: t
 * **Drag to position** text directly on the canvas, with optional **snap to grid**.
 * **Keyboard editing** — Delete removes the selected layer; arrow keys nudge it by 1px, or by the grid spacing with Shift.
 * **Reorderable layers** with drag-and-drop plus bring-to-front and send-to-back controls, and one-click duplicate for text, image, and shape layers.
+* **Right-click context menu** on any layer for duplicate, bring-to-front, send-to-back, and delete.
 * **Templates** — apply a predefined layout (title and artist, minimal, grid art) from a dropdown, keeping your uploaded image.
 * **Google Fonts** — add any Google font by name; used fonts are embedded into PNG and SVG exports so they stay portable.
 * **Save and load** the full layout as JSON, so a project can be reopened later with any image.
@@ -124,6 +125,7 @@ Tailwind CSS 4 must be available in the host app, or the component's utility cla
 | [src/lib/canvas.js](src/lib/canvas.js) | Export-size presets and scale helpers (unit-tested). |
 | [src/lib/rulers.js](src/lib/rulers.js) | Ruler tick enumeration (unit-tested). |
 | [src/lib/shortcuts.js](src/lib/shortcuts.js) | Keyboard-shortcut list and platform-aware key formatter (unit-tested). |
+| [src/lib/menu.js](src/lib/menu.js) | Context-menu viewport clamping (unit-tested). |
 | [src/index.js](src/index.js) | Library entry that re-exports `CoverGenerator`. |
 | [src/App.jsx](src/App.jsx) | Demo application wrapper. |
 | [src/main.jsx](src/main.jsx) | Vite entry point for the demo. |

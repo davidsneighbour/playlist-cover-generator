@@ -10,6 +10,7 @@ import { DEFAULT_BACKGROUND_GRADIENT, BACKGROUND_GRADIENT_TYPES } from '../lib/b
 import { CANVAS_PRESETS, DEFAULT_EXPORT_SIZE, exportScale, clampExportSize } from '../lib/canvas'
 import { rulerTicks } from '../lib/rulers'
 import { SHORTCUTS, formatKeys, nudgeDelta, isDeleteKey } from '../lib/shortcuts'
+import { clampMenuPosition } from '../lib/menu'
 import { averageRgb, pickContrastColor } from '../lib/color'
 import { isOpen as isCardOpen, toggleOpen, togglePin, openCard } from '../lib/accordion'
 import { AccordionContext, CollapsibleCard } from './Accordion'
@@ -467,7 +468,7 @@ function ColorOverlay({ overlay, size }) {
   )
 }
 
-function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, onSelectText, onSelectImage, onSelectShape, onDragText, onDragImage, onDragShape, onResizeImage, displaySize }) {
+function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, onSelectText, onSelectImage, onSelectShape, onDragText, onDragImage, onDragShape, onResizeImage, onContextMenuLayer, displaySize }) {
   const svgRef = useRef(null)
   const [textBox, setTextBox] = useState(null)
 
@@ -496,6 +497,15 @@ function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, on
           onSelectImage(null)
           onSelectShape(null)
         }
+      }}
+      onContextMenu={(e) => {
+        const el = e.target.closest && e.target.closest('[data-text-id],[data-image-id],[data-shape-id]')
+        if (!el) return
+        e.preventDefault()
+        const d = el.dataset
+        if (d.textId !== undefined) onContextMenuLayer('text', Number(d.textId), e.clientX, e.clientY)
+        else if (d.imageId !== undefined) onContextMenuLayer('image', Number(d.imageId), e.clientX, e.clientY)
+        else if (d.shapeId !== undefined) onContextMenuLayer('shape', Number(d.shapeId), e.clientX, e.clientY)
       }}
     >
       <defs>
@@ -678,6 +688,54 @@ function HelpDialog({ open, onClose }) {
   )
 }
 
+// Right-click context menu for a layer. Positioned at the cursor and clamped to
+// the viewport once measured. Closes on an outside mousedown, Escape, scroll, or
+// after an action runs.
+function ContextMenu({ x, y, actions, onClose }) {
+  const ref = useRef(null)
+  const [pos, setPos] = useState({ x, y })
+
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    setPos(clampMenuPosition(x, y, r.width, r.height, window.innerWidth, window.innerHeight))
+  }, [x, y])
+
+  useEffect(() => {
+    const onDown = (e) => { if (!ref.current?.contains(e.target)) onClose() }
+    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('mousedown', onDown)
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('scroll', onClose, true)
+    return () => {
+      window.removeEventListener('mousedown', onDown)
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('scroll', onClose, true)
+    }
+  }, [onClose])
+
+  return (
+    <div
+      ref={ref}
+      className="fixed z-50 min-w-[10rem] bg-white border border-gray-200 rounded-md shadow-lg py-1 text-sm"
+      style={{ top: pos.y, left: pos.x }}
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      {actions.map((a) => (
+        <button
+          key={a.label}
+          type="button"
+          className={`block w-full text-left px-3 py-1.5 cursor-pointer hover:bg-gray-50 ${a.danger ? 'text-red-600 hover:bg-red-50' : 'text-gray-700'}`}
+          onClick={() => { a.onClick(); onClose() }}
+        >
+          {a.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export default function CoverGenerator({ initialState, onStateChange, className = '', googleFontsApiKey = ENV_GOOGLE_FONTS_API_KEY }) {
   const { state, canUndo, canRedo, commit, undo, redo } = useHistoryState({
     ...DEFAULT_STATE,
@@ -690,6 +748,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const [displaySize, setDisplaySize] = useState(CANVAS_SIZE)
   const [showRulers, setShowRulers] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
+  const [contextMenu, setContextMenu] = useState(null)
   const [dragOverArrayIndex, setDragOverArrayIndex] = useState(null)
   const [selectedTemplate, setSelectedTemplate] = useState('')
   const [customFontInput, setCustomFontInput] = useState('')
@@ -712,6 +771,15 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const selectText = useCallback((id) => { setSelectedTextId(id); setSelectedImageId(null); setSelectedShapeId(null); if (id != null) accOpenCard('props-text') }, [accOpenCard])
   const selectImage = useCallback((id) => { setSelectedImageId(id); setSelectedTextId(null); setSelectedShapeId(null); if (id != null) accOpenCard('props-image') }, [accOpenCard])
   const selectShape = useCallback((id) => { setSelectedShapeId(id); setSelectedTextId(null); setSelectedImageId(null); if (id != null) accOpenCard('props-shape') }, [accOpenCard])
+
+  // Right-click a layer: select it and open the context menu at the cursor.
+  const openContextMenu = useCallback((kind, id, x, y) => {
+    if (kind === 'text') selectText(id)
+    else if (kind === 'image') selectImage(id)
+    else if (kind === 'shape') selectShape(id)
+    setContextMenu({ kind, id, x, y })
+  }, [selectText, selectImage, selectShape])
+  const closeContextMenu = useCallback(() => setContextMenu(null), [])
 
   // After adding a layer, scroll its freshly shown properties card into view.
   const [scrollTo, setScrollTo] = useState(null)
@@ -1283,9 +1351,26 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const bgGradient = state.backgroundGradient || DEFAULT_BACKGROUND_GRADIENT
   const exportSize = clampExportSize(state.exportSize)
 
+  // Actions for the right-click menu, resolved to the handlers for its layer kind.
+  const ctxActions = useMemo(() => {
+    if (!contextMenu) return []
+    const { kind, id } = contextMenu
+    const dup = kind === 'text' ? duplicateText : kind === 'image' ? duplicateImage : duplicateShape
+    const toFront = kind === 'text' ? handleBringToFront : kind === 'image' ? handleImageToFront : handleShapeToFront
+    const toBack = kind === 'text' ? handleSendToBack : kind === 'image' ? handleImageToBack : handleShapeToBack
+    const del = kind === 'text' ? deleteText : kind === 'image' ? deleteImage : deleteShape
+    return [
+      { label: 'Duplicate', onClick: () => dup(id) },
+      { label: 'Bring to front', onClick: () => toFront(id) },
+      { label: 'Send to back', onClick: () => toBack(id) },
+      { label: 'Delete', onClick: () => del(id), danger: true },
+    ]
+  }, [contextMenu, duplicateText, duplicateImage, duplicateShape, handleBringToFront, handleImageToFront, handleShapeToFront, handleSendToBack, handleImageToBack, handleShapeToBack, deleteText, deleteImage, deleteShape])
+
   return (
     <div className={`flex flex-col lg:flex-row gap-6 p-4 lg:p-6 min-h-screen bg-gray-50 lg:items-start ${className}`}>
       <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
+      {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} actions={ctxActions} onClose={closeContextMenu} />}
       {/* Canvas — square, stays visible on the left while the controls scroll */}
       <div ref={canvasColRef} className="w-full lg:w-[600px] lg:shrink-0 lg:sticky lg:top-6 lg:self-start flex flex-col items-center gap-3">
         <div
@@ -1312,6 +1397,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               onDragImage={handleDragImage}
               onDragShape={handleDragShape}
               onResizeImage={handleResizeImage}
+              onContextMenuLayer={openContextMenu}
               displaySize={displaySize}
             />
           </div>

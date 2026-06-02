@@ -20,6 +20,7 @@
 | Accent / action | `#3b82f6` | `bg-blue-500` |
 | Accent hover | `#2563eb` | `bg-blue-600` |
 | Selection ring | `#3b82f6` | `ring-blue-400` |
+| Danger / delete | `#dc2626` | `text-red-600` |
 | Grid minor line | `#cbd5e1` | — |
 | Grid major line | `#94a3b8` | — |
 
@@ -59,6 +60,10 @@ A `rounded-lg overflow-hidden shadow-md border border-gray-200` frame on a white
 ### Rulers
 
 Optional 22px ruler strips on the top and left edges, on a `bg-gray-50` ground with a `#e5e7eb` baseline. Ticks reuse the grid colors (minor `#cbd5e1`); labels are 8px in `#9ca3af` (left-edge labels rotated `-90`). They are chrome only and reuse existing tokens, so they are never part of an export.
+
+### Context menu
+
+A `fixed`, viewport-clamped white panel (`border border-gray-200 rounded-md shadow-lg`) opened by right-clicking a layer. Items are full-width left-aligned buttons with `hover:bg-gray-50`; the destructive item uses `text-red-600` with `hover:bg-red-50`.
 
 ## Layout
 
