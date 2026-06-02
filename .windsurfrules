@@ -1,0 +1,10 @@
+# Windsurf rules
+
+The canonical agent instructions for this repository live in AGENTS.md. Read it for the full architecture, state shape, export rules, and conventions. The essentials:
+
+- React 19 with hooks only; JavaScript and JSX, with no TypeScript.
+- Tailwind CSS 4 is configured CSS-first in src/index.css; there is no tailwind.config.js.
+- The editor is one component, src/components/CoverGenerator.jsx. Keep geometry in canvas units (CANVAS_SIZE is 600) and convert to screen coordinates only at the edges.
+- Reuse the .btn-primary, .btn-secondary, and .input classes and the snapValue helper instead of duplicating logic.
+- The grid layer (data-layer="grid") must never appear in PNG or SVG exports.
+- In markdown, use sentence-case headings and * for bullets so files pass markdownlint.
