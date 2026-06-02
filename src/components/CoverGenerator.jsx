@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { reorder, bringToFront, sendToBack, displayIndexToArrayIndex } from '../lib/layers'
 import { TEMPLATES, getTemplate, instantiateTemplate } from '../lib/templates'
+import { textStrokeAttrs } from '../lib/text'
 
 const CANVAS_SIZE = 600
 
@@ -175,6 +176,7 @@ function TextElement({ text, selected, onSelect, onDrag, snapToGrid, gridSpacing
       fontFamily={text.fontFamily}
       fontSize={text.fontSize}
       fill={text.color}
+      {...textStrokeAttrs(text)}
       fontWeight={text.bold ? 'bold' : 'normal'}
       fontStyle={text.italic ? 'italic' : 'normal'}
       textAnchor={text.anchor || 'start'}
@@ -353,6 +355,8 @@ export default function CoverGenerator({ initialState, onStateChange, className 
         bold: false,
         italic: false,
         anchor: 'middle',
+        stroke: '#000000',
+        strokeWidth: 0,
       }]
     }))
     setSelectedTextId(id)
@@ -708,6 +712,19 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                 <input type="checkbox" checked={selectedText.italic} onChange={e => updateText(selectedText.id, { italic: e.target.checked })} className="accent-blue-500" />
                 Italic
               </label>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <NumberInput label="Stroke width" value={selectedText.strokeWidth || 0} min={0} max={40} onChange={v => updateText(selectedText.id, { strokeWidth: v }, `stroke-width-${selectedText.id}`)} hint="0 = off" />
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Stroke color</label>
+                <input
+                  type="color"
+                  className="w-full h-8 rounded border border-gray-200 cursor-pointer"
+                  value={selectedText.stroke || '#000000'}
+                  onChange={e => updateText(selectedText.id, { stroke: e.target.value }, `stroke-color-${selectedText.id}`)}
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2 mt-2">

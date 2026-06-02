@@ -38,6 +38,7 @@ The whole editor lives in [src/components/CoverGenerator.jsx](src/components/Cov
 * `TextElement` handles pointer dragging by converting screen coordinates to SVG coordinates through `getScreenCTM().inverse()`. Do not reimplement drag math with raw offsets; the matrix transform keeps it correct under scaling.
 * `snapValue` rounds a coordinate to the grid when snapping is on. Reuse it rather than duplicating rounding logic.
 * Text-layer z-order is the `texts` array order: index 0 is painted first (bottom) and the last item is painted last (front). The pure reorder helpers (`reorder`, `bringToFront`, `sendToBack`, `displayIndexToArrayIndex`) live in [src/lib/layers.js](src/lib/layers.js) and return the same array reference on a no-op so reorders never add empty undo entries. The layer list is displayed front-to-back, so the UI converts display positions to array indices with `displayIndexToArrayIndex`.
+* Text presentation helpers live in [src/lib/text.js](src/lib/text.js). `textStrokeAttrs` turns a layer's `stroke`/`strokeWidth` into SVG attributes (no stroke when width is 0, otherwise `paint-order: stroke` so the outline sits under the fill); spread its result onto the `<text>` element. New text layers carry `stroke` and `strokeWidth`, which are part of `TEXT_KEYS` — keep them in sync across `addText`, the templates, and that list.
 * Templates are plain layout data in [src/lib/templates.js](src/lib/templates.js). `instantiateTemplate` builds editor state from a template, keeping the current background image, deep-copying the grid, and assigning each text a fresh id from a `makeId` callback (the component passes the same `nextId` counter that `addText` uses). Applying a template goes through `update`, so it is one undoable step. Add new layouts to the `TEMPLATES` array; give every text layer all of `TEXT_KEYS`.
 
 ### State shape
@@ -72,7 +73,7 @@ The single state object is the contract for JSON import/export and the `initialS
 
 ### Tests
 
-Tests run on Vitest. Prefer extracting non-trivial logic into pure functions under [src/lib/](src/lib/) and testing those directly, rather than driving the DOM; SVG drag and HTML drag-and-drop are hard to test headlessly, but the math behind them is not. Tests live in [tests/](tests/), named `<module>.test.js`, and import the module under test from `../src/lib/...`. Add or update tests for any new pure logic.
+Tests run on Vitest. Prefer extracting non-trivial logic into pure functions under [src/lib/](src/lib/) and testing those directly, rather than driving the DOM; SVG drag and HTML drag-and-drop are hard to test headlessly, but the math behind them is not. Tests live in [tests/](tests/), named `<module>.test.js`, and import the module under test from the matching path under `../src/lib`. Add or update tests for any new pure logic.
 
 ### Markdown
 
