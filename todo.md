@@ -6,7 +6,7 @@ Items deferred from the initial implementation.
 
 * [ ] **Multiple text layers with z-order control** — reorder text layers via a drag-and-drop list; add bring-to-front and send-to-back buttons.
 * [ ] **Templates system** — predefined cover layouts (title and artist, minimal, grid art) selectable from a dropdown, using a JSON-based template format.
-* [ ] **Undo and redo** — Ctrl+Z and Ctrl+Y history with at least 20 steps.
+* [x] **Undo and redo** — done. Ctrl+Z / Ctrl+Shift+Z (and Ctrl+Y) with a 50-step history; drags and bursts of typing coalesce into a single step. See `useHistoryState` in [src/components/CoverGenerator.jsx](src/components/CoverGenerator.jsx).
 * [ ] **Text stroke and outline** — configurable stroke color and width on SVG text for legibility over bright images.
 * [ ] **Text shadow** — a drop-shadow filter on SVG text.
 * [ ] **Google Fonts integration** — load any Google Font by name into the font picker.

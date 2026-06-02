@@ -21,6 +21,70 @@ function snapValue(value, spacing, enabled) {
   return Math.round(value / spacing) * spacing
 }
 
+const HISTORY_LIMIT = 50
+const COALESCE_MS = 600
+
+// Undo/redo history wrapper around a single state object. Discrete edits push a
+// new entry; rapid edits that share a coalesceKey (dragging, typing in a field)
+// collapse into one so a single undo reverts the whole gesture rather than one
+// pixel or one keystroke at a time.
+function useHistoryState(initial) {
+  const [history, setHistory] = useState(() => ({
+    past: [],
+    present: initial,
+    future: [],
+  }))
+  const lastKey = useRef(null)
+  const lastTime = useRef(0)
+
+  const commit = useCallback((patch, coalesceKey = null) => {
+    const now = Date.now()
+    const coalesce =
+      coalesceKey != null &&
+      coalesceKey === lastKey.current &&
+      now - lastTime.current < COALESCE_MS
+    lastKey.current = coalesceKey
+    lastTime.current = now
+    setHistory(h => {
+      const present = typeof patch === 'function' ? patch(h.present) : { ...h.present, ...patch }
+      if (present === h.present) return h
+      if (coalesce) {
+        // Same gesture continuing: replace present, keep the existing checkpoint.
+        return { past: h.past, present, future: [] }
+      }
+      const past = h.past.length >= HISTORY_LIMIT ? h.past.slice(1) : h.past
+      return { past: [...past, h.present], present, future: [] }
+    })
+  }, [])
+
+  const undo = useCallback(() => {
+    lastKey.current = null
+    setHistory(h => {
+      if (h.past.length === 0) return h
+      const present = h.past[h.past.length - 1]
+      return { past: h.past.slice(0, -1), present, future: [h.present, ...h.future] }
+    })
+  }, [])
+
+  const redo = useCallback(() => {
+    lastKey.current = null
+    setHistory(h => {
+      if (h.future.length === 0) return h
+      const present = h.future[0]
+      return { past: [...h.past, h.present], present, future: h.future.slice(1) }
+    })
+  }, [])
+
+  return {
+    state: history.present,
+    canUndo: history.past.length > 0,
+    canRedo: history.future.length > 0,
+    commit,
+    undo,
+    redo,
+  }
+}
+
 function GridOverlay({ grid, size }) {
   if (!grid.enabled) return null
 
@@ -197,10 +261,11 @@ function SVGCanvas({ state, selectedTextId, onSelectText, onDragText, displaySiz
 }
 
 export default function CoverGenerator({ initialState, onStateChange, className = '' }) {
-  const [state, setState] = useState(() => ({
+  const { state, canUndo, canRedo, commit, undo, redo } = useHistoryState({
     ...DEFAULT_STATE,
     ...initialState,
-  }))
+  })
+  const update = commit
   const [selectedTextId, setSelectedTextId] = useState(null)
   const [displaySize, setDisplaySize] = useState(CANVAS_SIZE)
   const containerRef = useRef(null)
@@ -218,13 +283,42 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     return () => obs.disconnect()
   }, [])
 
-  const update = useCallback((patch) => {
-    setState(prev => {
-      const next = typeof patch === 'function' ? patch(prev) : { ...prev, ...patch }
-      onStateChange?.(next)
-      return next
-    })
-  }, [onStateChange])
+  // Notify the host of state changes, skipping the initial mount.
+  const mounted = useRef(false)
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true
+      return
+    }
+    onStateChange?.(state)
+  }, [state, onStateChange])
+
+  // Drop a selection that no longer exists (e.g. after an undo removes its text).
+  useEffect(() => {
+    if (selectedTextId != null && !state.texts.some(t => t.id === selectedTextId)) {
+      setSelectedTextId(null)
+    }
+  }, [state.texts, selectedTextId])
+
+  // Keyboard shortcuts: Cmd/Ctrl+Z to undo, +Shift (or Ctrl+Y) to redo.
+  // Ignored while typing in a field so native text undo still works there.
+  useEffect(() => {
+    const onKey = (e) => {
+      const tag = e.target.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable) return
+      if (!(e.ctrlKey || e.metaKey)) return
+      const key = e.key.toLowerCase()
+      if (key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        undo()
+      } else if ((key === 'z' && e.shiftKey) || key === 'y') {
+        e.preventDefault()
+        redo()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [undo, redo])
 
   // Image upload
   const handleImageUpload = useCallback((e) => {
@@ -259,11 +353,11 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     setSelectedTextId(id)
   }, [update])
 
-  const updateText = useCallback((id, patch) => {
+  const updateText = useCallback((id, patch, coalesceKey) => {
     update(prev => ({
       ...prev,
       texts: prev.texts.map(t => t.id === id ? { ...t, ...patch } : t)
-    }))
+    }), coalesceKey)
   }, [update])
 
   const deleteText = useCallback((id) => {
@@ -275,12 +369,12 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     update(prev => ({
       ...prev,
       texts: prev.texts.map(t => t.id === id ? { ...t, x, y } : t)
-    }))
+    }), `drag-${id}`)
   }, [update])
 
   // Grid
-  const updateGrid = useCallback((patch) => {
-    update(prev => ({ ...prev, grid: { ...prev.grid, ...patch } }))
+  const updateGrid = useCallback((patch, coalesceKey) => {
+    update(prev => ({ ...prev, grid: { ...prev.grid, ...patch } }), coalesceKey)
   }, [update])
 
   // Export PNG
@@ -358,7 +452,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     reader.onload = (ev) => {
       try {
         const imported = JSON.parse(ev.target.result)
-        setState(prev => ({
+        update(prev => ({
           ...DEFAULT_STATE,
           ...imported,
           backgroundImageData: prev.backgroundImageData,
@@ -370,7 +464,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     }
     reader.readAsText(file)
     e.target.value = ''
-  }, [])
+  }, [update])
 
   const selectedText = state.texts.find(t => t.id === selectedTextId)
 
@@ -391,11 +485,33 @@ export default function CoverGenerator({ initialState, onStateChange, className 
             displaySize={displaySize}
           />
         </div>
-        <p className="text-xs text-gray-400">{CANVAS_SIZE}×{CANVAS_SIZE}px canvas · click text to select · drag to move</p>
+        <p className="text-xs text-gray-400">{CANVAS_SIZE}×{CANVAS_SIZE}px canvas · click text to select · drag to move · Ctrl+Z to undo</p>
       </div>
 
       {/* Controls */}
       <div className="w-full lg:w-72 flex flex-col gap-4">
+
+        {/* History */}
+        <Section title="History">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              className="btn-secondary text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+              onClick={undo}
+              disabled={!canUndo}
+              title="Undo (Ctrl+Z)"
+            >
+              ↶ Undo
+            </button>
+            <button
+              className="btn-secondary text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+              onClick={redo}
+              disabled={!canRedo}
+              title="Redo (Ctrl+Shift+Z)"
+            >
+              ↷ Redo
+            </button>
+          </div>
+        </Section>
 
         {/* Background Image */}
         <Section title="Background Image">
@@ -420,8 +536,8 @@ export default function CoverGenerator({ initialState, onStateChange, className 
           </label>
           {state.grid.enabled && (
             <>
-              <NumberInput label="Spacing (px)" value={state.grid.spacing} min={5} max={100} onChange={v => updateGrid({ spacing: v })} />
-              <NumberInput label="Major line every N" value={state.grid.majorEvery} min={0} max={20} onChange={v => updateGrid({ majorEvery: v })} hint="0 = off" />
+              <NumberInput label="Spacing (px)" value={state.grid.spacing} min={5} max={100} onChange={v => updateGrid({ spacing: v }, 'grid-spacing')} />
+              <NumberInput label="Major line every N" value={state.grid.majorEvery} min={0} max={20} onChange={v => updateGrid({ majorEvery: v }, 'grid-major')} hint="0 = off" />
             </>
           )}
         </Section>
@@ -453,7 +569,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
             <input
               className="input w-full"
               value={selectedText.content}
-              onChange={e => updateText(selectedText.id, { content: e.target.value })}
+              onChange={e => updateText(selectedText.id, { content: e.target.value }, `content-${selectedText.id}`)}
             />
 
             <div className="grid grid-cols-2 gap-2 mt-2">
@@ -474,7 +590,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                   className="input w-full"
                   value={selectedText.fontSize}
                   min={8} max={200}
-                  onChange={e => updateText(selectedText.id, { fontSize: Number(e.target.value) })}
+                  onChange={e => updateText(selectedText.id, { fontSize: Number(e.target.value) }, `size-${selectedText.id}`)}
                 />
               </div>
             </div>
@@ -486,7 +602,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                   type="color"
                   className="w-full h-8 rounded border border-gray-200 cursor-pointer"
                   value={selectedText.color}
-                  onChange={e => updateText(selectedText.id, { color: e.target.value })}
+                  onChange={e => updateText(selectedText.id, { color: e.target.value }, `color-${selectedText.id}`)}
                 />
               </div>
               <div>
@@ -515,8 +631,8 @@ export default function CoverGenerator({ initialState, onStateChange, className 
             </div>
 
             <div className="grid grid-cols-2 gap-2 mt-2">
-              <NumberInput label="X position" value={selectedText.x} min={0} max={CANVAS_SIZE} onChange={v => updateText(selectedText.id, { x: v })} />
-              <NumberInput label="Y position" value={selectedText.y} min={0} max={CANVAS_SIZE} onChange={v => updateText(selectedText.id, { y: v })} />
+              <NumberInput label="X position" value={selectedText.x} min={0} max={CANVAS_SIZE} onChange={v => updateText(selectedText.id, { x: v }, `x-${selectedText.id}`)} />
+              <NumberInput label="Y position" value={selectedText.y} min={0} max={CANVAS_SIZE} onChange={v => updateText(selectedText.id, { y: v }, `y-${selectedText.id}`)} />
             </div>
           </Section>
         )}

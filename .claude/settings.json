@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('deps:',Object.entries\\(p.dependencies\\).map\\(\\([k,v]\\)=>k+'@'+v\\).join\\(', '\\)\\); console.log\\('dev:',Object.entries\\(p.devDependencies\\).map\\(\\([k,v]\\)=>k+'@'+v\\).join\\(', '\\)\\)\")"
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('deps:',Object.entries\\(p.dependencies\\).map\\(\\([k,v]\\)=>k+'@'+v\\).join\\(', '\\)\\); console.log\\('dev:',Object.entries\\(p.devDependencies\\).map\\(\\([k,v]\\)=>k+'@'+v\\).join\\(', '\\)\\)\")",
+      "Bash(node /tmp/history-test.mjs)",
+      "Bash(rm -f /tmp/history-test.mjs; echo \"=== stray setState refs \\(should be none\\) ===\"; grep -n 'setState' src/components/CoverGenerator.jsx || echo \"none ✓\"; echo \"=== history wiring present ===\"; grep -n 'useHistoryState\\\\|canUndo\\\\|canRedo\\\\|coalesceKey' src/components/CoverGenerator.jsx | head)"
+    ],
+    "additionalDirectories": [
+      "/tmp"
     ]
   }
 }

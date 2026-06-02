@@ -29,7 +29,8 @@ Always run `npm run build` after non-trivial changes to confirm the project stil
 The whole editor lives in [src/components/CoverGenerator.jsx](src/components/CoverGenerator.jsx). Read it before changing anything. Key pieces:
 
 * `CANVAS_SIZE` is the fixed internal SVG coordinate space (600). The rendered size scales via a `ResizeObserver`; all geometry is stored in canvas units, not screen pixels.
-* `CoverGenerator` is the exported component. It owns all state and calls `onStateChange` with the full state on every update.
+* `CoverGenerator` is the exported component. It owns all state and notifies the host through `onStateChange` (fired from an effect whenever state changes, skipping the initial mount).
+* `useHistoryState` wraps the single state object to provide undo and redo. Every mutation goes through its `commit(patch, coalesceKey)`. Discrete edits push a new history entry; rapid edits that share a `coalesceKey` (dragging a text, typing in a field) collapse into one step. Undo and redo are bound to Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z (and Ctrl+Y), and ignored while a form field is focused so native text undo still works. When adding a new continuous interaction, give it a stable `coalesceKey`; for one-off actions, omit it.
 * `SVGCanvas` renders the SVG tree: background `image`, then the grid, then text, then the selection outline.
 * `GridOverlay` draws minor and major lines. It is marked `data-layer="grid"` so exporters can strip it.
 * `TextElement` handles pointer dragging by converting screen coordinates to SVG coordinates through `getScreenCTM().inverse()`. Do not reimplement drag math with raw offsets; the matrix transform keeps it correct under scaling.
