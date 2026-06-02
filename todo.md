@@ -13,7 +13,7 @@ Items deferred from the initial implementation.
 
 ## Medium priority
 
-* [ ] **Multiple image layers** — stack additional image layers (logos, overlays) with opacity and blend-mode controls.
+* [x] **Multiple image layers** — done. Add image layers (logos, overlays) over the background; each has opacity, a CSS blend mode, size, and position, is draggable with snap, and supports bring-to-front / send-to-back. Helpers in [src/lib/images.js](src/lib/images.js), covered by tests; z-order reuses [src/lib/layers.js](src/lib/layers.js).
 * [ ] **Shape primitives** — add rectangles and circles as SVG elements with configurable fill, stroke, and opacity, draggable and snappable.
 * [ ] **Color overlay layer** — a solid or gradient color fill over the background with adjustable opacity, useful for text legibility.
 * [ ] **Gradient backgrounds** — configurable linear and radial SVG gradients.

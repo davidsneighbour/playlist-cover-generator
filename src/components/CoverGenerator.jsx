@@ -3,6 +3,7 @@ import { reorder, bringToFront, sendToBack, displayIndexToArrayIndex } from '../
 import { TEMPLATES, getTemplate, instantiateTemplate } from '../lib/templates'
 import { textStrokeAttrs, textShadowFilter } from '../lib/text'
 import { BUILTIN_FONTS, googleFontCssUrl, parseFontFaces, buildFontFaceRule, addFont } from '../lib/fonts'
+import { BLEND_MODES, createImageLayer, clampOpacity, fitDimensions, centeredPosition } from '../lib/images'
 
 const CANVAS_SIZE = 600
 
@@ -10,6 +11,7 @@ const DEFAULT_STATE = {
   backgroundImage: null,
   backgroundImageData: null,
   texts: [],
+  images: [],
   grid: {
     enabled: false,
     spacing: 20,
@@ -132,48 +134,58 @@ function GridOverlay({ grid, size }) {
   return <g data-layer="grid" style={{ pointerEvents: 'none' }}>{lines}</g>
 }
 
-function TextElement({ text, selected, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize }) {
+// Shared SVG dragging. Returns an onMouseDown handler that converts pointer
+// movement into snapped, clamped canvas coordinates. getAnchor() reads the
+// element's position at drag start; onMove(nx, ny) receives the new position;
+// onStart() runs once on press (used to select).
+function useSvgDrag({ getAnchor, onMove, onStart, snapToGrid, gridSpacing, canvasSize }) {
   const dragging = useRef(false)
-  const startPos = useRef({ mx: 0, my: 0, tx: 0, ty: 0 })
-  const svgRef = useRef(null)
+  const start = useRef({ mx: 0, my: 0, ax: 0, ay: 0 })
 
-  const handleMouseDown = useCallback((e) => {
+  return useCallback((e) => {
     e.preventDefault()
     e.stopPropagation()
-    onSelect(text.id)
+    onStart?.()
     dragging.current = true
     const svg = e.currentTarget.closest('svg')
-    svgRef.current = svg
-    const pt = svg.createSVGPoint()
-    pt.x = e.clientX
-    pt.y = e.clientY
-    const svgP = pt.matrixTransform(svg.getScreenCTM().inverse())
-    startPos.current = { mx: svgP.x, my: svgP.y, tx: text.x, ty: text.y }
-
-    const onMove = (ev) => {
-      if (!dragging.current) return
+    const toSvg = (clientX, clientY) => {
       const p = svg.createSVGPoint()
-      p.x = ev.clientX
-      p.y = ev.clientY
-      const sp = p.matrixTransform(svg.getScreenCTM().inverse())
-      const dx = sp.x - startPos.current.mx
-      const dy = sp.y - startPos.current.my
-      let nx = startPos.current.tx + dx
-      let ny = startPos.current.ty + dy
+      p.x = clientX
+      p.y = clientY
+      return p.matrixTransform(svg.getScreenCTM().inverse())
+    }
+    const sp = toSvg(e.clientX, e.clientY)
+    const anchor = getAnchor()
+    start.current = { mx: sp.x, my: sp.y, ax: anchor.x, ay: anchor.y }
+
+    const onMouseMove = (ev) => {
+      if (!dragging.current) return
+      const m = toSvg(ev.clientX, ev.clientY)
+      let nx = start.current.ax + (m.x - start.current.mx)
+      let ny = start.current.ay + (m.y - start.current.my)
       nx = snapValue(nx, gridSpacing, snapToGrid)
       ny = snapValue(ny, gridSpacing, snapToGrid)
       nx = Math.max(0, Math.min(canvasSize, nx))
       ny = Math.max(0, Math.min(canvasSize, ny))
-      onDrag(text.id, nx, ny)
+      onMove(nx, ny)
     }
-    const onUp = () => {
+    const onMouseUp = () => {
       dragging.current = false
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
     }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
-  }, [text, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize])
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+  }, [getAnchor, onMove, onStart, snapToGrid, gridSpacing, canvasSize])
+}
+
+function TextElement({ text, selected, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize }) {
+  const handleMouseDown = useSvgDrag({
+    getAnchor: () => ({ x: text.x, y: text.y }),
+    onMove: (nx, ny) => onDrag(text.id, nx, ny),
+    onStart: () => onSelect(text.id),
+    snapToGrid, gridSpacing, canvasSize,
+  })
 
   const shadow = textShadowFilter(text)
 
@@ -202,9 +214,33 @@ function TextElement({ text, selected, onSelect, onDrag, snapToGrid, gridSpacing
   )
 }
 
-function SVGCanvas({ state, selectedTextId, onSelectText, onDragText, displaySize }) {
-  const scale = displaySize / CANVAS_SIZE
+function ImageElement({ image, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize }) {
+  const handleMouseDown = useSvgDrag({
+    getAnchor: () => ({ x: image.x, y: image.y }),
+    onMove: (nx, ny) => onDrag(image.id, nx, ny),
+    onStart: () => onSelect(image.id),
+    snapToGrid, gridSpacing, canvasSize,
+  })
 
+  if (!image.data) return null
+
+  return (
+    <image
+      href={image.data}
+      x={image.x}
+      y={image.y}
+      width={image.width}
+      height={image.height}
+      opacity={image.opacity}
+      preserveAspectRatio="none"
+      style={{ cursor: 'move', mixBlendMode: image.blendMode !== 'normal' ? image.blendMode : undefined }}
+      onMouseDown={handleMouseDown}
+      data-image-id={image.id}
+    />
+  )
+}
+
+function SVGCanvas({ state, selectedTextId, selectedImageId, onSelectText, onSelectImage, onDragText, onDragImage, displaySize }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -213,7 +249,10 @@ function SVGCanvas({ state, selectedTextId, onSelectText, onDragText, displaySiz
       viewBox={`0 0 ${CANVAS_SIZE} ${CANVAS_SIZE}`}
       style={{ display: 'block', background: '#ffffff' }}
       onClick={(e) => {
-        if (e.target.tagName === 'svg') onSelectText(null)
+        if (e.target.tagName === 'svg') {
+          onSelectText(null)
+          onSelectImage(null)
+        }
       }}
     >
       <defs>
@@ -244,6 +283,19 @@ function SVGCanvas({ state, selectedTextId, onSelectText, onDragText, displaySiz
         />
       )}
 
+      {(state.images || []).map((image) => (
+        <ImageElement
+          key={image.id}
+          image={image}
+          selected={image.id === selectedImageId}
+          onSelect={onSelectImage}
+          onDrag={onDragImage}
+          snapToGrid={state.snapToGrid}
+          gridSpacing={state.grid.spacing}
+          canvasSize={CANVAS_SIZE}
+        />
+      ))}
+
       <GridOverlay grid={state.grid} size={CANVAS_SIZE} />
 
       {state.texts.map((text) => (
@@ -258,6 +310,23 @@ function SVGCanvas({ state, selectedTextId, onSelectText, onDragText, displaySiz
           canvasSize={CANVAS_SIZE}
         />
       ))}
+
+      {selectedImageId && (state.images || []).find(i => i.id === selectedImageId) && (() => {
+        const img = state.images.find(i => i.id === selectedImageId)
+        return (
+          <rect
+            x={img.x}
+            y={img.y}
+            width={img.width}
+            height={img.height}
+            fill="none"
+            stroke="#3b82f6"
+            strokeWidth={1.5}
+            strokeDasharray="4 2"
+            style={{ pointerEvents: 'none' }}
+          />
+        )
+      })()}
 
       {selectedTextId && state.texts.find(t => t.id === selectedTextId) && (() => {
         const t = state.texts.find(t => t.id === selectedTextId)
@@ -289,6 +358,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   })
   const update = commit
   const [selectedTextId, setSelectedTextId] = useState(null)
+  const [selectedImageId, setSelectedImageId] = useState(null)
   const [displaySize, setDisplaySize] = useState(CANVAS_SIZE)
   const [dragOverArrayIndex, setDragOverArrayIndex] = useState(null)
   const [selectedTemplate, setSelectedTemplate] = useState('')
@@ -296,7 +366,12 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const containerRef = useRef(null)
   const fileInputRef = useRef(null)
   const jsonInputRef = useRef(null)
+  const imageInputRef = useRef(null)
   const dragIndexRef = useRef(null)
+
+  // Selecting a text and an image are mutually exclusive.
+  const selectText = useCallback((id) => { setSelectedTextId(id); setSelectedImageId(null) }, [])
+  const selectImage = useCallback((id) => { setSelectedImageId(id); setSelectedTextId(null) }, [])
 
   useEffect(() => {
     const obs = new ResizeObserver(entries => {
@@ -319,12 +394,18 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     onStateChange?.(state)
   }, [state, onStateChange])
 
-  // Drop a selection that no longer exists (e.g. after an undo removes its text).
+  // Drop a selection that no longer exists (e.g. after an undo removes its layer).
   useEffect(() => {
     if (selectedTextId != null && !state.texts.some(t => t.id === selectedTextId)) {
       setSelectedTextId(null)
     }
   }, [state.texts, selectedTextId])
+
+  useEffect(() => {
+    if (selectedImageId != null && !(state.images || []).some(i => i.id === selectedImageId)) {
+      setSelectedImageId(null)
+    }
+  }, [state.images, selectedImageId])
 
   // Keyboard shortcuts: Cmd/Ctrl+Z to undo, +Shift (or Ctrl+Y) to redo.
   // Ignored while typing in a field so native text undo still works there.
@@ -458,6 +539,64 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     })
   }, [update])
 
+  // Image layers (logos, overlays). Stacked over the background; array order is
+  // paint order, so the generic z-order helpers from layers.js apply.
+  const addImageLayer = useCallback((e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const data = ev.target.result
+      const probe = new Image()
+      probe.onload = () => {
+        const id = nextId++
+        const { width, height } = fitDimensions(probe.naturalWidth, probe.naturalHeight, 240)
+        const { x, y } = centeredPosition(CANVAS_SIZE, width, height)
+        update(prev => ({
+          ...prev,
+          images: [...(prev.images || []), createImageLayer(id, { name: file.name, data, width, height, x, y })],
+        }))
+        selectImage(id)
+      }
+      probe.src = data
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }, [update, selectImage])
+
+  const updateImage = useCallback((id, patch, coalesceKey) => {
+    update(prev => ({
+      ...prev,
+      images: (prev.images || []).map(i => i.id === id ? { ...i, ...patch } : i),
+    }), coalesceKey)
+  }, [update])
+
+  const deleteImage = useCallback((id) => {
+    update(prev => ({ ...prev, images: (prev.images || []).filter(i => i.id !== id) }))
+    setSelectedImageId(null)
+  }, [update])
+
+  const handleDragImage = useCallback((id, x, y) => {
+    update(prev => ({
+      ...prev,
+      images: (prev.images || []).map(i => i.id === id ? { ...i, x, y } : i),
+    }), `img-drag-${id}`)
+  }, [update])
+
+  const handleImageToFront = useCallback((id) => {
+    update(prev => {
+      const next = bringToFront(prev.images || [], id)
+      return next === prev.images ? prev : { ...prev, images: next }
+    })
+  }, [update])
+
+  const handleImageToBack = useCallback((id) => {
+    update(prev => {
+      const next = sendToBack(prev.images || [], id)
+      return next === prev.images ? prev : { ...prev, images: next }
+    })
+  }, [update])
+
   // Grid
   const updateGrid = useCallback((patch, coalesceKey) => {
     update(prev => ({ ...prev, grid: { ...prev.grid, ...patch } }), coalesceKey)
@@ -587,6 +726,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   }, [update])
 
   const selectedText = state.texts.find(t => t.id === selectedTextId)
+  const selectedImage = (state.images || []).find(i => i.id === selectedImageId)
 
   return (
     <div className={`flex flex-col lg:flex-row gap-4 p-4 min-h-screen bg-gray-50 ${className}`}>
@@ -600,12 +740,15 @@ export default function CoverGenerator({ initialState, onStateChange, className 
           <SVGCanvas
             state={state}
             selectedTextId={selectedTextId}
-            onSelectText={setSelectedTextId}
+            selectedImageId={selectedImageId}
+            onSelectText={selectText}
+            onSelectImage={selectImage}
             onDragText={handleDragText}
+            onDragImage={handleDragImage}
             displaySize={displaySize}
           />
         </div>
-        <p className="text-xs text-gray-400">{CANVAS_SIZE}×{CANVAS_SIZE}px canvas · click text to select · drag to move · Ctrl+Z to undo</p>
+        <p className="text-xs text-gray-400">{CANVAS_SIZE}×{CANVAS_SIZE}px canvas · click a layer to select · drag to move · Ctrl+Z to undo</p>
       </div>
 
       {/* Controls */}
@@ -737,7 +880,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                 }}
                 onDragEnd={() => { dragIndexRef.current = null; setDragOverArrayIndex(null) }}
                 className={`rounded border p-2 cursor-pointer text-sm transition-colors ${selected ? 'border-blue-400 bg-blue-50' : 'border-gray-200 bg-white hover:border-gray-300'} ${dragOverArrayIndex === arrayIndex ? 'ring-2 ring-blue-300' : ''}`}
-                onClick={() => setSelectedTextId(selected ? null : t.id)}
+                onClick={() => selectText(selected ? null : t.id)}
               >
                 <div className="flex items-center gap-1">
                   <span className="text-gray-300 select-none cursor-grab" title="Drag to reorder" aria-hidden="true">⠿</span>
@@ -752,6 +895,68 @@ export default function CoverGenerator({ initialState, onStateChange, className 
             )
           })}
         </Section>
+
+        {/* Image Layers */}
+        <Section title="Image Layers">
+          <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={addImageLayer} />
+          <button className="w-full btn-primary" onClick={() => imageInputRef.current?.click()}>+ Add image</button>
+          {(state.images || []).length === 0 && <p className="text-xs text-gray-400 text-center py-1">No image layers yet</p>}
+          {[...(state.images || [])].reverse().map((img) => {
+            const selected = img.id === selectedImageId
+            const isTop = (state.images || []).indexOf(img) === state.images.length - 1
+            const isBottom = (state.images || []).indexOf(img) === 0
+            return (
+              <div
+                key={img.id}
+                className={`rounded border p-2 cursor-pointer text-sm transition-colors ${selected ? 'border-blue-400 bg-blue-50' : 'border-gray-200 bg-white hover:border-gray-300'}`}
+                onClick={() => selectImage(selected ? null : img.id)}
+              >
+                <div className="flex items-center gap-1">
+                  <span className="truncate flex-1 text-gray-700">{img.name || 'image'}</span>
+                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Bring to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleImageToFront(img.id) }}>⤒</button>
+                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Send to back" disabled={isBottom} onClick={(e) => { e.stopPropagation(); handleImageToBack(img.id) }}>⤓</button>
+                  <button className="text-gray-400 hover:text-red-500 text-xs px-1" title="Delete" onClick={(e) => { e.stopPropagation(); deleteImage(img.id) }}>✕</button>
+                </div>
+              </div>
+            )
+          })}
+        </Section>
+
+        {/* Selected Image Properties */}
+        {selectedImage && (
+          <Section title="Image Properties">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Opacity ({Math.round((selectedImage.opacity ?? 1) * 100)}%)</label>
+              <input
+                type="range"
+                className="w-full accent-blue-500"
+                min={0}
+                max={100}
+                value={Math.round((selectedImage.opacity ?? 1) * 100)}
+                onChange={e => updateImage(selectedImage.id, { opacity: clampOpacity(Number(e.target.value) / 100) }, `img-opacity-${selectedImage.id}`)}
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Blend mode</label>
+              <select
+                className="input w-full"
+                value={selectedImage.blendMode}
+                onChange={e => updateImage(selectedImage.id, { blendMode: e.target.value })}
+              >
+                {BLEND_MODES.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <NumberInput label="Width" value={selectedImage.width} min={1} max={CANVAS_SIZE} onChange={v => updateImage(selectedImage.id, { width: v }, `img-w-${selectedImage.id}`)} />
+              <NumberInput label="Height" value={selectedImage.height} min={1} max={CANVAS_SIZE} onChange={v => updateImage(selectedImage.id, { height: v }, `img-h-${selectedImage.id}`)} />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <NumberInput label="X position" value={selectedImage.x} min={0} max={CANVAS_SIZE} onChange={v => updateImage(selectedImage.id, { x: v }, `img-x-${selectedImage.id}`)} />
+              <NumberInput label="Y position" value={selectedImage.y} min={0} max={CANVAS_SIZE} onChange={v => updateImage(selectedImage.id, { y: v }, `img-y-${selectedImage.id}`)} />
+            </div>
+            <button className="w-full btn-secondary text-sm" onClick={() => deleteImage(selectedImage.id)}>Delete image</button>
+          </Section>
+        )}
 
         {/* Selected Text Properties */}
         {selectedText && (
