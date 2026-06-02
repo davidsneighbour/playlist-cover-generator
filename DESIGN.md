@@ -75,7 +75,8 @@ No decorative motion. Buttons use `transition-colors` for hover state only.
 
 ## Accessibility
 
-* All interactive elements are focusable via keyboard; each layer-list row's label is a button (`aria-pressed` reflects selection), so layers can be selected without a mouse, and selected layers are then nudged with the arrow keys or removed with Delete.
+* All interactive elements are focusable via keyboard; both each layer-list row's label and the layer's canvas element are buttons (`aria-pressed` reflects selection), so layers can be selected without a mouse (Enter/Space on the canvas element), then nudged with the arrow keys, removed with Delete, or deselected with Escape. Focused canvas layers show a `2px` blue (`#3b82f6`) `:focus-visible` outline.
+* Icon-only buttons (reorder, duplicate, delete) carry an `aria-label`; the canvas is a labelled `role="group"`.
 * A visually hidden (`sr-only`) `aria-live="polite"` region announces layer add, delete, duplicate, and undo/redo.
 * Color contrast: action blue on white passes AA at 14px.
 * `title` elements on SVG text indicate the selected state for screen readers.

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { layerNoun, actionAnnouncement } from '../src/lib/a11y'
+import { layerNoun, actionAnnouncement, describeLayer } from '../src/lib/a11y'
 
 describe('layerNoun', () => {
   it('names each layer kind', () => {
@@ -22,5 +22,22 @@ describe('actionAnnouncement', () => {
 
   it('returns the noun for an unknown action', () => {
     expect(actionAnnouncement('frobnicate', 'text')).toBe('Text layer')
+  })
+})
+
+describe('describeLayer', () => {
+  it('includes text content', () => {
+    expect(describeLayer('text', { content: 'Hello' })).toBe('Text layer: Hello')
+    expect(describeLayer('text', { content: '' })).toBe('Text layer: empty')
+  })
+
+  it('includes the image name', () => {
+    expect(describeLayer('image', { name: 'logo.png' })).toBe('Image layer: logo.png')
+    expect(describeLayer('image', {})).toBe('Image layer: image')
+  })
+
+  it('names shapes by type', () => {
+    expect(describeLayer('shape', { type: 'circle' })).toBe('Circle shape')
+    expect(describeLayer('shape', { type: 'rect' })).toBe('Rectangle shape')
   })
 })

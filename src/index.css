@@ -10,6 +10,14 @@
     background-color: #f9fafb;
     color: #111827;
   }
+
+  /* Keyboard focus ring for canvas layers (text, image, shape elements). */
+  [data-text-id]:focus-visible,
+  [data-image-id]:focus-visible,
+  [data-shape-id]:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+  }
 }
 
 @layer components {

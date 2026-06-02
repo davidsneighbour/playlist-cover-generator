@@ -18,3 +18,12 @@ export function actionAnnouncement(action, kind) {
   if (action === 'duplicate') return `${noun} duplicated`
   return noun
 }
+
+// Accessible name for a layer, used as the aria-label on its canvas element and
+// in the layer list. Includes the text content or image name when available.
+export function describeLayer(kind, layer = {}) {
+  if (kind === 'text') return `Text layer: ${layer.content || 'empty'}`
+  if (kind === 'image') return `Image layer: ${layer.name || 'image'}`
+  if (kind === 'shape') return `${layer.type === 'circle' ? 'Circle' : 'Rectangle'} shape`
+  return layerNoun(kind)
+}

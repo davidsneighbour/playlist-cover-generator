@@ -15,7 +15,7 @@ import { clampMenuPosition } from '../lib/menu'
 import { STORAGE_KEY, serializeState, serializeStateWithoutImage, parseStoredState } from '../lib/storage'
 import { SHARE_PARAM, encodeShareState, decodeShareState, readShareToken } from '../lib/share'
 import { buildZip } from '../lib/zip'
-import { layerNoun, actionAnnouncement } from '../lib/a11y'
+import { actionAnnouncement, describeLayer } from '../lib/a11y'
 import { averageRgb, pickContrastColor } from '../lib/color'
 import { isOpen as isCardOpen, toggleOpen, togglePin, openCard } from '../lib/accordion'
 import { AccordionContext, CollapsibleCard } from './Accordion'
@@ -303,6 +303,11 @@ function TextElement({ text, selected, onSelect, onDrag, snapToGrid, gridSpacing
       style={{ cursor: 'move', userSelect: 'none' }}
       onMouseDown={handleMouseDown}
       data-text-id={text.id}
+      tabIndex={0}
+      role="button"
+      aria-label={describeLayer('text', text)}
+      aria-pressed={selected}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(text.id) } }}
     >
       {text.content}
       {selected && (
@@ -312,7 +317,7 @@ function TextElement({ text, selected, onSelect, onDrag, snapToGrid, gridSpacing
   )
 }
 
-function ImageElement({ image, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize }) {
+function ImageElement({ image, selected, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize }) {
   const handleMouseDown = useSvgDrag({
     getAnchor: () => ({ x: image.x, y: image.y }),
     onMove: (nx, ny) => onDrag(image.id, nx, ny),
@@ -335,6 +340,11 @@ function ImageElement({ image, onSelect, onDrag, snapToGrid, gridSpacing, canvas
       style={{ cursor: 'move', mixBlendMode: image.blendMode !== 'normal' ? image.blendMode : undefined }}
       onMouseDown={handleMouseDown}
       data-image-id={image.id}
+      tabIndex={0}
+      role="button"
+      aria-label={describeLayer('image', image)}
+      aria-pressed={selected}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(image.id) } }}
     />
   )
 }
@@ -387,7 +397,7 @@ function ResizeHandles({ box, ratio, onResize }) {
   ))
 }
 
-function ShapeElement({ shape, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize }) {
+function ShapeElement({ shape, selected, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize }) {
   const handleMouseDown = useSvgDrag({
     getAnchor: () => ({ x: shape.x, y: shape.y }),
     onMove: (nx, ny) => onDrag(shape.id, nx, ny),
@@ -404,6 +414,11 @@ function ShapeElement({ shape, onSelect, onDrag, snapToGrid, gridSpacing, canvas
     style: { cursor: 'move' },
     onMouseDown: handleMouseDown,
     'data-shape-id': shape.id,
+    tabIndex: 0,
+    role: 'button',
+    'aria-label': describeLayer('shape', shape),
+    'aria-pressed': selected,
+    onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(shape.id) } },
   }
 
   if (shape.type === 'circle') {
@@ -521,6 +536,8 @@ function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, on
       height={displaySize}
       viewBox={`0 0 ${CANVAS_SIZE} ${CANVAS_SIZE}`}
       style={{ display: 'block', background: '#ffffff' }}
+      role="group"
+      aria-label="Cover canvas"
       onClick={(e) => {
         if (e.target.tagName === 'svg') {
           onSelectText(null)
@@ -615,6 +632,7 @@ function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, on
         <ShapeElement
           key={shape.id}
           shape={shape}
+          selected={shape.id === selectedShapeId}
           onSelect={onSelectShape}
           onDrag={onDragShape}
           snapToGrid={state.snapToGrid}
@@ -1322,10 +1340,14 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   // something is selected, so plain arrows still scroll the page otherwise.
   useEffect(() => {
     const onKey = (e) => {
-      if (helpOpen) return
+      if (helpOpen || contextMenu) return
       const tag = e.target.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable) return
       if (selectedTextId == null && selectedImageId == null && selectedShapeId == null) return
+      if (e.key === 'Escape') {
+        selectText(null)
+        return
+      }
       if (isDeleteKey(e.key)) {
         e.preventDefault()
         if (selectedTextId != null) deleteText(selectedTextId)
@@ -1341,7 +1363,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [helpOpen, selectedTextId, selectedImageId, selectedShapeId, deleteText, deleteImage, deleteShape, nudgeSelected, state.grid.spacing])
+  }, [helpOpen, contextMenu, selectedTextId, selectedImageId, selectedShapeId, selectText, deleteText, deleteImage, deleteShape, nudgeSelected, state.grid.spacing])
 
   // Inline the custom fonts actually used by text layers as base64 @font-face
   // rules in the cloned SVG, so PNG and SVG exports render and stay portable.
@@ -1919,10 +1941,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                   >
                     {t.content || '(empty)'}
                   </button>
-                  <button className="text-gray-400 hover:text-gray-700 text-xs px-1" title="Duplicate" onClick={(e) => { e.stopPropagation(); duplicateText(t.id) }}>⧉</button>
-                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Bring to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleBringToFront(t.id) }}>⤒</button>
-                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Send to back" disabled={isBottom} onClick={(e) => { e.stopPropagation(); handleSendToBack(t.id) }}>⤓</button>
-                  <button className="text-gray-400 hover:text-red-500 text-xs px-1" title="Delete" onClick={(e) => { e.stopPropagation(); deleteText(t.id) }}>✕</button>
+                  <button className="text-gray-400 hover:text-gray-700 text-xs px-1" title="Duplicate" aria-label="Duplicate text layer" onClick={(e) => { e.stopPropagation(); duplicateText(t.id) }}>⧉</button>
+                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Bring to front" aria-label="Bring text layer to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleBringToFront(t.id) }}>⤒</button>
+                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Send to back" aria-label="Send text layer to back" disabled={isBottom} onClick={(e) => { e.stopPropagation(); handleSendToBack(t.id) }}>⤓</button>
+                  <button className="text-gray-400 hover:text-red-500 text-xs px-1" title="Delete" aria-label="Delete text layer" onClick={(e) => { e.stopPropagation(); deleteText(t.id) }}>✕</button>
                 </div>
               </div>
             )
@@ -1953,10 +1975,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                   >
                     {img.name || 'image'}
                   </button>
-                  <button className="text-gray-400 hover:text-gray-700 text-xs px-1" title="Duplicate" onClick={(e) => { e.stopPropagation(); duplicateImage(img.id) }}>⧉</button>
-                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Bring to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleImageToFront(img.id) }}>⤒</button>
-                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Send to back" disabled={isBottom} onClick={(e) => { e.stopPropagation(); handleImageToBack(img.id) }}>⤓</button>
-                  <button className="text-gray-400 hover:text-red-500 text-xs px-1" title="Delete" onClick={(e) => { e.stopPropagation(); deleteImage(img.id) }}>✕</button>
+                  <button className="text-gray-400 hover:text-gray-700 text-xs px-1" title="Duplicate" aria-label="Duplicate image layer" onClick={(e) => { e.stopPropagation(); duplicateImage(img.id) }}>⧉</button>
+                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Bring to front" aria-label="Bring image layer to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleImageToFront(img.id) }}>⤒</button>
+                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Send to back" aria-label="Send image layer to back" disabled={isBottom} onClick={(e) => { e.stopPropagation(); handleImageToBack(img.id) }}>⤓</button>
+                  <button className="text-gray-400 hover:text-red-500 text-xs px-1" title="Delete" aria-label="Delete image layer" onClick={(e) => { e.stopPropagation(); deleteImage(img.id) }}>✕</button>
                 </div>
               </div>
             )
@@ -2047,10 +2069,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                   >
                     {shape.type}
                   </button>
-                  <button className="text-gray-400 hover:text-gray-700 text-xs px-1" title="Duplicate" onClick={(e) => { e.stopPropagation(); duplicateShape(shape.id) }}>⧉</button>
-                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Bring to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleShapeToFront(shape.id) }}>⤒</button>
-                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Send to back" disabled={isBottom} onClick={(e) => { e.stopPropagation(); handleShapeToBack(shape.id) }}>⤓</button>
-                  <button className="text-gray-400 hover:text-red-500 text-xs px-1" title="Delete" onClick={(e) => { e.stopPropagation(); deleteShape(shape.id) }}>✕</button>
+                  <button className="text-gray-400 hover:text-gray-700 text-xs px-1" title="Duplicate" aria-label="Duplicate shape" onClick={(e) => { e.stopPropagation(); duplicateShape(shape.id) }}>⧉</button>
+                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Bring to front" aria-label="Bring shape to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleShapeToFront(shape.id) }}>⤒</button>
+                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Send to back" aria-label="Send shape to back" disabled={isBottom} onClick={(e) => { e.stopPropagation(); handleShapeToBack(shape.id) }}>⤓</button>
+                  <button className="text-gray-400 hover:text-red-500 text-xs px-1" title="Delete" aria-label="Delete shape" onClick={(e) => { e.stopPropagation(); deleteShape(shape.id) }}>✕</button>
                 </div>
               </div>
             )
