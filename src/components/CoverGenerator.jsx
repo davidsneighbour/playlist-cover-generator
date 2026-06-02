@@ -15,6 +15,7 @@ import { clampMenuPosition } from '../lib/menu'
 import { STORAGE_KEY, serializeState, serializeStateWithoutImage, parseStoredState } from '../lib/storage'
 import { SHARE_PARAM, encodeShareState, decodeShareState, readShareToken } from '../lib/share'
 import { buildZip } from '../lib/zip'
+import { layerNoun, actionAnnouncement } from '../lib/a11y'
 import { averageRgb, pickContrastColor } from '../lib/color'
 import { isOpen as isCardOpen, toggleOpen, togglePin, openCard } from '../lib/accordion'
 import { AccordionContext, CollapsibleCard } from './Accordion'
@@ -813,6 +814,11 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     ...initialState,
   })
   const update = commit
+  // Speak a message through the ARIA live region (re-announces repeats via the
+  // changing nonce, see the rendered region below).
+  const announce = useCallback((msg) => setLive(l => ({ msg, n: l.n + 1 })), [])
+  const doUndo = useCallback(() => { undo(); announce('Undo') }, [undo, announce])
+  const doRedo = useCallback(() => { redo(); announce('Redo') }, [redo, announce])
   const [selectedTextId, setSelectedTextId] = useState(null)
   const [selectedImageId, setSelectedImageId] = useState(null)
   const [selectedShapeId, setSelectedShapeId] = useState(null)
@@ -822,6 +828,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const [contextMenu, setContextMenu] = useState(null)
   const [shareCopied, setShareCopied] = useState(false)
   const [batchBusy, setBatchBusy] = useState(false)
+  const [live, setLive] = useState({ msg: '', n: 0 })
   const [dragOverArrayIndex, setDragOverArrayIndex] = useState(null)
   const [selectedTemplate, setSelectedTemplate] = useState('')
   const [customFontInput, setCustomFontInput] = useState('')
@@ -943,15 +950,15 @@ export default function CoverGenerator({ initialState, onStateChange, className 
       const key = e.key.toLowerCase()
       if (key === 'z' && !e.shiftKey) {
         e.preventDefault()
-        undo()
+        doUndo()
       } else if ((key === 'z' && e.shiftKey) || key === 'y') {
         e.preventDefault()
-        redo()
+        doRedo()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [undo, redo])
+  }, [doUndo, doRedo])
 
   // Load each custom (Google) font into the document so the live canvas can
   // render it. Idempotent: a <link> is injected once per family. Re-runs when
@@ -1035,7 +1042,8 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     }))
     selectText(id)
     setScrollTo('props-text')
-  }, [update, selectText])
+    announce(actionAnnouncement('add', 'text'))
+  }, [update, selectText, announce])
 
   // Add a Google font by name to the picker (de-duplicated). The injection
   // effect loads it; embedding on export makes it portable.
@@ -1095,7 +1103,8 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const deleteText = useCallback((id) => {
     update(prev => ({ ...prev, texts: prev.texts.filter(t => t.id !== id) }))
     setSelectedTextId(null)
-  }, [update])
+    announce(actionAnnouncement('delete', 'text'))
+  }, [update, announce])
 
   const duplicateText = useCallback((id) => {
     const newId = nextId++
@@ -1105,7 +1114,8 @@ export default function CoverGenerator({ initialState, onStateChange, className 
       return texts === src ? prev : { ...prev, texts }
     })
     selectText(newId)
-  }, [update, selectText])
+    announce(actionAnnouncement('duplicate', 'text'))
+  }, [update, selectText, announce])
 
   const handleDragText = useCallback((id, x, y) => {
     update(prev => ({
@@ -1156,12 +1166,13 @@ export default function CoverGenerator({ initialState, onStateChange, className 
         }))
         selectImage(id)
         setScrollTo('props-image')
+        announce(actionAnnouncement('add', 'image'))
       }
       probe.src = data
     }
     reader.readAsDataURL(file)
     e.target.value = ''
-  }, [update, selectImage])
+  }, [update, selectImage, announce])
 
   const updateImage = useCallback((id, patch, coalesceKey) => {
     update(prev => ({
@@ -1173,7 +1184,8 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const deleteImage = useCallback((id) => {
     update(prev => ({ ...prev, images: (prev.images || []).filter(i => i.id !== id) }))
     setSelectedImageId(null)
-  }, [update])
+    announce(actionAnnouncement('delete', 'image'))
+  }, [update, announce])
 
   const duplicateImage = useCallback((id) => {
     const newId = nextId++
@@ -1183,7 +1195,8 @@ export default function CoverGenerator({ initialState, onStateChange, className 
       return images === src ? prev : { ...prev, images }
     })
     selectImage(newId)
-  }, [update, selectImage])
+    announce(actionAnnouncement('duplicate', 'image'))
+  }, [update, selectImage, announce])
 
   const handleDragImage = useCallback((id, x, y) => {
     update(prev => ({
@@ -1216,7 +1229,8 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     update(prev => ({ ...prev, shapes: [...(prev.shapes || []), createShape(id, type)] }))
     selectShape(id)
     setScrollTo('props-shape')
-  }, [update, selectShape])
+    announce(actionAnnouncement('add', 'shape'))
+  }, [update, selectShape, announce])
 
   const updateShape = useCallback((id, patch, coalesceKey) => {
     update(prev => ({
@@ -1228,7 +1242,8 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const deleteShape = useCallback((id) => {
     update(prev => ({ ...prev, shapes: (prev.shapes || []).filter(s => s.id !== id) }))
     setSelectedShapeId(null)
-  }, [update])
+    announce(actionAnnouncement('delete', 'shape'))
+  }, [update, announce])
 
   const duplicateShape = useCallback((id) => {
     const newId = nextId++
@@ -1238,7 +1253,8 @@ export default function CoverGenerator({ initialState, onStateChange, className 
       return shapes === src ? prev : { ...prev, shapes }
     })
     selectShape(newId)
-  }, [update, selectShape])
+    announce(actionAnnouncement('duplicate', 'shape'))
+  }, [update, selectShape, announce])
 
   const handleDragShape = useCallback((id, x, y) => {
     update(prev => ({
@@ -1563,6 +1579,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     <div className={`flex flex-col lg:flex-row gap-6 p-4 lg:p-6 min-h-screen bg-gray-50 lg:items-start ${className}`}>
       <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
       {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} actions={ctxActions} onClose={closeContextMenu} />}
+      {/* Screen-reader announcements for layer and history changes */}
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {live.msg + (live.n % 2 ? ' ' : '')}
+      </div>
       {/* Canvas — square, stays visible on the left while the controls scroll */}
       <div ref={canvasColRef} className="w-full lg:w-[600px] lg:shrink-0 lg:sticky lg:top-6 lg:self-start flex flex-col items-center gap-3">
         <div
@@ -1613,7 +1633,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
           <div className="grid grid-cols-2 gap-2">
             <button
               className="btn-secondary text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-              onClick={undo}
+              onClick={doUndo}
               disabled={!canUndo}
               title="Undo (Ctrl+Z)"
             >
@@ -1621,7 +1641,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
             </button>
             <button
               className="btn-secondary text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-              onClick={redo}
+              onClick={doRedo}
               disabled={!canRedo}
               title="Redo (Ctrl+Shift+Z)"
             >
@@ -1890,9 +1910,15 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               >
                 <div className="flex items-center gap-1">
                   <span className="text-gray-300 select-none cursor-grab" title="Drag to reorder" aria-hidden="true">⠿</span>
-                  <span className="truncate flex-1" style={{ fontFamily: t.fontFamily, color: t.color !== '#ffffff' ? t.color : '#374151', fontWeight: t.bold ? 'bold' : 'normal', fontStyle: t.italic ? 'italic' : 'normal' }}>
+                  <button
+                    type="button"
+                    className="truncate flex-1 text-left bg-transparent border-0 p-0 cursor-pointer"
+                    style={{ fontFamily: t.fontFamily, color: t.color !== '#ffffff' ? t.color : '#374151', fontWeight: t.bold ? 'bold' : 'normal', fontStyle: t.italic ? 'italic' : 'normal' }}
+                    aria-pressed={selected}
+                    onClick={(e) => { e.stopPropagation(); selectText(selected ? null : t.id) }}
+                  >
                     {t.content || '(empty)'}
-                  </span>
+                  </button>
                   <button className="text-gray-400 hover:text-gray-700 text-xs px-1" title="Duplicate" onClick={(e) => { e.stopPropagation(); duplicateText(t.id) }}>⧉</button>
                   <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Bring to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleBringToFront(t.id) }}>⤒</button>
                   <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Send to back" disabled={isBottom} onClick={(e) => { e.stopPropagation(); handleSendToBack(t.id) }}>⤓</button>
@@ -1919,7 +1945,14 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                 onClick={() => selectImage(selected ? null : img.id)}
               >
                 <div className="flex items-center gap-1">
-                  <span className="truncate flex-1 text-gray-700">{img.name || 'image'}</span>
+                  <button
+                    type="button"
+                    className="truncate flex-1 text-left text-gray-700 bg-transparent border-0 p-0 cursor-pointer"
+                    aria-pressed={selected}
+                    onClick={(e) => { e.stopPropagation(); selectImage(selected ? null : img.id) }}
+                  >
+                    {img.name || 'image'}
+                  </button>
                   <button className="text-gray-400 hover:text-gray-700 text-xs px-1" title="Duplicate" onClick={(e) => { e.stopPropagation(); duplicateImage(img.id) }}>⧉</button>
                   <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Bring to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleImageToFront(img.id) }}>⤒</button>
                   <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Send to back" disabled={isBottom} onClick={(e) => { e.stopPropagation(); handleImageToBack(img.id) }}>⤓</button>
@@ -2006,7 +2039,14 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               >
                 <div className="flex items-center gap-1">
                   <span className="inline-block w-3 h-3 border border-gray-300" style={{ background: shape.fill, borderRadius: shape.type === 'circle' ? '9999px' : '2px' }} aria-hidden="true" />
-                  <span className="truncate flex-1 text-gray-700 capitalize">{shape.type}</span>
+                  <button
+                    type="button"
+                    className="truncate flex-1 text-left text-gray-700 capitalize bg-transparent border-0 p-0 cursor-pointer"
+                    aria-pressed={selected}
+                    onClick={(e) => { e.stopPropagation(); selectShape(selected ? null : shape.id) }}
+                  >
+                    {shape.type}
+                  </button>
                   <button className="text-gray-400 hover:text-gray-700 text-xs px-1" title="Duplicate" onClick={(e) => { e.stopPropagation(); duplicateShape(shape.id) }}>⧉</button>
                   <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Bring to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleShapeToFront(shape.id) }}>⤒</button>
                   <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Send to back" disabled={isBottom} onClick={(e) => { e.stopPropagation(); handleShapeToBack(shape.id) }}>⤓</button>

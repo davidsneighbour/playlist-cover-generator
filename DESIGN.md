@@ -75,6 +75,7 @@ No decorative motion. Buttons use `transition-colors` for hover state only.
 
 ## Accessibility
 
-* All interactive elements are focusable via keyboard.
+* All interactive elements are focusable via keyboard; each layer-list row's label is a button (`aria-pressed` reflects selection), so layers can be selected without a mouse, and selected layers are then nudged with the arrow keys or removed with Delete.
+* A visually hidden (`sr-only`) `aria-live="polite"` region announces layer add, delete, duplicate, and undo/redo.
 * Color contrast: action blue on white passes AA at 14px.
 * `title` elements on SVG text indicate the selected state for screen readers.

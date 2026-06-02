@@ -29,6 +29,7 @@ Built with React 19, Vite 6, and Tailwind CSS 4. No heavy editor dependencies: t
 * **Export** to high-quality PNG and to clean, editable SVG.
 * **Batch export** — apply the current layout to several uploaded images at once and download them as a ZIP of PNGs.
 * **Help overlay** — press F1 (or the help link) for a modal of keyboard shortcuts, tips, and the app version.
+* **Accessible editing** — layers are selectable from the keyboard, and an ARIA live region announces adds, deletes, duplicates, and undo/redo.
 
 ## Getting started
 
@@ -153,6 +154,7 @@ Add a `LICENSE` file and a `license` field to `package.json` before publishing a
 | [src/lib/storage.js](src/lib/storage.js) | localStorage auto-save serialize/parse helpers (unit-tested). |
 | [src/lib/share.js](src/lib/share.js) | Share-link URL-safe state encode/decode (unit-tested). |
 | [src/lib/zip.js](src/lib/zip.js) | Dependency-free ZIP writer (STORE) and CRC-32 for batch export (unit-tested). |
+| [src/lib/a11y.js](src/lib/a11y.js) | Accessibility announcement message helpers (unit-tested). |
 | [src/index.js](src/index.js) | Library entry that re-exports `CoverGenerator`. |
 | [src/App.jsx](src/App.jsx) | Demo application wrapper. |
 | [src/main.jsx](src/main.jsx) | Vite entry point for the demo. |
