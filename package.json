@@ -39,11 +39,11 @@
     "react-dom": ">=18"
   },
   "dependencies": {
-    "@dnbhq/markdownlint-config": "0.2.7",
     "@headlessui/react": "2.2.10",
     "lucide-react": "1.17.0"
   },
   "devDependencies": {
+    "@dnbhq/markdownlint-config": "0.2.7",
     "@tailwindcss/vite": "^4.1.8",
     "@vitejs/plugin-react": "^4.5.2",
     "react": "^19.1.0",
