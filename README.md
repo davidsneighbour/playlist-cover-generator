@@ -23,6 +23,7 @@ Built with React 19, Vite 6, and Tailwind CSS 4. No heavy editor dependencies: t
 * **Templates** — apply a predefined layout (title and artist, minimal, grid art) from a dropdown, keeping your uploaded image.
 * **Google Fonts** — add any Google font by name; used fonts are embedded into PNG and SVG exports so they stay portable.
 * **Save and load** the full layout as JSON, so a project can be reopened later with any image.
+* **Auto-save** the session to the browser's localStorage and restore it on the next visit (opt out with `autoSave={false}`).
 * **Export size presets** — 600, 1000, or 3000 (the square Spotify and Apple Music spec) for the PNG and SVG output.
 * **Export** to high-quality PNG and to clean, editable SVG.
 * **Help overlay** — press F1 (or the help link) for a modal of keyboard shortcuts, tips, and the app version.
@@ -114,6 +115,7 @@ function Example() {
 | `onStateChange` | `function` | Called with the full state object on every change. Use it to persist or sync. |
 | `className` | `string` | Extra classes applied to the component's root element. |
 | `googleFontsApiKey` | `string` | Google Fonts API key for the font-search typeahead. Defaults to `VITE_GOOGLE_FONTS_API_KEY`; pass your own when embedding. |
+| `autoSave` | `boolean` | Persist the session to localStorage and restore it on mount. Defaults to `true`; an explicit `initialState` still takes precedence per key. |
 
 Tailwind CSS 4 must be available in the host app, or the component's utility classes will not be styled. See [DESIGN.md](DESIGN.md) for the tokens and component classes used.
 
@@ -146,6 +148,7 @@ Add a `LICENSE` file and a `license` field to `package.json` before publishing a
 | [src/lib/rulers.js](src/lib/rulers.js) | Ruler tick enumeration (unit-tested). |
 | [src/lib/shortcuts.js](src/lib/shortcuts.js) | Keyboard-shortcut list and platform-aware key formatter (unit-tested). |
 | [src/lib/menu.js](src/lib/menu.js) | Context-menu viewport clamping (unit-tested). |
+| [src/lib/storage.js](src/lib/storage.js) | localStorage auto-save serialize/parse helpers (unit-tested). |
 | [src/index.js](src/index.js) | Library entry that re-exports `CoverGenerator`. |
 | [src/App.jsx](src/App.jsx) | Demo application wrapper. |
 | [src/main.jsx](src/main.jsx) | Vite entry point for the demo. |

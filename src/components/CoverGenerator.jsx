@@ -12,6 +12,7 @@ import { CANVAS_PRESETS, DEFAULT_EXPORT_SIZE, exportScale, clampExportSize } fro
 import { rulerTicks } from '../lib/rulers'
 import { SHORTCUTS, formatKeys, nudgeDelta, isDeleteKey } from '../lib/shortcuts'
 import { clampMenuPosition } from '../lib/menu'
+import { STORAGE_KEY, serializeState, serializeStateWithoutImage, parseStoredState } from '../lib/storage'
 import { averageRgb, pickContrastColor } from '../lib/color'
 import { isOpen as isCardOpen, toggleOpen, togglePin, openCard } from '../lib/accordion'
 import { AccordionContext, CollapsibleCard } from './Accordion'
@@ -773,9 +774,16 @@ function ContextMenu({ x, y, actions, onClose }) {
   )
 }
 
-export default function CoverGenerator({ initialState, onStateChange, className = '', googleFontsApiKey = ENV_GOOGLE_FONTS_API_KEY }) {
+export default function CoverGenerator({ initialState, onStateChange, className = '', googleFontsApiKey = ENV_GOOGLE_FONTS_API_KEY, autoSave = true }) {
+  // Restore an auto-saved session on mount (once). An explicit initialState prop
+  // still wins per key; without one, the previous session is reloaded.
+  const restored = useMemo(
+    () => (autoSave && typeof localStorage !== 'undefined' ? parseStoredState(localStorage.getItem(STORAGE_KEY)) : null),
+    [], // eslint-disable-line react-hooks/exhaustive-deps -- read once at mount
+  )
   const { state, canUndo, canRedo, commit, undo, redo } = useHistoryState({
     ...DEFAULT_STATE,
+    ...(restored || {}),
     ...initialState,
   })
   const update = commit
@@ -852,6 +860,25 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     }
     onStateChange?.(state)
   }, [state, onStateChange])
+
+  // Auto-save the session to localStorage, debounced so frequent edits (drags,
+  // typing) do not write on every change. Falls back to saving without the
+  // (large) background image if the full payload exceeds the storage quota.
+  useEffect(() => {
+    if (!autoSave || typeof localStorage === 'undefined') return
+    const id = setTimeout(() => {
+      try {
+        localStorage.setItem(STORAGE_KEY, serializeState(state))
+      } catch {
+        try {
+          localStorage.setItem(STORAGE_KEY, serializeStateWithoutImage(state))
+        } catch {
+          // Storage unavailable or still over quota; skip this save.
+        }
+      }
+    }, 500)
+    return () => clearTimeout(id)
+  }, [state, autoSave])
 
   // Drop a selection that no longer exists (e.g. after an undo removes its layer).
   useEffect(() => {
