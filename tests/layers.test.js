@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { reorder, bringToFront, sendToBack, displayIndexToArrayIndex } from './layers'
+import { reorder, bringToFront, sendToBack, displayIndexToArrayIndex } from '../src/lib/layers'
 
 // Helper: build a layer list of objects with ids a, b, c, ... and read it back as a string.
 const make = (...ids) => ids.map(id => ({ id, content: id.toUpperCase() }))

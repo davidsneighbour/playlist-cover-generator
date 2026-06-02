@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { TEMPLATES, TEXT_KEYS, getTemplate, instantiateTemplate } from './templates'
+import { TEMPLATES, TEXT_KEYS, getTemplate, instantiateTemplate } from '../src/lib/templates'
 
 // A simple incrementing id factory, like the editor's nextId counter.
 const counter = (start = 1) => {

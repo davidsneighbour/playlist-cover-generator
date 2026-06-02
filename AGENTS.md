@@ -72,7 +72,7 @@ The single state object is the contract for JSON import/export and the `initialS
 
 ### Tests
 
-Tests run on Vitest. Prefer extracting non-trivial logic into pure functions under [src/lib/](src/lib/) and testing those directly, rather than driving the DOM; SVG drag and HTML drag-and-drop are hard to test headlessly, but the array math behind them is not. Co-locate a `*.test.js` next to the module it covers, as [src/lib/layers.test.js](src/lib/layers.test.js) does. Add or update tests for any new pure logic.
+Tests run on Vitest. Prefer extracting non-trivial logic into pure functions under [src/lib/](src/lib/) and testing those directly, rather than driving the DOM; SVG drag and HTML drag-and-drop are hard to test headlessly, but the math behind them is not. Tests live in [tests/](tests/), named `<module>.test.js`, and import the module under test from `../src/lib/...`. Add or update tests for any new pure logic.
 
 ### Markdown
 
