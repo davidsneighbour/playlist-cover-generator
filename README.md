@@ -9,6 +9,7 @@ Built with React 19, Vite 6, and Tailwind CSS 4. No heavy editor dependencies: t
 * **Square SVG canvas** with a fixed internal coordinate system that scales responsively.
 * **Background image** upload, displayed edge-to-edge with center-crop.
 * **Image layers** — stack logos or overlays over the background, each with opacity, blend mode, size, and a draggable position.
+* **Shapes** — add rectangles and circles with fill, stroke, and opacity, draggable and snappable.
 * **Toggleable grid** with adjustable spacing and an optional heavier line every *N* cells.
 * **Editable text layers** with control over content, font, size, color, weight, style, anchor, position, outline (stroke color and width), and drop shadow.
 * **Drag to position** text directly on the canvas, with optional **snap to grid**.
@@ -91,6 +92,7 @@ Tailwind CSS 4 must be available in the host app, or the component's utility cla
 | [src/lib/text.js](src/lib/text.js) | Pure text presentation helpers, e.g. stroke/outline attributes (unit-tested). |
 | [src/lib/fonts.js](src/lib/fonts.js) | Built-in font list and Google Fonts URL/CSS helpers (unit-tested). |
 | [src/lib/images.js](src/lib/images.js) | Image-layer factory, blend modes, and fit/center helpers (unit-tested). |
+| [src/lib/shapes.js](src/lib/shapes.js) | Shape factory and ellipse geometry helpers (unit-tested). |
 | [src/index.js](src/index.js) | Library entry that re-exports `CoverGenerator`. |
 | [src/App.jsx](src/App.jsx) | Demo application wrapper. |
 | [src/main.jsx](src/main.jsx) | Vite entry point for the demo. |

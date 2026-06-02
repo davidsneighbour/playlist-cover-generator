@@ -14,7 +14,7 @@ Items deferred from the initial implementation.
 ## Medium priority
 
 * [x] **Multiple image layers** — done. Add image layers (logos, overlays) over the background; each has opacity, a CSS blend mode, size, and position, is draggable with snap, and supports bring-to-front / send-to-back. Helpers in [src/lib/images.js](src/lib/images.js), covered by tests; z-order reuses [src/lib/layers.js](src/lib/layers.js).
-* [ ] **Shape primitives** — add rectangles and circles as SVG elements with configurable fill, stroke, and opacity, draggable and snappable.
+* [x] **Shape primitives** — done. Add rectangles and circles (ellipses) with configurable fill, stroke color/width, and opacity; draggable with snap and reorderable. Helpers in [src/lib/shapes.js](src/lib/shapes.js), covered by tests.
 * [ ] **Color overlay layer** — a solid or gradient color fill over the background with adjustable opacity, useful for text legibility.
 * [ ] **Gradient backgrounds** — configurable linear and radial SVG gradients.
 * [ ] **Canvas size presets** — quick-switch between 600x600 (default), 1000x1000, 3000x3000 (high-res), and exact Spotify and Apple Music specs.

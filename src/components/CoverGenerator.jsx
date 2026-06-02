@@ -4,6 +4,7 @@ import { TEMPLATES, getTemplate, instantiateTemplate } from '../lib/templates'
 import { textStrokeAttrs, textShadowFilter } from '../lib/text'
 import { BUILTIN_FONTS, googleFontCssUrl, parseFontFaces, buildFontFaceRule, addFont } from '../lib/fonts'
 import { BLEND_MODES, createImageLayer, clampOpacity, fitDimensions, centeredPosition } from '../lib/images'
+import { SHAPE_TYPES, createShape, ellipseGeometry } from '../lib/shapes'
 
 const CANVAS_SIZE = 600
 
@@ -12,6 +13,7 @@ const DEFAULT_STATE = {
   backgroundImageData: null,
   texts: [],
   images: [],
+  shapes: [],
   grid: {
     enabled: false,
     spacing: 20,
@@ -240,7 +242,32 @@ function ImageElement({ image, onSelect, onDrag, snapToGrid, gridSpacing, canvas
   )
 }
 
-function SVGCanvas({ state, selectedTextId, selectedImageId, onSelectText, onSelectImage, onDragText, onDragImage, displaySize }) {
+function ShapeElement({ shape, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize }) {
+  const handleMouseDown = useSvgDrag({
+    getAnchor: () => ({ x: shape.x, y: shape.y }),
+    onMove: (nx, ny) => onDrag(shape.id, nx, ny),
+    onStart: () => onSelect(shape.id),
+    snapToGrid, gridSpacing, canvasSize,
+  })
+
+  const common = {
+    fill: shape.fill,
+    stroke: shape.strokeWidth > 0 ? shape.stroke : 'none',
+    strokeWidth: shape.strokeWidth,
+    opacity: shape.opacity,
+    style: { cursor: 'move' },
+    onMouseDown: handleMouseDown,
+    'data-shape-id': shape.id,
+  }
+
+  if (shape.type === 'circle') {
+    const g = ellipseGeometry(shape)
+    return <ellipse cx={g.cx} cy={g.cy} rx={g.rx} ry={g.ry} {...common} />
+  }
+  return <rect x={shape.x} y={shape.y} width={shape.width} height={shape.height} {...common} />
+}
+
+function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, onSelectText, onSelectImage, onSelectShape, onDragText, onDragImage, onDragShape, displaySize }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -252,6 +279,7 @@ function SVGCanvas({ state, selectedTextId, selectedImageId, onSelectText, onSel
         if (e.target.tagName === 'svg') {
           onSelectText(null)
           onSelectImage(null)
+          onSelectShape(null)
         }
       }}
     >
@@ -296,6 +324,18 @@ function SVGCanvas({ state, selectedTextId, selectedImageId, onSelectText, onSel
         />
       ))}
 
+      {(state.shapes || []).map((shape) => (
+        <ShapeElement
+          key={shape.id}
+          shape={shape}
+          onSelect={onSelectShape}
+          onDrag={onDragShape}
+          snapToGrid={state.snapToGrid}
+          gridSpacing={state.grid.spacing}
+          canvasSize={CANVAS_SIZE}
+        />
+      ))}
+
       <GridOverlay grid={state.grid} size={CANVAS_SIZE} />
 
       {state.texts.map((text) => (
@@ -319,6 +359,23 @@ function SVGCanvas({ state, selectedTextId, selectedImageId, onSelectText, onSel
             y={img.y}
             width={img.width}
             height={img.height}
+            fill="none"
+            stroke="#3b82f6"
+            strokeWidth={1.5}
+            strokeDasharray="4 2"
+            style={{ pointerEvents: 'none' }}
+          />
+        )
+      })()}
+
+      {selectedShapeId && (state.shapes || []).find(s => s.id === selectedShapeId) && (() => {
+        const shape = state.shapes.find(s => s.id === selectedShapeId)
+        return (
+          <rect
+            x={shape.x}
+            y={shape.y}
+            width={shape.width}
+            height={shape.height}
             fill="none"
             stroke="#3b82f6"
             strokeWidth={1.5}
@@ -359,6 +416,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const update = commit
   const [selectedTextId, setSelectedTextId] = useState(null)
   const [selectedImageId, setSelectedImageId] = useState(null)
+  const [selectedShapeId, setSelectedShapeId] = useState(null)
   const [displaySize, setDisplaySize] = useState(CANVAS_SIZE)
   const [dragOverArrayIndex, setDragOverArrayIndex] = useState(null)
   const [selectedTemplate, setSelectedTemplate] = useState('')
@@ -369,9 +427,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const imageInputRef = useRef(null)
   const dragIndexRef = useRef(null)
 
-  // Selecting a text and an image are mutually exclusive.
-  const selectText = useCallback((id) => { setSelectedTextId(id); setSelectedImageId(null) }, [])
-  const selectImage = useCallback((id) => { setSelectedImageId(id); setSelectedTextId(null) }, [])
+  // Only one layer (text, image, or shape) is selected at a time.
+  const selectText = useCallback((id) => { setSelectedTextId(id); setSelectedImageId(null); setSelectedShapeId(null) }, [])
+  const selectImage = useCallback((id) => { setSelectedImageId(id); setSelectedTextId(null); setSelectedShapeId(null) }, [])
+  const selectShape = useCallback((id) => { setSelectedShapeId(id); setSelectedTextId(null); setSelectedImageId(null) }, [])
 
   useEffect(() => {
     const obs = new ResizeObserver(entries => {
@@ -406,6 +465,12 @@ export default function CoverGenerator({ initialState, onStateChange, className 
       setSelectedImageId(null)
     }
   }, [state.images, selectedImageId])
+
+  useEffect(() => {
+    if (selectedShapeId != null && !(state.shapes || []).some(s => s.id === selectedShapeId)) {
+      setSelectedShapeId(null)
+    }
+  }, [state.shapes, selectedShapeId])
 
   // Keyboard shortcuts: Cmd/Ctrl+Z to undo, +Shift (or Ctrl+Y) to redo.
   // Ignored while typing in a field so native text undo still works there.
@@ -597,6 +662,46 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     })
   }, [update])
 
+  // Shape primitives (rectangles, circles). Same box model and z-order as images.
+  const addShape = useCallback((type) => {
+    const id = nextId++
+    update(prev => ({ ...prev, shapes: [...(prev.shapes || []), createShape(id, type)] }))
+    selectShape(id)
+  }, [update, selectShape])
+
+  const updateShape = useCallback((id, patch, coalesceKey) => {
+    update(prev => ({
+      ...prev,
+      shapes: (prev.shapes || []).map(s => s.id === id ? { ...s, ...patch } : s),
+    }), coalesceKey)
+  }, [update])
+
+  const deleteShape = useCallback((id) => {
+    update(prev => ({ ...prev, shapes: (prev.shapes || []).filter(s => s.id !== id) }))
+    setSelectedShapeId(null)
+  }, [update])
+
+  const handleDragShape = useCallback((id, x, y) => {
+    update(prev => ({
+      ...prev,
+      shapes: (prev.shapes || []).map(s => s.id === id ? { ...s, x, y } : s),
+    }), `shape-drag-${id}`)
+  }, [update])
+
+  const handleShapeToFront = useCallback((id) => {
+    update(prev => {
+      const next = bringToFront(prev.shapes || [], id)
+      return next === prev.shapes ? prev : { ...prev, shapes: next }
+    })
+  }, [update])
+
+  const handleShapeToBack = useCallback((id) => {
+    update(prev => {
+      const next = sendToBack(prev.shapes || [], id)
+      return next === prev.shapes ? prev : { ...prev, shapes: next }
+    })
+  }, [update])
+
   // Grid
   const updateGrid = useCallback((patch, coalesceKey) => {
     update(prev => ({ ...prev, grid: { ...prev.grid, ...patch } }), coalesceKey)
@@ -727,6 +832,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
 
   const selectedText = state.texts.find(t => t.id === selectedTextId)
   const selectedImage = (state.images || []).find(i => i.id === selectedImageId)
+  const selectedShape = (state.shapes || []).find(s => s.id === selectedShapeId)
 
   return (
     <div className={`flex flex-col lg:flex-row gap-4 p-4 min-h-screen bg-gray-50 ${className}`}>
@@ -741,10 +847,13 @@ export default function CoverGenerator({ initialState, onStateChange, className 
             state={state}
             selectedTextId={selectedTextId}
             selectedImageId={selectedImageId}
+            selectedShapeId={selectedShapeId}
             onSelectText={selectText}
             onSelectImage={selectImage}
+            onSelectShape={selectShape}
             onDragText={handleDragText}
             onDragImage={handleDragImage}
+            onDragShape={handleDragShape}
             displaySize={displaySize}
           />
         </div>
@@ -955,6 +1064,67 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               <NumberInput label="Y position" value={selectedImage.y} min={0} max={CANVAS_SIZE} onChange={v => updateImage(selectedImage.id, { y: v }, `img-y-${selectedImage.id}`)} />
             </div>
             <button className="w-full btn-secondary text-sm" onClick={() => deleteImage(selectedImage.id)}>Delete image</button>
+          </Section>
+        )}
+
+        {/* Shapes */}
+        <Section title="Shapes">
+          <div className="grid grid-cols-2 gap-2">
+            <button className="btn-primary text-sm" onClick={() => addShape('rect')}>+ Rectangle</button>
+            <button className="btn-primary text-sm" onClick={() => addShape('circle')}>+ Circle</button>
+          </div>
+          {(state.shapes || []).length === 0 && <p className="text-xs text-gray-400 text-center py-1">No shapes yet</p>}
+          {[...(state.shapes || [])].reverse().map((shape) => {
+            const selected = shape.id === selectedShapeId
+            const isTop = (state.shapes || []).indexOf(shape) === state.shapes.length - 1
+            const isBottom = (state.shapes || []).indexOf(shape) === 0
+            return (
+              <div
+                key={shape.id}
+                className={`rounded border p-2 cursor-pointer text-sm transition-colors ${selected ? 'border-blue-400 bg-blue-50' : 'border-gray-200 bg-white hover:border-gray-300'}`}
+                onClick={() => selectShape(selected ? null : shape.id)}
+              >
+                <div className="flex items-center gap-1">
+                  <span className="inline-block w-3 h-3 border border-gray-300" style={{ background: shape.fill, borderRadius: shape.type === 'circle' ? '9999px' : '2px' }} aria-hidden="true" />
+                  <span className="truncate flex-1 text-gray-700 capitalize">{shape.type}</span>
+                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Bring to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleShapeToFront(shape.id) }}>⤒</button>
+                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Send to back" disabled={isBottom} onClick={(e) => { e.stopPropagation(); handleShapeToBack(shape.id) }}>⤓</button>
+                  <button className="text-gray-400 hover:text-red-500 text-xs px-1" title="Delete" onClick={(e) => { e.stopPropagation(); deleteShape(shape.id) }}>✕</button>
+                </div>
+              </div>
+            )
+          })}
+        </Section>
+
+        {/* Selected Shape Properties */}
+        {selectedShape && (
+          <Section title="Shape Properties">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Fill</label>
+                <input type="color" className="w-full h-8 rounded border border-gray-200 cursor-pointer" value={selectedShape.fill} onChange={e => updateShape(selectedShape.id, { fill: e.target.value }, `shape-fill-${selectedShape.id}`)} />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Stroke</label>
+                <input type="color" className="w-full h-8 rounded border border-gray-200 cursor-pointer" value={selectedShape.stroke} onChange={e => updateShape(selectedShape.id, { stroke: e.target.value }, `shape-stroke-${selectedShape.id}`)} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <NumberInput label="Stroke width" value={selectedShape.strokeWidth} min={0} max={40} onChange={v => updateShape(selectedShape.id, { strokeWidth: v }, `shape-sw-${selectedShape.id}`)} hint="0 = off" />
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Opacity ({Math.round((selectedShape.opacity ?? 1) * 100)}%)</label>
+                <input type="range" className="w-full accent-blue-500 mt-1.5" min={0} max={100} value={Math.round((selectedShape.opacity ?? 1) * 100)} onChange={e => updateShape(selectedShape.id, { opacity: clampOpacity(Number(e.target.value) / 100) }, `shape-opacity-${selectedShape.id}`)} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <NumberInput label="Width" value={selectedShape.width} min={1} max={CANVAS_SIZE} onChange={v => updateShape(selectedShape.id, { width: v }, `shape-w-${selectedShape.id}`)} />
+              <NumberInput label="Height" value={selectedShape.height} min={1} max={CANVAS_SIZE} onChange={v => updateShape(selectedShape.id, { height: v }, `shape-h-${selectedShape.id}`)} />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <NumberInput label="X position" value={selectedShape.x} min={0} max={CANVAS_SIZE} onChange={v => updateShape(selectedShape.id, { x: v }, `shape-x-${selectedShape.id}`)} />
+              <NumberInput label="Y position" value={selectedShape.y} min={0} max={CANVAS_SIZE} onChange={v => updateShape(selectedShape.id, { y: v }, `shape-y-${selectedShape.id}`)} />
+            </div>
+            <button className="w-full btn-secondary text-sm" onClick={() => deleteShape(selectedShape.id)}>Delete shape</button>
           </Section>
         )}
 
