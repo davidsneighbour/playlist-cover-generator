@@ -6,6 +6,7 @@ Built with React 19, Vite 6, and Tailwind CSS 4, with Headless UI and Lucide ico
 
 ## Features
 
+* **Layers overview** — a panel at the top of the controls listing every layer on the canvas (text, shapes, images, the color overlay, and the background) front to back; click any entry to jump straight to its controls.
 * **Square SVG canvas** with a fixed internal coordinate system that scales responsively.
 * **Background image** upload with zoom and pan (crop) controls; defaults to a centered cover.
 * **Background filters** — brightness, contrast, saturation, and blur, applied as an SVG filter so they survive PNG and SVG export.
@@ -113,7 +114,7 @@ function Example() {
 ### Props
 
 | Prop | Type | Description |
-|---|---|---|
+| --- | --- | --- |
 | `initialState` | `object` | Partial state to seed the editor (grid, texts, snap settings). Merged over defaults. |
 | `onStateChange` | `function` | Called with the full state object on every change. Use it to persist or sync. |
 | `className` | `string` | Extra classes applied to the component's root element. |
@@ -131,14 +132,15 @@ npm run build:lib
 npm publish
 ```
 
-Add a `LICENSE` file and a `license` field to `package.json` before publishing a public release.
+The project is MIT licensed: see [LICENSE.md](LICENSE.md), declared as `"license": "MIT"` in `package.json`. npm always includes the license file in the published tarball regardless of the `files` allowlist.
 
 ## Project structure
 
 | Path | Purpose |
-|---|---|
+| --- | --- |
 | [src/components/CoverGenerator.jsx](src/components/CoverGenerator.jsx) | The editor: canvas, controls, drag, grid, and export logic. |
 | [src/lib/layers.js](src/lib/layers.js) | Pure text-layer z-order helpers (unit-tested). |
+| [src/lib/layerList.js](src/lib/layerList.js) | Builds the unified front-to-back layer overview list (unit-tested). |
 | [src/lib/templates.js](src/lib/templates.js) | Predefined cover layouts and the apply helper (unit-tested). |
 | [src/lib/text.js](src/lib/text.js) | Pure text presentation helpers, e.g. stroke/outline attributes (unit-tested). |
 | [src/lib/fonts.js](src/lib/fonts.js) | Built-in font list and Google Fonts URL/CSS helpers (unit-tested). |
@@ -171,4 +173,8 @@ Add a `LICENSE` file and a `license` field to `package.json` before publishing a
 
 * [DESIGN.md](DESIGN.md) — the design system: palette, typography, spacing, and components.
 * [AGENTS.md](AGENTS.md) — guidance for AI coding agents working in this repository.
-* [todo.md](todo.md) — planned and deferred features.
+* [todo.md](todo.md) — backlog and non-goals.
+
+## License
+
+MIT — see [LICENSE.md](LICENSE.md).

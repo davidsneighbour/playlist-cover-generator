@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Embeddable React component for generating square playlist cover art with a clean, exportable SVG canvas.",
+  "license": "MIT",
   "keywords": [
     "react",
     "svg",
@@ -38,6 +39,7 @@
     "react-dom": ">=18"
   },
   "dependencies": {
+    "@dnbhq/markdownlint-config": "0.2.7",
     "@headlessui/react": "2.2.10",
     "lucide-react": "1.17.0"
   },

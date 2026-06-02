@@ -16,6 +16,7 @@ import { STORAGE_KEY, serializeState, serializeStateWithoutImage, parseStoredSta
 import { SHARE_PARAM, encodeShareState, decodeShareState, readShareToken } from '../lib/share'
 import { buildZip } from '../lib/zip'
 import { actionAnnouncement, describeLayer } from '../lib/a11y'
+import { buildLayerList } from '../lib/layerList'
 import { averageRgb, pickContrastColor } from '../lib/color'
 import { isOpen as isCardOpen, toggleOpen, togglePin, openCard } from '../lib/accordion'
 import { AccordionContext, CollapsibleCard } from './Accordion'
@@ -24,6 +25,7 @@ import {
   Undo2, Redo2, LayoutTemplate, Plus, Search, Upload, Trash2, RotateCcw,
   Square, Circle, GripVertical, Copy, BringToFront, SendToBack,
   FileImage, FileCode, Save, FolderOpen, Link, Package, CircleHelp, X,
+  Type, Blend, Image as ImageIcon,
 } from 'lucide-react'
 import { version as APP_VERSION } from '../../package.json'
 
@@ -818,6 +820,28 @@ function ContextMenu({ x, y, actions, onClose }) {
   )
 }
 
+// Icon glyphs for the Layers overview rows, keyed by the entry's `icon` string
+// from buildLayerList (kept out of the lib so it stays DOM-free and testable).
+const LAYER_ICONS = { type: Type, square: Square, circle: Circle, image: ImageIcon, blend: Blend }
+
+// One row in the Layers overview panel. Clicking it jumps to that layer's
+// controls (selecting it, or opening the background/overlay card). Selection is
+// reflected like the per-type lists; singletons that are off/empty are muted.
+function LayerRow({ entry, onSelect }) {
+  const Icon = LAYER_ICONS[entry.icon]
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(entry)}
+      aria-pressed={entry.selected}
+      className={`flex w-full items-center gap-2 rounded border px-2 py-1.5 text-left text-sm transition-colors cursor-pointer ${entry.selected ? 'border-blue-400 bg-blue-50 text-gray-900' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'}`}
+    >
+      {Icon && <Icon className={`h-3.5 w-3.5 shrink-0 ${entry.muted ? 'text-gray-300' : 'text-gray-400'}`} aria-hidden="true" />}
+      <span className={`truncate flex-1 ${entry.muted ? 'text-gray-400 italic' : ''}`}>{entry.label}</span>
+    </button>
+  )
+}
+
 export default function CoverGenerator({ initialState, onStateChange, className = '', googleFontsApiKey = ENV_GOOGLE_FONTS_API_KEY, autoSave = true }) {
   // Restore an auto-saved session on mount (once). An explicit initialState prop
   // still wins per key; without one, the previous session is reloaded.
@@ -866,7 +890,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const bgColorRef = useRef({ r: 255, g: 255, b: 255 })
 
   // Accordion: one unpinned control card open at a time; pinned cards stay open.
-  const [accordion, setAccordion] = useState({ openId: 'background', pinned: [] })
+  const [accordion, setAccordion] = useState({ openId: 'layers', pinned: [] })
   const accToggleOpen = useCallback((id) => setAccordion(s => toggleOpen(s, id)), [])
   const accTogglePin = useCallback((id) => setAccordion(s => togglePin(s, id)), [])
   const accOpenCard = useCallback((id) => setAccordion(s => openCard(s, id)), [])
@@ -893,6 +917,20 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     document.getElementById(scrollTo)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
     setScrollTo(null)
   }, [scrollTo])
+
+  // Navigate from the Layers overview to a layer's controls: select the layer
+  // (which opens its properties card) for text/image/shape, or open the
+  // background/overlay card, then scroll that card into view.
+  const goToLayer = useCallback((entry) => {
+    switch (entry.kind) {
+      case 'text': selectText(entry.id); setScrollTo('props-text'); break
+      case 'shape': selectShape(entry.id); setScrollTo('props-shape'); break
+      case 'image': selectImage(entry.id); setScrollTo('props-image'); break
+      case 'overlay': accOpenCard('overlay'); setScrollTo('overlay'); break
+      case 'background': accOpenCard('background'); setScrollTo('background'); break
+      default: break
+    }
+  }, [selectText, selectShape, selectImage, accOpenCard])
 
   // Fit the canvas to the column, leaving room for the rulers when shown. We
   // observe the column (its width comes from the page layout, not its children)
@@ -1586,6 +1624,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const bgTransform = state.backgroundTransform || DEFAULT_BACKGROUND_TRANSFORM
   const bgFilters = state.backgroundFilters || DEFAULT_FILTERS
   const exportSize = clampExportSize(state.exportSize)
+  const layerList = buildLayerList(state, { selectedTextId, selectedImageId, selectedShapeId })
 
   // Actions for the right-click menu, resolved to the handlers for its layer kind.
   const ctxActions = useMemo(() => {
@@ -1656,99 +1695,12 @@ export default function CoverGenerator({ initialState, onStateChange, className 
       <AccordionContext.Provider value={{ isOpen: (id) => isCardOpen(accordion, id), isPinned: (id) => accordion.pinned.includes(id), toggleOpen: accToggleOpen, togglePin: accTogglePin }}>
       <div className="w-full lg:flex-1 lg:min-w-0 flex flex-col gap-3">
 
-        {/* History */}
-        <CollapsibleCard id="history" title="History">
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              className="btn-secondary text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-              onClick={doUndo}
-              disabled={!canUndo}
-              title="Undo (Ctrl+Z)"
-            >
-              <Undo2 className="h-4 w-4" />Undo
-            </button>
-            <button
-              className="btn-secondary text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-              onClick={doRedo}
-              disabled={!canRedo}
-              title="Redo (Ctrl+Shift+Z)"
-            >
-              <Redo2 className="h-4 w-4" />Redo
-            </button>
-          </div>
-        </CollapsibleCard>
-
-        {/* Template */}
-        <CollapsibleCard id="template" title="Template">
-          <select
-            className="input w-full"
-            value={selectedTemplate}
-            aria-label="Template"
-            onChange={e => setSelectedTemplate(e.target.value)}
-          >
-            <option value="">Select a template…</option>
-            {TEMPLATES.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
-          <button
-            className="w-full btn-secondary text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-            disabled={!selectedTemplate}
-            onClick={() => handleApplyTemplate(selectedTemplate)}
-          >
-            <LayoutTemplate className="h-4 w-4" />Apply template
-          </button>
-          <p className="text-[11px] text-gray-400 leading-tight">Replaces text layers and grid; keeps your image. Undo with Ctrl+Z.</p>
-        </CollapsibleCard>
-
-        {/* Fonts */}
-        <CollapsibleCard id="fonts" title="Fonts">
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" aria-hidden="true" />
-              <input
-                className="input w-full pl-7"
-                placeholder={googleFontsApiKey ? 'Search Google Fonts…' : 'Google font name'}
-                aria-label="Search or add a Google font"
-                value={customFontInput}
-                onFocus={ensureFontCatalog}
-                onChange={e => { setCustomFontInput(e.target.value); ensureFontCatalog() }}
-                onKeyDown={e => { if (e.key === 'Enter') handleAddFont(customFontInput) }}
-              />
-            </div>
-            <button
-              className="btn-secondary text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-              disabled={!customFontInput.trim()}
-              onClick={() => handleAddFont(customFontInput)}
-            >
-              <Plus className="h-4 w-4" />Add
-            </button>
-          </div>
-          {fontSuggestions.length > 0 && (
-            <ul className="border border-gray-200 rounded-md divide-y divide-gray-100 max-h-48 overflow-auto">
-              {fontSuggestions.map(name => (
-                <li key={name}>
-                  <button
-                    type="button"
-                    className="w-full text-left px-2 py-1.5 text-sm text-gray-700 hover:bg-blue-50 cursor-pointer"
-                    onClick={() => handleAddFont(name)}
-                  >
-                    {name}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          {(state.fonts || []).length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {(state.fonts || []).map(f => (
-                <span key={f} className="text-[11px] bg-gray-100 text-gray-600 rounded px-1.5 py-0.5" style={{ fontFamily: f }}>{f}</span>
-              ))}
-            </div>
-          )}
-          <p className="text-[11px] text-gray-400 leading-tight">
-            {googleFontsApiKey
-              ? 'Type to search Google Fonts, or enter an exact name. Added fonts join the picker and embed into PNG and SVG exports.'
-              : 'Enter an exact Google font name. Set VITE_GOOGLE_FONTS_API_KEY for live search suggestions.'}
-          </p>
+        {/* Layers — overview of everything on the canvas; click an entry to open its controls */}
+        <CollapsibleCard id="layers" title="Layers">
+          {layerList.map(entry => (
+            <LayerRow key={entry.key} entry={entry} onSelect={goToLayer} />
+          ))}
+          <p className="text-[11px] text-gray-400 leading-tight">Click a layer to open its controls. Listed front to back.</p>
         </CollapsibleCard>
 
         {/* Background */}
@@ -1891,28 +1843,6 @@ export default function CoverGenerator({ initialState, onStateChange, className 
           )}
         </CollapsibleCard>
 
-        {/* Grid & rulers */}
-        <CollapsibleCard id="grid" title="Grid & rulers">
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={state.grid.enabled} onChange={e => updateGrid({ enabled: e.target.checked })} className="accent-blue-500" />
-            Show grid
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={state.snapToGrid} onChange={e => update({ snapToGrid: e.target.checked })} className="accent-blue-500" />
-            Snap to grid
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={showRulers} onChange={e => setShowRulers(e.target.checked)} className="accent-blue-500" />
-            Show rulers
-          </label>
-          {state.grid.enabled && (
-            <>
-              <NumberInput label="Spacing (px)" value={state.grid.spacing} min={5} max={100} onChange={v => updateGrid({ spacing: v }, 'grid-spacing')} />
-              <NumberInput label="Major line every N" value={state.grid.majorEvery} min={0} max={20} onChange={v => updateGrid({ majorEvery: v }, 'grid-major')} hint="0 = off" />
-            </>
-          )}
-        </CollapsibleCard>
-
         {/* Text Layers */}
         <CollapsibleCard id="text-layers" title="Text Layers">
           <button className="w-full btn-primary" onClick={addText}><Plus className="h-4 w-4" />Add text</button>
@@ -1962,6 +1892,131 @@ export default function CoverGenerator({ initialState, onStateChange, className 
             )
           })}
         </CollapsibleCard>
+
+        {/* Selected Text Properties */}
+        {selectedText && (
+          <CollapsibleCard id="props-text" title="Text Properties">
+            <label className="block text-xs text-gray-500 mb-1">Content</label>
+            <input
+              className="input w-full"
+              aria-label="Text content"
+              value={selectedText.content}
+              onChange={e => updateText(selectedText.id, { content: e.target.value }, `content-${selectedText.id}`)}
+            />
+
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Font</label>
+                <select
+                  className="input w-full"
+                  aria-label="Font"
+                  value={selectedText.fontFamily}
+                  onChange={e => updateText(selectedText.id, { fontFamily: e.target.value })}
+                >
+                  {[...BUILTIN_FONTS, ...(state.fonts || [])].map(f => <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Size</label>
+                <input
+                  type="number"
+                  className="input w-full"
+                  aria-label="Font size"
+                  value={selectedText.fontSize}
+                  min={8} max={200}
+                  onChange={e => updateText(selectedText.id, { fontSize: Number(e.target.value) }, `size-${selectedText.id}`)}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Color</label>
+                <input
+                  type="color"
+                  aria-label="Text color"
+                  className="w-full h-8 rounded border border-gray-200 cursor-pointer"
+                  value={selectedText.color}
+                  onChange={e => updateText(selectedText.id, { color: e.target.value }, `color-${selectedText.id}`)}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Anchor</label>
+                <select
+                  className="input w-full"
+                  aria-label="Text alignment"
+                  value={selectedText.anchor}
+                  onChange={e => updateText(selectedText.id, { anchor: e.target.value })}
+                >
+                  <option value="start">Left</option>
+                  <option value="middle">Center</option>
+                  <option value="end">Right</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-2">
+              <label className="flex items-center gap-1 text-sm cursor-pointer">
+                <input type="checkbox" checked={selectedText.bold} onChange={e => updateText(selectedText.id, { bold: e.target.checked })} className="accent-blue-500" />
+                Bold
+              </label>
+              <label className="flex items-center gap-1 text-sm cursor-pointer">
+                <input type="checkbox" checked={selectedText.italic} onChange={e => updateText(selectedText.id, { italic: e.target.checked })} className="accent-blue-500" />
+                Italic
+              </label>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <NumberInput label="Stroke width" value={selectedText.strokeWidth || 0} min={0} max={40} onChange={v => updateText(selectedText.id, { strokeWidth: v }, `stroke-width-${selectedText.id}`)} hint="0 = off" />
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Stroke color</label>
+                <input
+                  type="color"
+                  aria-label="Text stroke color"
+                  className="w-full h-8 rounded border border-gray-200 cursor-pointer"
+                  value={selectedText.stroke || '#000000'}
+                  onChange={e => updateText(selectedText.id, { stroke: e.target.value }, `stroke-color-${selectedText.id}`)}
+                />
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2 text-sm mt-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!!selectedText.shadow}
+                onChange={e => updateText(selectedText.id, { shadow: e.target.checked ? { color: '#000000', blur: 4, dx: 2, dy: 2 } : null })}
+                className="accent-blue-500"
+              />
+              Drop shadow
+            </label>
+            {selectedText.shadow && (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <NumberInput label="Blur" value={selectedText.shadow.blur ?? 0} min={0} max={40} onChange={v => updateText(selectedText.id, { shadow: { ...selectedText.shadow, blur: v } }, `shadow-blur-${selectedText.id}`)} />
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Shadow color</label>
+                    <input
+                      type="color"
+                      aria-label="Shadow color"
+                      className="w-full h-8 rounded border border-gray-200 cursor-pointer"
+                      value={selectedText.shadow.color || '#000000'}
+                      onChange={e => updateText(selectedText.id, { shadow: { ...selectedText.shadow, color: e.target.value } }, `shadow-color-${selectedText.id}`)}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <NumberInput label="Offset X" value={selectedText.shadow.dx ?? 0} min={-40} max={40} onChange={v => updateText(selectedText.id, { shadow: { ...selectedText.shadow, dx: v } }, `shadow-dx-${selectedText.id}`)} />
+                  <NumberInput label="Offset Y" value={selectedText.shadow.dy ?? 0} min={-40} max={40} onChange={v => updateText(selectedText.id, { shadow: { ...selectedText.shadow, dy: v } }, `shadow-dy-${selectedText.id}`)} />
+                </div>
+              </>
+            )}
+
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <NumberInput label="X position" value={selectedText.x} min={0} max={CANVAS_SIZE} onChange={v => updateText(selectedText.id, { x: v }, `x-${selectedText.id}`)} />
+              <NumberInput label="Y position" value={selectedText.y} min={0} max={CANVAS_SIZE} onChange={v => updateText(selectedText.id, { y: v }, `y-${selectedText.id}`)} />
+            </div>
+          </CollapsibleCard>
+        )}
 
         {/* Image Layers */}
         <CollapsibleCard id="image-layers" title="Image Layers">
@@ -2126,130 +2181,122 @@ export default function CoverGenerator({ initialState, onStateChange, className 
           </CollapsibleCard>
         )}
 
-        {/* Selected Text Properties */}
-        {selectedText && (
-          <CollapsibleCard id="props-text" title="Text Properties">
-            <label className="block text-xs text-gray-500 mb-1">Content</label>
-            <input
-              className="input w-full"
-              aria-label="Text content"
-              value={selectedText.content}
-              onChange={e => updateText(selectedText.id, { content: e.target.value }, `content-${selectedText.id}`)}
-            />
+        {/* Template */}
+        <CollapsibleCard id="template" title="Template">
+          <select
+            className="input w-full"
+            value={selectedTemplate}
+            aria-label="Template"
+            onChange={e => setSelectedTemplate(e.target.value)}
+          >
+            <option value="">Select a template…</option>
+            {TEMPLATES.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+          <button
+            className="w-full btn-secondary text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+            disabled={!selectedTemplate}
+            onClick={() => handleApplyTemplate(selectedTemplate)}
+          >
+            <LayoutTemplate className="h-4 w-4" />Apply template
+          </button>
+          <p className="text-[11px] text-gray-400 leading-tight">Replaces text layers and grid; keeps your image. Undo with Ctrl+Z.</p>
+        </CollapsibleCard>
 
-            <div className="grid grid-cols-2 gap-2 mt-2">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Font</label>
-                <select
-                  className="input w-full"
-                  aria-label="Font"
-                  value={selectedText.fontFamily}
-                  onChange={e => updateText(selectedText.id, { fontFamily: e.target.value })}
-                >
-                  {[...BUILTIN_FONTS, ...(state.fonts || [])].map(f => <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Size</label>
-                <input
-                  type="number"
-                  className="input w-full"
-                  aria-label="Font size"
-                  value={selectedText.fontSize}
-                  min={8} max={200}
-                  onChange={e => updateText(selectedText.id, { fontSize: Number(e.target.value) }, `size-${selectedText.id}`)}
-                />
-              </div>
-            </div>
+        {/* History */}
+        <CollapsibleCard id="history" title="History">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              className="btn-secondary text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+              onClick={doUndo}
+              disabled={!canUndo}
+              title="Undo (Ctrl+Z)"
+            >
+              <Undo2 className="h-4 w-4" />Undo
+            </button>
+            <button
+              className="btn-secondary text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+              onClick={doRedo}
+              disabled={!canRedo}
+              title="Redo (Ctrl+Shift+Z)"
+            >
+              <Redo2 className="h-4 w-4" />Redo
+            </button>
+          </div>
+        </CollapsibleCard>
 
-            <div className="grid grid-cols-2 gap-2 mt-2">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Color</label>
-                <input
-                  type="color"
-                  aria-label="Text color"
-                  className="w-full h-8 rounded border border-gray-200 cursor-pointer"
-                  value={selectedText.color}
-                  onChange={e => updateText(selectedText.id, { color: e.target.value }, `color-${selectedText.id}`)}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Anchor</label>
-                <select
-                  className="input w-full"
-                  aria-label="Text alignment"
-                  value={selectedText.anchor}
-                  onChange={e => updateText(selectedText.id, { anchor: e.target.value })}
-                >
-                  <option value="start">Left</option>
-                  <option value="middle">Center</option>
-                  <option value="end">Right</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-2">
-              <label className="flex items-center gap-1 text-sm cursor-pointer">
-                <input type="checkbox" checked={selectedText.bold} onChange={e => updateText(selectedText.id, { bold: e.target.checked })} className="accent-blue-500" />
-                Bold
-              </label>
-              <label className="flex items-center gap-1 text-sm cursor-pointer">
-                <input type="checkbox" checked={selectedText.italic} onChange={e => updateText(selectedText.id, { italic: e.target.checked })} className="accent-blue-500" />
-                Italic
-              </label>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 mt-2">
-              <NumberInput label="Stroke width" value={selectedText.strokeWidth || 0} min={0} max={40} onChange={v => updateText(selectedText.id, { strokeWidth: v }, `stroke-width-${selectedText.id}`)} hint="0 = off" />
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Stroke color</label>
-                <input
-                  type="color"
-                  aria-label="Text stroke color"
-                  className="w-full h-8 rounded border border-gray-200 cursor-pointer"
-                  value={selectedText.stroke || '#000000'}
-                  onChange={e => updateText(selectedText.id, { stroke: e.target.value }, `stroke-color-${selectedText.id}`)}
-                />
-              </div>
-            </div>
-
-            <label className="flex items-center gap-2 text-sm mt-2 cursor-pointer">
+        {/* Fonts */}
+        <CollapsibleCard id="fonts" title="Fonts">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" aria-hidden="true" />
               <input
-                type="checkbox"
-                checked={!!selectedText.shadow}
-                onChange={e => updateText(selectedText.id, { shadow: e.target.checked ? { color: '#000000', blur: 4, dx: 2, dy: 2 } : null })}
-                className="accent-blue-500"
+                className="input w-full pl-7"
+                placeholder={googleFontsApiKey ? 'Search Google Fonts…' : 'Google font name'}
+                aria-label="Search or add a Google font"
+                value={customFontInput}
+                onFocus={ensureFontCatalog}
+                onChange={e => { setCustomFontInput(e.target.value); ensureFontCatalog() }}
+                onKeyDown={e => { if (e.key === 'Enter') handleAddFont(customFontInput) }}
               />
-              Drop shadow
-            </label>
-            {selectedText.shadow && (
-              <>
-                <div className="grid grid-cols-2 gap-2">
-                  <NumberInput label="Blur" value={selectedText.shadow.blur ?? 0} min={0} max={40} onChange={v => updateText(selectedText.id, { shadow: { ...selectedText.shadow, blur: v } }, `shadow-blur-${selectedText.id}`)} />
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">Shadow color</label>
-                    <input
-                      type="color"
-                      aria-label="Shadow color"
-                      className="w-full h-8 rounded border border-gray-200 cursor-pointer"
-                      value={selectedText.shadow.color || '#000000'}
-                      onChange={e => updateText(selectedText.id, { shadow: { ...selectedText.shadow, color: e.target.value } }, `shadow-color-${selectedText.id}`)}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <NumberInput label="Offset X" value={selectedText.shadow.dx ?? 0} min={-40} max={40} onChange={v => updateText(selectedText.id, { shadow: { ...selectedText.shadow, dx: v } }, `shadow-dx-${selectedText.id}`)} />
-                  <NumberInput label="Offset Y" value={selectedText.shadow.dy ?? 0} min={-40} max={40} onChange={v => updateText(selectedText.id, { shadow: { ...selectedText.shadow, dy: v } }, `shadow-dy-${selectedText.id}`)} />
-                </div>
-              </>
-            )}
-
-            <div className="grid grid-cols-2 gap-2 mt-2">
-              <NumberInput label="X position" value={selectedText.x} min={0} max={CANVAS_SIZE} onChange={v => updateText(selectedText.id, { x: v }, `x-${selectedText.id}`)} />
-              <NumberInput label="Y position" value={selectedText.y} min={0} max={CANVAS_SIZE} onChange={v => updateText(selectedText.id, { y: v }, `y-${selectedText.id}`)} />
             </div>
-          </CollapsibleCard>
-        )}
+            <button
+              className="btn-secondary text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled={!customFontInput.trim()}
+              onClick={() => handleAddFont(customFontInput)}
+            >
+              <Plus className="h-4 w-4" />Add
+            </button>
+          </div>
+          {fontSuggestions.length > 0 && (
+            <ul className="border border-gray-200 rounded-md divide-y divide-gray-100 max-h-48 overflow-auto">
+              {fontSuggestions.map(name => (
+                <li key={name}>
+                  <button
+                    type="button"
+                    className="w-full text-left px-2 py-1.5 text-sm text-gray-700 hover:bg-blue-50 cursor-pointer"
+                    onClick={() => handleAddFont(name)}
+                  >
+                    {name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {(state.fonts || []).length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {(state.fonts || []).map(f => (
+                <span key={f} className="text-[11px] bg-gray-100 text-gray-600 rounded px-1.5 py-0.5" style={{ fontFamily: f }}>{f}</span>
+              ))}
+            </div>
+          )}
+          <p className="text-[11px] text-gray-400 leading-tight">
+            {googleFontsApiKey
+              ? 'Type to search Google Fonts, or enter an exact name. Added fonts join the picker and embed into PNG and SVG exports.'
+              : 'Enter an exact Google font name. Set VITE_GOOGLE_FONTS_API_KEY for live search suggestions.'}
+          </p>
+        </CollapsibleCard>
+
+        {/* Grid & rulers */}
+        <CollapsibleCard id="grid" title="Grid & rulers">
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={state.grid.enabled} onChange={e => updateGrid({ enabled: e.target.checked })} className="accent-blue-500" />
+            Show grid
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={state.snapToGrid} onChange={e => update({ snapToGrid: e.target.checked })} className="accent-blue-500" />
+            Snap to grid
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={showRulers} onChange={e => setShowRulers(e.target.checked)} className="accent-blue-500" />
+            Show rulers
+          </label>
+          {state.grid.enabled && (
+            <>
+              <NumberInput label="Spacing (px)" value={state.grid.spacing} min={5} max={100} onChange={v => updateGrid({ spacing: v }, 'grid-spacing')} />
+              <NumberInput label="Major line every N" value={state.grid.majorEvery} min={0} max={20} onChange={v => updateGrid({ majorEvery: v }, 'grid-major')} hint="0 = off" />
+            </>
+          )}
+        </CollapsibleCard>
 
         {/* Export / Import */}
         <CollapsibleCard id="export" title="Export & Import">

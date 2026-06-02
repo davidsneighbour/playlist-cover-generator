@@ -139,7 +139,10 @@
       //
       // string[] (default: [])
       "ignore": [
-        "JavaScript"
+        "JavaScript",
+        "Code",
+        "Copilot",
+        "License"
       ]
     }
   },

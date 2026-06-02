@@ -9,7 +9,7 @@
 ## Color palette
 
 | Role | Hex | Tailwind token |
-|---|---|---|
+| --- | --- | --- |
 | Page background | `#f9fafb` | `bg-gray-50` |
 | Surface / card | `#ffffff` | `bg-white` |
 | Border default | `#e5e7eb` | `border-gray-200` |
@@ -64,6 +64,10 @@ A `rounded-lg overflow-hidden shadow-md border border-gray-200` frame on a white
 ### Rulers
 
 Optional 22px ruler strips on the top and left edges, on a `bg-gray-50` ground with a `#e5e7eb` baseline. Ticks reuse the grid colors (minor `#cbd5e1`); labels are 8px in `#9ca3af` (left-edge labels rotated `-90`). They are chrome only and reuse existing tokens, so they are never part of an export.
+
+### Layers panel
+
+The top control card is a front-to-back overview of every layer. Each row reuses the same selectable-row treatment as the per-type layer lists: a bordered `rounded` button (`border-gray-200 bg-white`, `hover:border-gray-300`) that turns to `border-blue-400 bg-blue-50` when its layer is selected, with a leading `h-3.5 w-3.5` Lucide icon. The background and color-overlay rows are always present; when empty or disabled they are muted (`text-gray-300` icon, `text-gray-400 italic` label). No new tokens.
 
 ### Context menu
 
