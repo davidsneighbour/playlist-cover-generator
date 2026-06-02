@@ -21,8 +21,10 @@ An embeddable React component that generates square playlist cover art. A user u
 | `npm run dev` | Start the Vite dev server. |
 | `npm run build` | Production build into `dist/`. |
 | `npm run preview` | Serve the production build. |
+| `npm test` | Run the Vitest suite once. |
+| `npm run test:watch` | Run Vitest in watch mode. |
 
-Always run `npm run build` after non-trivial changes to confirm the project still compiles.
+Always run `npm run build` and `npm test` after non-trivial changes to confirm the project still compiles and the suite passes.
 
 ## Architecture
 
@@ -35,6 +37,7 @@ The whole editor lives in [src/components/CoverGenerator.jsx](src/components/Cov
 * `GridOverlay` draws minor and major lines. It is marked `data-layer="grid"` so exporters can strip it.
 * `TextElement` handles pointer dragging by converting screen coordinates to SVG coordinates through `getScreenCTM().inverse()`. Do not reimplement drag math with raw offsets; the matrix transform keeps it correct under scaling.
 * `snapValue` rounds a coordinate to the grid when snapping is on. Reuse it rather than duplicating rounding logic.
+* Text-layer z-order is the `texts` array order: index 0 is painted first (bottom) and the last item is painted last (front). The pure reorder helpers (`reorder`, `bringToFront`, `sendToBack`, `displayIndexToArrayIndex`) live in [src/lib/layers.js](src/lib/layers.js) and return the same array reference on a no-op so reorders never add empty undo entries. The layer list is displayed front-to-back, so the UI converts display positions to array indices with `displayIndexToArrayIndex`.
 
 ### State shape
 
@@ -65,6 +68,10 @@ The single state object is the contract for JSON import/export and the `initialS
 * Styling is Tailwind utility classes plus the shared `.btn-primary`, `.btn-secondary`, and `.input` classes defined in [src/index.css](src/index.css). Reuse those classes instead of repeating utility chains.
 * Follow [DESIGN.md](DESIGN.md) for color, typography, and spacing. The theme is light, minimal, and content-first.
 * Keep the component dependency-free where reasonable. Do not add a heavy SVG-editor library; the value here is clean, portable SVG.
+
+### Tests
+
+Tests run on Vitest. Prefer extracting non-trivial logic into pure functions under [src/lib/](src/lib/) and testing those directly, rather than driving the DOM; SVG drag and HTML drag-and-drop are hard to test headlessly, but the array math behind them is not. Co-locate a `*.test.js` next to the module it covers, as [src/lib/layers.test.js](src/lib/layers.test.js) does. Add or update tests for any new pure logic.
 
 ### Markdown
 

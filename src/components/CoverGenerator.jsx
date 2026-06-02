@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { reorder, bringToFront, sendToBack, displayIndexToArrayIndex } from '../lib/layers'
 
 const CANVAS_SIZE = 600
 
@@ -268,9 +269,11 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const update = commit
   const [selectedTextId, setSelectedTextId] = useState(null)
   const [displaySize, setDisplaySize] = useState(CANVAS_SIZE)
+  const [dragOverArrayIndex, setDragOverArrayIndex] = useState(null)
   const containerRef = useRef(null)
   const fileInputRef = useRef(null)
   const jsonInputRef = useRef(null)
+  const dragIndexRef = useRef(null)
 
   useEffect(() => {
     const obs = new ResizeObserver(entries => {
@@ -370,6 +373,29 @@ export default function CoverGenerator({ initialState, onStateChange, className 
       ...prev,
       texts: prev.texts.map(t => t.id === id ? { ...t, x, y } : t)
     }), `drag-${id}`)
+  }, [update])
+
+  // Layer z-order. Each reorder is a discrete, undoable step; a no-op returns
+  // the previous state unchanged so it never adds an empty history entry.
+  const handleReorderLayer = useCallback((fromIndex, toIndex) => {
+    update(prev => {
+      const next = reorder(prev.texts, fromIndex, toIndex)
+      return next === prev.texts ? prev : { ...prev, texts: next }
+    })
+  }, [update])
+
+  const handleBringToFront = useCallback((id) => {
+    update(prev => {
+      const next = bringToFront(prev.texts, id)
+      return next === prev.texts ? prev : { ...prev, texts: next }
+    })
+  }, [update])
+
+  const handleSendToBack = useCallback((id) => {
+    update(prev => {
+      const next = sendToBack(prev.texts, id)
+      return next === prev.texts ? prev : { ...prev, texts: next }
+    })
   }, [update])
 
   // Grid
@@ -546,20 +572,43 @@ export default function CoverGenerator({ initialState, onStateChange, className 
         <Section title="Text Layers">
           <button className="w-full btn-primary" onClick={addText}>+ Add text</button>
           {state.texts.length === 0 && <p className="text-xs text-gray-400 text-center py-1">No text layers yet</p>}
-          {state.texts.map(t => (
-            <div
-              key={t.id}
-              className={`rounded border p-2 cursor-pointer text-sm transition-colors ${t.id === selectedTextId ? 'border-blue-400 bg-blue-50' : 'border-gray-200 bg-white hover:border-gray-300'}`}
-              onClick={() => setSelectedTextId(t.id === selectedTextId ? null : t.id)}
-            >
-              <div className="flex items-center justify-between">
-                <span className="truncate flex-1" style={{ fontFamily: t.fontFamily, color: t.color !== '#ffffff' ? t.color : '#374151', fontWeight: t.bold ? 'bold' : 'normal', fontStyle: t.italic ? 'italic' : 'normal' }}>
-                  {t.content || '(empty)'}
-                </span>
-                <button className="ml-2 text-gray-400 hover:text-red-500 text-xs px-1" onClick={(e) => { e.stopPropagation(); deleteText(t.id) }}>✕</button>
+          {state.texts.length > 1 && (
+            <p className="text-[11px] text-gray-400 leading-tight">Drag to reorder · top of list is front</p>
+          )}
+          {[...state.texts].reverse().map((t, dispIdx) => {
+            const arrayIndex = displayIndexToArrayIndex(state.texts.length, dispIdx)
+            const isTop = arrayIndex === state.texts.length - 1
+            const isBottom = arrayIndex === 0
+            const selected = t.id === selectedTextId
+            return (
+              <div
+                key={t.id}
+                draggable
+                onDragStart={(e) => { dragIndexRef.current = arrayIndex; e.dataTransfer.effectAllowed = 'move' }}
+                onDragOver={(e) => { e.preventDefault(); if (dragOverArrayIndex !== arrayIndex) setDragOverArrayIndex(arrayIndex) }}
+                onDragLeave={() => setDragOverArrayIndex(prev => (prev === arrayIndex ? null : prev))}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  if (dragIndexRef.current != null) handleReorderLayer(dragIndexRef.current, arrayIndex)
+                  dragIndexRef.current = null
+                  setDragOverArrayIndex(null)
+                }}
+                onDragEnd={() => { dragIndexRef.current = null; setDragOverArrayIndex(null) }}
+                className={`rounded border p-2 cursor-pointer text-sm transition-colors ${selected ? 'border-blue-400 bg-blue-50' : 'border-gray-200 bg-white hover:border-gray-300'} ${dragOverArrayIndex === arrayIndex ? 'ring-2 ring-blue-300' : ''}`}
+                onClick={() => setSelectedTextId(selected ? null : t.id)}
+              >
+                <div className="flex items-center gap-1">
+                  <span className="text-gray-300 select-none cursor-grab" title="Drag to reorder" aria-hidden="true">⠿</span>
+                  <span className="truncate flex-1" style={{ fontFamily: t.fontFamily, color: t.color !== '#ffffff' ? t.color : '#374151', fontWeight: t.bold ? 'bold' : 'normal', fontStyle: t.italic ? 'italic' : 'normal' }}>
+                    {t.content || '(empty)'}
+                  </span>
+                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Bring to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleBringToFront(t.id) }}>⤒</button>
+                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 text-xs px-1" title="Send to back" disabled={isBottom} onClick={(e) => { e.stopPropagation(); handleSendToBack(t.id) }}>⤓</button>
+                  <button className="text-gray-400 hover:text-red-500 text-xs px-1" title="Delete" onClick={(e) => { e.stopPropagation(); deleteText(t.id) }}>✕</button>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </Section>
 
         {/* Selected Text Properties */}

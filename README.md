@@ -11,6 +11,7 @@ Built with React 19, Vite 6, and Tailwind CSS 4. No heavy editor dependencies: t
 * **Toggleable grid** with adjustable spacing and an optional heavier line every *N* cells.
 * **Editable text layers** with control over content, font, size, color, weight, style, anchor, and position.
 * **Drag to position** text directly on the canvas, with optional **snap to grid**.
+* **Reorderable layers** with drag-and-drop plus bring-to-front and send-to-back controls.
 * **Save and load** the full layout as JSON, so a project can be reopened later with any image.
 * **Export** to high-quality PNG (rendered at 2x) and to clean, editable SVG.
 
@@ -40,6 +41,13 @@ Vite prints a local URL (default `http://localhost:5173`). Open it to use the ed
 ```bash
 npm run build      # production build into dist/
 npm run preview    # serve the production build locally
+```
+
+### Test
+
+```bash
+npm test           # run the Vitest suite once
+npm run test:watch # re-run on change
 ```
 
 ## Use as an embeddable component
@@ -75,6 +83,7 @@ Tailwind CSS 4 must be available in the host app, or the component's utility cla
 | Path | Purpose |
 |---|---|
 | [src/components/CoverGenerator.jsx](src/components/CoverGenerator.jsx) | The editor: canvas, controls, drag, grid, and export logic. |
+| [src/lib/layers.js](src/lib/layers.js) | Pure text-layer z-order helpers (unit-tested). |
 | [src/index.js](src/index.js) | Library entry that re-exports `CoverGenerator`. |
 | [src/App.jsx](src/App.jsx) | Demo application wrapper. |
 | [src/main.jsx](src/main.jsx) | Vite entry point for the demo. |
