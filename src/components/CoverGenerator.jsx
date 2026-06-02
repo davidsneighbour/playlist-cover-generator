@@ -1221,7 +1221,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                   value={selectedText.fontFamily}
                   onChange={e => updateText(selectedText.id, { fontFamily: e.target.value })}
                 >
-                  {[...BUILTIN_FONTS, ...(state.fonts || [])].map(f => <option key={f} value={f}>{f}</option>)}
+                  {[...BUILTIN_FONTS, ...(state.fonts || [])].map(f => <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>)}
                 </select>
               </div>
               <div>
