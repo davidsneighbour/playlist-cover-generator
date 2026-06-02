@@ -13,6 +13,7 @@ import { rulerTicks } from '../lib/rulers'
 import { SHORTCUTS, formatKeys, nudgeDelta, isDeleteKey } from '../lib/shortcuts'
 import { clampMenuPosition } from '../lib/menu'
 import { STORAGE_KEY, serializeState, serializeStateWithoutImage, parseStoredState } from '../lib/storage'
+import { SHARE_PARAM, encodeShareState, decodeShareState, readShareToken } from '../lib/share'
 import { averageRgb, pickContrastColor } from '../lib/color'
 import { isOpen as isCardOpen, toggleOpen, togglePin, openCard } from '../lib/accordion'
 import { AccordionContext, CollapsibleCard } from './Accordion'
@@ -781,9 +782,16 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     () => (autoSave && typeof localStorage !== 'undefined' ? parseStoredState(localStorage.getItem(STORAGE_KEY)) : null),
     [], // eslint-disable-line react-hooks/exhaustive-deps -- read once at mount
   )
+  // A share link (#s=...) takes precedence over the saved session: the user
+  // opened that link to see that design. An explicit initialState still wins.
+  const sharedFromUrl = useMemo(
+    () => (typeof window !== 'undefined' ? decodeShareState(readShareToken(window.location.hash)) : null),
+    [], // eslint-disable-line react-hooks/exhaustive-deps -- read once at mount
+  )
   const { state, canUndo, canRedo, commit, undo, redo } = useHistoryState({
     ...DEFAULT_STATE,
     ...(restored || {}),
+    ...(sharedFromUrl || {}),
     ...initialState,
   })
   const update = commit
@@ -794,6 +802,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const [showRulers, setShowRulers] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [contextMenu, setContextMenu] = useState(null)
+  const [shareCopied, setShareCopied] = useState(false)
   const [dragOverArrayIndex, setDragOverArrayIndex] = useState(null)
   const [selectedTemplate, setSelectedTemplate] = useState('')
   const [customFontInput, setCustomFontInput] = useState('')
@@ -1396,6 +1405,20 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     a.download = 'cover.svg'
     a.click()
   }, [embedFontsInClone, state.exportSize])
+
+  // Build a shareable edit link (state encoded in the URL hash, image excluded)
+  // and copy it to the clipboard, falling back to a prompt if that is blocked.
+  const copyShareLink = useCallback(async () => {
+    const base = `${window.location.origin}${window.location.pathname}`
+    const url = `${base}#${SHARE_PARAM}=${encodeShareState(state)}`
+    try {
+      await navigator.clipboard.writeText(url)
+      setShareCopied(true)
+      setTimeout(() => setShareCopied(false), 2000)
+    } catch {
+      window.prompt('Copy this share link:', url)
+    }
+  }, [state])
 
   // Export JSON
   const exportJSON = useCallback(() => {
@@ -2083,6 +2106,8 @@ export default function CoverGenerator({ initialState, onStateChange, className 
           <button className="w-full btn-secondary text-sm" onClick={exportJSON}>Save JSON state</button>
           <input ref={jsonInputRef} type="file" accept=".json,application/json" className="hidden" onChange={handleJSONImport} />
           <button className="w-full btn-secondary text-sm" onClick={() => jsonInputRef.current?.click()}>Load JSON state</button>
+          <button className="w-full btn-secondary text-sm" onClick={copyShareLink}>{shareCopied ? 'Link copied!' : 'Copy share link'}</button>
+          <p className="text-[11px] text-gray-400 leading-tight">The share link encodes the layout in the URL (the background image is not included).</p>
         </CollapsibleCard>
       </div>
       </AccordionContext.Provider>

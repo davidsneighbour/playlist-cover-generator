@@ -24,6 +24,7 @@ Built with React 19, Vite 6, and Tailwind CSS 4. No heavy editor dependencies: t
 * **Google Fonts** — add any Google font by name; used fonts are embedded into PNG and SVG exports so they stay portable.
 * **Save and load** the full layout as JSON, so a project can be reopened later with any image.
 * **Auto-save** the session to the browser's localStorage and restore it on the next visit (opt out with `autoSave={false}`).
+* **Share link** — copy a URL that encodes the layout (background image excluded) so anyone opening it sees the same design.
 * **Export size presets** — 600, 1000, or 3000 (the square Spotify and Apple Music spec) for the PNG and SVG output.
 * **Export** to high-quality PNG and to clean, editable SVG.
 * **Help overlay** — press F1 (or the help link) for a modal of keyboard shortcuts, tips, and the app version.
@@ -149,6 +150,7 @@ Add a `LICENSE` file and a `license` field to `package.json` before publishing a
 | [src/lib/shortcuts.js](src/lib/shortcuts.js) | Keyboard-shortcut list and platform-aware key formatter (unit-tested). |
 | [src/lib/menu.js](src/lib/menu.js) | Context-menu viewport clamping (unit-tested). |
 | [src/lib/storage.js](src/lib/storage.js) | localStorage auto-save serialize/parse helpers (unit-tested). |
+| [src/lib/share.js](src/lib/share.js) | Share-link URL-safe state encode/decode (unit-tested). |
 | [src/index.js](src/index.js) | Library entry that re-exports `CoverGenerator`. |
 | [src/App.jsx](src/App.jsx) | Demo application wrapper. |
 | [src/main.jsx](src/main.jsx) | Vite entry point for the demo. |
