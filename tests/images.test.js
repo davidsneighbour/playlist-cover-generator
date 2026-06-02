@@ -7,6 +7,12 @@ import {
   isValidBlendMode,
   fitDimensions,
   centeredPosition,
+  coverDimensions,
+  scaleDimensions,
+  dimensionPercent,
+  aspectHeight,
+  aspectWidth,
+  offCanvasBounds,
 } from '../src/lib/images'
 
 describe('BLEND_MODES', () => {
@@ -73,5 +79,71 @@ describe('fitDimensions', () => {
 describe('centeredPosition', () => {
   it('centers a box on the canvas', () => {
     expect(centeredPosition(600, 200, 100)).toEqual({ x: 200, y: 250 })
+  })
+
+  it('returns negative offsets for a box larger than the canvas', () => {
+    expect(centeredPosition(600, 1200, 600)).toEqual({ x: -300, y: 0 })
+  })
+})
+
+describe('coverDimensions', () => {
+  it('fills the shorter side and overflows the longer (landscape)', () => {
+    // 800x400 over 600: shorter side 400 -> scale 1.5 -> 1200x600
+    expect(coverDimensions(800, 400, 600)).toEqual({ width: 1200, height: 600 })
+  })
+
+  it('fills the shorter side and overflows the longer (portrait)', () => {
+    expect(coverDimensions(400, 800, 600)).toEqual({ width: 600, height: 1200 })
+  })
+
+  it('returns a square for a square image', () => {
+    expect(coverDimensions(500, 500, 600)).toEqual({ width: 600, height: 600 })
+  })
+
+  it('falls back to the canvas size when dimensions are unknown', () => {
+    expect(coverDimensions(0, 0, 600)).toEqual({ width: 600, height: 600 })
+  })
+})
+
+describe('scaleDimensions', () => {
+  it('scales to a percentage of the natural size', () => {
+    expect(scaleDimensions(400, 200, 50)).toEqual({ width: 200, height: 100 })
+  })
+
+  it('never goes below 1px', () => {
+    expect(scaleDimensions(400, 200, 0)).toEqual({ width: 1, height: 1 })
+  })
+})
+
+describe('dimensionPercent', () => {
+  it('reports the current width as a percentage of natural', () => {
+    expect(dimensionPercent(200, 400)).toBe(50)
+  })
+
+  it('returns 100 when natural width is unknown', () => {
+    expect(dimensionPercent(200, null)).toBe(100)
+  })
+})
+
+describe('aspectHeight / aspectWidth', () => {
+  it('keeps the natural ratio', () => {
+    expect(aspectHeight(300, 400, 200)).toBe(150)
+    expect(aspectWidth(150, 400, 200)).toBe(300)
+  })
+
+  it('returns null when natural dimensions are unknown', () => {
+    expect(aspectHeight(300, null, null)).toBeNull()
+    expect(aspectWidth(150, null, null)).toBeNull()
+  })
+})
+
+describe('offCanvasBounds', () => {
+  it('lets a box go off any edge but keeps a margin on-canvas', () => {
+    expect(offCanvasBounds(200, 100, 600, 24)).toEqual({
+      minX: -176,
+      minY: -76,
+      maxX: 576,
+      maxY: 576,
+    })
   })
 })

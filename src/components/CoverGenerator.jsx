@@ -3,7 +3,7 @@ import { reorder, bringToFront, sendToBack, displayIndexToArrayIndex } from '../
 import { TEMPLATES, getTemplate, instantiateTemplate } from '../lib/templates'
 import { textStrokeAttrs, textShadowFilter } from '../lib/text'
 import { BUILTIN_FONTS, googleFontCssUrl, parseFontFaces, buildFontFaceRule, addFont } from '../lib/fonts'
-import { BLEND_MODES, createImageLayer, clampOpacity, fitDimensions, centeredPosition } from '../lib/images'
+import { BLEND_MODES, createImageLayer, clampOpacity, centeredPosition, coverDimensions, scaleDimensions, dimensionPercent, aspectHeight, aspectWidth, offCanvasBounds } from '../lib/images'
 import { SHAPE_TYPES, createShape, ellipseGeometry } from '../lib/shapes'
 import { averageRgb, pickContrastColor } from '../lib/color'
 
@@ -141,7 +141,7 @@ function GridOverlay({ grid, size }) {
 // movement into snapped, clamped canvas coordinates. getAnchor() reads the
 // element's position at drag start; onMove(nx, ny) receives the new position;
 // onStart() runs once on press (used to select).
-function useSvgDrag({ getAnchor, onMove, onStart, snapToGrid, gridSpacing, canvasSize }) {
+function useSvgDrag({ getAnchor, onMove, onStart, snapToGrid, gridSpacing, canvasSize, bounds }) {
   const dragging = useRef(false)
   const start = useRef({ mx: 0, my: 0, ax: 0, ay: 0 })
 
@@ -168,8 +168,12 @@ function useSvgDrag({ getAnchor, onMove, onStart, snapToGrid, gridSpacing, canva
       let ny = start.current.ay + (m.y - start.current.my)
       nx = snapValue(nx, gridSpacing, snapToGrid)
       ny = snapValue(ny, gridSpacing, snapToGrid)
-      nx = Math.max(0, Math.min(canvasSize, nx))
-      ny = Math.max(0, Math.min(canvasSize, ny))
+      const minX = bounds ? bounds.minX : 0
+      const minY = bounds ? bounds.minY : 0
+      const maxX = bounds ? bounds.maxX : canvasSize
+      const maxY = bounds ? bounds.maxY : canvasSize
+      nx = Math.max(minX, Math.min(maxX, nx))
+      ny = Math.max(minY, Math.min(maxY, ny))
       onMove(nx, ny)
     }
     const onMouseUp = () => {
@@ -179,7 +183,7 @@ function useSvgDrag({ getAnchor, onMove, onStart, snapToGrid, gridSpacing, canva
     }
     window.addEventListener('mousemove', onMouseMove)
     window.addEventListener('mouseup', onMouseUp)
-  }, [getAnchor, onMove, onStart, snapToGrid, gridSpacing, canvasSize])
+  }, [getAnchor, onMove, onStart, snapToGrid, gridSpacing, canvasSize, bounds])
 }
 
 function TextElement({ text, selected, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize }) {
@@ -223,6 +227,7 @@ function ImageElement({ image, onSelect, onDrag, snapToGrid, gridSpacing, canvas
     onMove: (nx, ny) => onDrag(image.id, nx, ny),
     onStart: () => onSelect(image.id),
     snapToGrid, gridSpacing, canvasSize,
+    bounds: offCanvasBounds(image.width, image.height, canvasSize),
   })
 
   if (!image.data) return null
@@ -249,6 +254,7 @@ function ShapeElement({ shape, onSelect, onDrag, snapToGrid, gridSpacing, canvas
     onMove: (nx, ny) => onDrag(shape.id, nx, ny),
     onStart: () => onSelect(shape.id),
     snapToGrid, gridSpacing, canvasSize,
+    bounds: offCanvasBounds(shape.width, shape.height, canvasSize),
   })
 
   const common = {
@@ -661,11 +667,11 @@ export default function CoverGenerator({ initialState, onStateChange, className 
       const probe = new Image()
       probe.onload = () => {
         const id = nextId++
-        const { width, height } = fitDimensions(probe.naturalWidth, probe.naturalHeight, 240)
+        const { width, height } = coverDimensions(probe.naturalWidth, probe.naturalHeight, CANVAS_SIZE)
         const { x, y } = centeredPosition(CANVAS_SIZE, width, height)
         update(prev => ({
           ...prev,
-          images: [...(prev.images || []), createImageLayer(id, { name: file.name, data, width, height, x, y })],
+          images: [...(prev.images || []), createImageLayer(id, { name: file.name, data, width, height, x, y, naturalWidth: probe.naturalWidth, naturalHeight: probe.naturalHeight })],
         }))
         selectImage(id)
         setScrollTo('props-image')
@@ -1080,7 +1086,12 @@ export default function CoverGenerator({ initialState, onStateChange, className 
         </Section>
 
         {/* Selected Image Properties */}
-        {selectedImage && (
+        {selectedImage && (() => {
+          const nW = selectedImage.naturalWidth || selectedImage.width
+          const nH = selectedImage.naturalHeight || selectedImage.height
+          const setWidth = (v) => updateImage(selectedImage.id, selectedImage.lockAspect ? { width: v, height: aspectHeight(v, nW, nH) || selectedImage.height } : { width: v }, `img-w-${selectedImage.id}`)
+          const setHeight = (v) => updateImage(selectedImage.id, selectedImage.lockAspect ? { height: v, width: aspectWidth(v, nW, nH) || selectedImage.width } : { height: v }, `img-h-${selectedImage.id}`)
+          return (
           <Section title="Image Properties" id="props-image">
             <div>
               <label className="block text-xs text-gray-500 mb-1">Opacity ({Math.round((selectedImage.opacity ?? 1) * 100)}%)</label>
@@ -1103,17 +1114,33 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                 {BLEND_MODES.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
             </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Size ({dimensionPercent(selectedImage.width, nW)}% of original)</label>
+              <input
+                type="range"
+                className="w-full accent-blue-500"
+                min={5}
+                max={300}
+                value={Math.min(300, dimensionPercent(selectedImage.width, nW))}
+                onChange={e => { const d = scaleDimensions(nW, nH, Number(e.target.value)); updateImage(selectedImage.id, { width: d.width, height: d.height }, `img-scale-${selectedImage.id}`) }}
+              />
+            </div>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" checked={selectedImage.lockAspect} onChange={e => updateImage(selectedImage.id, { lockAspect: e.target.checked })} className="accent-blue-500" />
+              Lock aspect ratio
+            </label>
             <div className="grid grid-cols-2 gap-2">
-              <NumberInput label="Width" value={selectedImage.width} min={1} max={CANVAS_SIZE} onChange={v => updateImage(selectedImage.id, { width: v }, `img-w-${selectedImage.id}`)} />
-              <NumberInput label="Height" value={selectedImage.height} min={1} max={CANVAS_SIZE} onChange={v => updateImage(selectedImage.id, { height: v }, `img-h-${selectedImage.id}`)} />
+              <NumberInput label="Width" value={selectedImage.width} min={1} max={2000} onChange={setWidth} />
+              <NumberInput label="Height" value={selectedImage.height} min={1} max={2000} onChange={setHeight} />
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <NumberInput label="X position" value={selectedImage.x} min={0} max={CANVAS_SIZE} onChange={v => updateImage(selectedImage.id, { x: v }, `img-x-${selectedImage.id}`)} />
-              <NumberInput label="Y position" value={selectedImage.y} min={0} max={CANVAS_SIZE} onChange={v => updateImage(selectedImage.id, { y: v }, `img-y-${selectedImage.id}`)} />
+              <NumberInput label="X position" value={selectedImage.x} min={-CANVAS_SIZE} max={CANVAS_SIZE} onChange={v => updateImage(selectedImage.id, { x: v }, `img-x-${selectedImage.id}`)} />
+              <NumberInput label="Y position" value={selectedImage.y} min={-CANVAS_SIZE} max={CANVAS_SIZE} onChange={v => updateImage(selectedImage.id, { y: v }, `img-y-${selectedImage.id}`)} />
             </div>
             <button className="w-full btn-secondary text-sm" onClick={() => deleteImage(selectedImage.id)}>Delete image</button>
           </Section>
-        )}
+          )
+        })()}
 
         {/* Shapes */}
         <Section title="Shapes">

@@ -30,6 +30,9 @@ export const DEFAULT_IMAGE_LAYER = {
   height: 200,
   opacity: 1,
   blendMode: 'normal',
+  naturalWidth: null,
+  naturalHeight: null,
+  lockAspect: true,
 }
 
 // Build an image layer with defaults, allowing any field to be overridden.
@@ -60,9 +63,61 @@ export function fitDimensions(naturalWidth, naturalHeight, maxSide) {
 }
 
 // Top-left position that centers a box of the given size on a square canvas.
+// May be negative when the box is larger than the canvas (a "cover" image).
 export function centeredPosition(canvasSize, width, height) {
   return {
     x: Math.round((canvasSize - width) / 2),
     y: Math.round((canvasSize - height) / 2),
+  }
+}
+
+// Scale natural dimensions so the image *covers* the square canvas: the shorter
+// side fills it and the longer side overflows (the inverse of fitDimensions).
+export function coverDimensions(naturalWidth, naturalHeight, canvasSize) {
+  if (!naturalWidth || !naturalHeight) return { width: canvasSize, height: canvasSize }
+  const scale = canvasSize / Math.min(naturalWidth, naturalHeight)
+  return {
+    width: Math.round(naturalWidth * scale),
+    height: Math.round(naturalHeight * scale),
+  }
+}
+
+// Size at a percentage of the natural dimensions (never below 1px).
+export function scaleDimensions(naturalWidth, naturalHeight, percent) {
+  return {
+    width: Math.max(1, Math.round((naturalWidth * percent) / 100)),
+    height: Math.max(1, Math.round((naturalHeight * percent) / 100)),
+  }
+}
+
+// Current width as a percentage of the natural width (100 when unknown).
+export function dimensionPercent(width, naturalWidth) {
+  if (!naturalWidth) return 100
+  return Math.round((width / naturalWidth) * 100)
+}
+
+// The height/width that keeps the natural aspect ratio for a given other side.
+export function aspectHeight(width, naturalWidth, naturalHeight) {
+  if (!naturalWidth || !naturalHeight) return null
+  return Math.max(1, Math.round((width * naturalHeight) / naturalWidth))
+}
+
+export function aspectWidth(height, naturalWidth, naturalHeight) {
+  if (!naturalWidth || !naturalHeight) return null
+  return Math.max(1, Math.round((height * naturalWidth) / naturalHeight))
+}
+
+// How far a margin should stay on-canvas so a box layer can be dragged off any
+// edge without being lost entirely.
+export const OFFCANVAS_MARGIN = 24
+
+// Drag bounds for a box layer's top-left corner: it may go off any edge as long
+// as `margin` pixels remain on the canvas.
+export function offCanvasBounds(width, height, canvasSize, margin = OFFCANVAS_MARGIN) {
+  return {
+    minX: margin - width,
+    minY: margin - height,
+    maxX: canvasSize - margin,
+    maxY: canvasSize - margin,
   }
 }
