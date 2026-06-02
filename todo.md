@@ -9,7 +9,7 @@ Items deferred from the initial implementation.
 * [x] **Undo and redo** — done. Ctrl+Z / Ctrl+Shift+Z (and Ctrl+Y) with a 50-step history; drags and bursts of typing coalesce into a single step. See `useHistoryState` in [src/components/CoverGenerator.jsx](src/components/CoverGenerator.jsx).
 * [x] **Text stroke and outline** — done. Per-layer stroke color and width (0 = off), painted under the fill with `paint-order` for a true outline. Logic in [src/lib/text.js](src/lib/text.js), covered by tests.
 * [x] **Text shadow** — done. Per-layer drop shadow (color, blur, offset X/Y) via an SVG `feDropShadow` filter, so it stays editable in other SVG tools. Logic in [src/lib/text.js](src/lib/text.js), covered by tests.
-* [ ] **Google Fonts integration** — load any Google Font by name into the font picker.
+* [ ] **Google Fonts integration** — load any Google Font by name into the font picker. **Deferred:** adding a font to the picker is easy, but the project's export goals make the full feature large. SVG rendered to a canvas for PNG export runs in an isolated context that ignores document and `@font-face` web fonts, and a portable SVG cannot assume the viewer has the font installed — so the font must be embedded as base64 `@font-face` for exports to match the canvas. That means fetching each font (the Google CSS endpoint is often CORS-restricted) and inlining it, handling weights and variable fonts: a cross-cutting change to the export pipeline that also cannot be verified headlessly in this environment. Revisit as three steps: (1) load a font by name into the picker, (2) embed used fonts as base64 on export, (3) verify PNG and SVG output in a real browser.
 
 ## Medium priority
 
