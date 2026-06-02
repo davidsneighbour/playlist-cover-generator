@@ -1760,15 +1760,15 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Crop &amp; position</p>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Zoom ({Math.round(bgTransform.zoom * 100)}%)</label>
-                <input type="range" className="w-full accent-blue-500" min={100} max={400} value={Math.round(bgTransform.zoom * 100)} onChange={e => updateBackgroundTransform({ zoom: Number(e.target.value) / 100 }, 'bg-zoom')} />
+                <input type="range" aria-label="Background zoom" className="w-full accent-blue-500" min={100} max={400} value={Math.round(bgTransform.zoom * 100)} onChange={e => updateBackgroundTransform({ zoom: Number(e.target.value) / 100 }, 'bg-zoom')} />
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Horizontal position</label>
-                <input type="range" className="w-full accent-blue-500" min={0} max={100} value={Math.round((bgTransform.panX ?? 0.5) * 100)} onChange={e => updateBackgroundTransform({ panX: Number(e.target.value) / 100 }, 'bg-panx')} />
+                <input type="range" aria-label="Background horizontal position" className="w-full accent-blue-500" min={0} max={100} value={Math.round((bgTransform.panX ?? 0.5) * 100)} onChange={e => updateBackgroundTransform({ panX: Number(e.target.value) / 100 }, 'bg-panx')} />
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Vertical position</label>
-                <input type="range" className="w-full accent-blue-500" min={0} max={100} value={Math.round((bgTransform.panY ?? 0.5) * 100)} onChange={e => updateBackgroundTransform({ panY: Number(e.target.value) / 100 }, 'bg-pany')} />
+                <input type="range" aria-label="Background vertical position" className="w-full accent-blue-500" min={0} max={100} value={Math.round((bgTransform.panY ?? 0.5) * 100)} onChange={e => updateBackgroundTransform({ panY: Number(e.target.value) / 100 }, 'bg-pany')} />
               </div>
               <button className="w-full btn-secondary text-sm" onClick={() => updateBackgroundTransform(DEFAULT_BACKGROUND_TRANSFORM)}>Reset crop</button>
             </div>
@@ -1779,19 +1779,19 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Filters</p>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Brightness ({Math.round(bgFilters.brightness * 100)}%)</label>
-                <input type="range" className="w-full accent-blue-500" min={0} max={200} value={Math.round(bgFilters.brightness * 100)} onChange={e => updateBackgroundFilters({ brightness: Number(e.target.value) / 100 }, 'bg-brightness')} />
+                <input type="range" aria-label="Background brightness" className="w-full accent-blue-500" min={0} max={200} value={Math.round(bgFilters.brightness * 100)} onChange={e => updateBackgroundFilters({ brightness: Number(e.target.value) / 100 }, 'bg-brightness')} />
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Contrast ({Math.round(bgFilters.contrast * 100)}%)</label>
-                <input type="range" className="w-full accent-blue-500" min={0} max={200} value={Math.round(bgFilters.contrast * 100)} onChange={e => updateBackgroundFilters({ contrast: Number(e.target.value) / 100 }, 'bg-contrast')} />
+                <input type="range" aria-label="Background contrast" className="w-full accent-blue-500" min={0} max={200} value={Math.round(bgFilters.contrast * 100)} onChange={e => updateBackgroundFilters({ contrast: Number(e.target.value) / 100 }, 'bg-contrast')} />
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Saturation ({Math.round(bgFilters.saturate * 100)}%)</label>
-                <input type="range" className="w-full accent-blue-500" min={0} max={200} value={Math.round(bgFilters.saturate * 100)} onChange={e => updateBackgroundFilters({ saturate: Number(e.target.value) / 100 }, 'bg-saturate')} />
+                <input type="range" aria-label="Background saturation" className="w-full accent-blue-500" min={0} max={200} value={Math.round(bgFilters.saturate * 100)} onChange={e => updateBackgroundFilters({ saturate: Number(e.target.value) / 100 }, 'bg-saturate')} />
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Blur ({bgFilters.blur}px)</label>
-                <input type="range" className="w-full accent-blue-500" min={0} max={20} step={0.5} value={bgFilters.blur} onChange={e => updateBackgroundFilters({ blur: Number(e.target.value) }, 'bg-blur')} />
+                <input type="range" aria-label="Background blur" className="w-full accent-blue-500" min={0} max={20} step={0.5} value={bgFilters.blur} onChange={e => updateBackgroundFilters({ blur: Number(e.target.value) }, 'bg-blur')} />
               </div>
               <button className="w-full btn-secondary text-sm" onClick={() => updateBackgroundFilters(DEFAULT_FILTERS)}>Reset filters</button>
             </div>
@@ -1806,18 +1806,18 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               <div className="flex flex-col gap-2 mt-2">
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Type</label>
-                  <select className="input w-full" value={bgGradient.type} onChange={e => updateBackgroundGradient({ type: e.target.value })}>
+                  <select className="input w-full" aria-label="Gradient type" value={bgGradient.type} onChange={e => updateBackgroundGradient({ type: e.target.value })}>
                     {BACKGROUND_GRADIENT_TYPES.map(t => <option key={t} value={t}>{t === 'linear' ? 'Linear' : 'Radial'}</option>)}
                   </select>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">Start color</label>
-                    <input type="color" className="w-full h-8 rounded border border-gray-200 cursor-pointer" value={bgGradient.color} onChange={e => updateBackgroundGradient({ color: e.target.value }, 'bg-grad-color')} />
+                    <input type="color" aria-label="Gradient start color" className="w-full h-8 rounded border border-gray-200 cursor-pointer" value={bgGradient.color} onChange={e => updateBackgroundGradient({ color: e.target.value }, 'bg-grad-color')} />
                   </div>
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">End color</label>
-                    <input type="color" className="w-full h-8 rounded border border-gray-200 cursor-pointer" value={bgGradient.color2} onChange={e => updateBackgroundGradient({ color2: e.target.value }, 'bg-grad-color2')} />
+                    <input type="color" aria-label="Gradient end color" className="w-full h-8 rounded border border-gray-200 cursor-pointer" value={bgGradient.color2} onChange={e => updateBackgroundGradient({ color2: e.target.value }, 'bg-grad-color2')} />
                   </div>
                 </div>
                 {bgGradient.type === 'linear' && (
@@ -1841,29 +1841,29 @@ export default function CoverGenerator({ initialState, onStateChange, className 
             <>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Type</label>
-                <select className="input w-full" value={overlay.type} onChange={e => updateOverlay({ type: e.target.value })}>
+                <select className="input w-full" aria-label="Overlay type" value={overlay.type} onChange={e => updateOverlay({ type: e.target.value })}>
                   {OVERLAY_TYPES.map(t => <option key={t} value={t}>{t === 'solid' ? 'Solid' : t === 'linear' ? 'Linear gradient' : 'Radial gradient'}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">{overlay.type === 'solid' ? 'Color' : 'Start color'}</label>
-                  <input type="color" className="w-full h-8 rounded border border-gray-200 cursor-pointer" value={overlay.color} onChange={e => updateOverlay({ color: e.target.value }, 'overlay-color')} />
+                  <input type="color" aria-label="Overlay color" className="w-full h-8 rounded border border-gray-200 cursor-pointer" value={overlay.color} onChange={e => updateOverlay({ color: e.target.value }, 'overlay-color')} />
                 </div>
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">{overlay.type === 'solid' ? 'Opacity' : 'Start opacity'} ({Math.round(clampOpacity(overlay.opacity) * 100)}%)</label>
-                  <input type="range" className="w-full accent-blue-500 mt-1.5" min={0} max={100} value={Math.round(clampOpacity(overlay.opacity) * 100)} onChange={e => updateOverlay({ opacity: clampOpacity(Number(e.target.value) / 100) }, 'overlay-opacity')} />
+                  <input type="range" aria-label="Overlay opacity" className="w-full accent-blue-500 mt-1.5" min={0} max={100} value={Math.round(clampOpacity(overlay.opacity) * 100)} onChange={e => updateOverlay({ opacity: clampOpacity(Number(e.target.value) / 100) }, 'overlay-opacity')} />
                 </div>
               </div>
               {overlay.type !== 'solid' && (
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">End color</label>
-                    <input type="color" className="w-full h-8 rounded border border-gray-200 cursor-pointer" value={overlay.color2} onChange={e => updateOverlay({ color2: e.target.value }, 'overlay-color2')} />
+                    <input type="color" aria-label="Overlay end color" className="w-full h-8 rounded border border-gray-200 cursor-pointer" value={overlay.color2} onChange={e => updateOverlay({ color2: e.target.value }, 'overlay-color2')} />
                   </div>
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">End opacity ({Math.round(clampOpacity(overlay.opacity2) * 100)}%)</label>
-                    <input type="range" className="w-full accent-blue-500 mt-1.5" min={0} max={100} value={Math.round(clampOpacity(overlay.opacity2) * 100)} onChange={e => updateOverlay({ opacity2: clampOpacity(Number(e.target.value) / 100) }, 'overlay-opacity2')} />
+                    <input type="range" aria-label="Overlay end opacity" className="w-full accent-blue-500 mt-1.5" min={0} max={100} value={Math.round(clampOpacity(overlay.opacity2) * 100)} onChange={e => updateOverlay({ opacity2: clampOpacity(Number(e.target.value) / 100) }, 'overlay-opacity2')} />
                   </div>
                 </div>
               )}
@@ -1872,7 +1872,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               )}
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Blend mode</label>
-                <select className="input w-full" value={overlay.blendMode} onChange={e => updateOverlay({ blendMode: e.target.value })}>
+                <select className="input w-full" aria-label="Overlay blend mode" value={overlay.blendMode} onChange={e => updateOverlay({ blendMode: e.target.value })}>
                   {BLEND_MODES.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
@@ -1999,6 +1999,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               <label className="block text-xs text-gray-500 mb-1">Opacity ({Math.round((selectedImage.opacity ?? 1) * 100)}%)</label>
               <input
                 type="range"
+                aria-label="Image opacity"
                 className="w-full accent-blue-500"
                 min={0}
                 max={100}
@@ -2010,6 +2011,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               <label className="block text-xs text-gray-500 mb-1">Blend mode</label>
               <select
                 className="input w-full"
+                aria-label="Image blend mode"
                 value={selectedImage.blendMode}
                 onChange={e => updateImage(selectedImage.id, { blendMode: e.target.value })}
               >
@@ -2020,6 +2022,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               <label className="block text-xs text-gray-500 mb-1">Size ({dimensionPercent(selectedImage.width, nW)}% of original)</label>
               <input
                 type="range"
+                aria-label="Image size"
                 className="w-full accent-blue-500"
                 min={5}
                 max={300}
@@ -2087,18 +2090,18 @@ export default function CoverGenerator({ initialState, onStateChange, className 
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Fill</label>
-                <input type="color" className="w-full h-8 rounded border border-gray-200 cursor-pointer" value={selectedShape.fill} onChange={e => updateShape(selectedShape.id, { fill: e.target.value }, `shape-fill-${selectedShape.id}`)} />
+                <input type="color" aria-label="Shape fill color" className="w-full h-8 rounded border border-gray-200 cursor-pointer" value={selectedShape.fill} onChange={e => updateShape(selectedShape.id, { fill: e.target.value }, `shape-fill-${selectedShape.id}`)} />
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Stroke</label>
-                <input type="color" className="w-full h-8 rounded border border-gray-200 cursor-pointer" value={selectedShape.stroke} onChange={e => updateShape(selectedShape.id, { stroke: e.target.value }, `shape-stroke-${selectedShape.id}`)} />
+                <input type="color" aria-label="Shape stroke color" className="w-full h-8 rounded border border-gray-200 cursor-pointer" value={selectedShape.stroke} onChange={e => updateShape(selectedShape.id, { stroke: e.target.value }, `shape-stroke-${selectedShape.id}`)} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <NumberInput label="Stroke width" value={selectedShape.strokeWidth} min={0} max={40} onChange={v => updateShape(selectedShape.id, { strokeWidth: v }, `shape-sw-${selectedShape.id}`)} hint="0 = off" />
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Opacity ({Math.round((selectedShape.opacity ?? 1) * 100)}%)</label>
-                <input type="range" className="w-full accent-blue-500 mt-1.5" min={0} max={100} value={Math.round((selectedShape.opacity ?? 1) * 100)} onChange={e => updateShape(selectedShape.id, { opacity: clampOpacity(Number(e.target.value) / 100) }, `shape-opacity-${selectedShape.id}`)} />
+                <input type="range" aria-label="Shape opacity" className="w-full accent-blue-500 mt-1.5" min={0} max={100} value={Math.round((selectedShape.opacity ?? 1) * 100)} onChange={e => updateShape(selectedShape.id, { opacity: clampOpacity(Number(e.target.value) / 100) }, `shape-opacity-${selectedShape.id}`)} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -2119,6 +2122,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
             <label className="block text-xs text-gray-500 mb-1">Content</label>
             <input
               className="input w-full"
+              aria-label="Text content"
               value={selectedText.content}
               onChange={e => updateText(selectedText.id, { content: e.target.value }, `content-${selectedText.id}`)}
             />
@@ -2128,6 +2132,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                 <label className="block text-xs text-gray-500 mb-1">Font</label>
                 <select
                   className="input w-full"
+                  aria-label="Font"
                   value={selectedText.fontFamily}
                   onChange={e => updateText(selectedText.id, { fontFamily: e.target.value })}
                 >
@@ -2139,6 +2144,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                 <input
                   type="number"
                   className="input w-full"
+                  aria-label="Font size"
                   value={selectedText.fontSize}
                   min={8} max={200}
                   onChange={e => updateText(selectedText.id, { fontSize: Number(e.target.value) }, `size-${selectedText.id}`)}
@@ -2151,6 +2157,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                 <label className="block text-xs text-gray-500 mb-1">Color</label>
                 <input
                   type="color"
+                  aria-label="Text color"
                   className="w-full h-8 rounded border border-gray-200 cursor-pointer"
                   value={selectedText.color}
                   onChange={e => updateText(selectedText.id, { color: e.target.value }, `color-${selectedText.id}`)}
@@ -2160,6 +2167,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                 <label className="block text-xs text-gray-500 mb-1">Anchor</label>
                 <select
                   className="input w-full"
+                  aria-label="Text alignment"
                   value={selectedText.anchor}
                   onChange={e => updateText(selectedText.id, { anchor: e.target.value })}
                 >
@@ -2187,6 +2195,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                 <label className="block text-xs text-gray-500 mb-1">Stroke color</label>
                 <input
                   type="color"
+                  aria-label="Text stroke color"
                   className="w-full h-8 rounded border border-gray-200 cursor-pointer"
                   value={selectedText.stroke || '#000000'}
                   onChange={e => updateText(selectedText.id, { stroke: e.target.value }, `stroke-color-${selectedText.id}`)}
@@ -2211,6 +2220,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                     <label className="block text-xs text-gray-500 mb-1">Shadow color</label>
                     <input
                       type="color"
+                      aria-label="Shadow color"
                       className="w-full h-8 rounded border border-gray-200 cursor-pointer"
                       value={selectedText.shadow.color || '#000000'}
                       onChange={e => updateText(selectedText.id, { shadow: { ...selectedText.shadow, color: e.target.value } }, `shadow-color-${selectedText.id}`)}

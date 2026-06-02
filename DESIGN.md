@@ -43,7 +43,7 @@ Each control group is a white card (`border border-gray-200 rounded-lg shadow-sm
 
 ### Primary button
 
-The `.btn-primary` class: `bg-blue-500` background, white text, `rounded-md`, 8px vertical padding. Hover darkens to `bg-blue-600`.
+The `.btn-primary` class: `bg-blue-600` background, white text, `rounded-md`, 8px vertical padding. Hover darkens to `bg-blue-700`. Blue-600 is used (rather than the blue-500 accent) so the white label clears AA contrast.
 
 ### Secondary button
 
@@ -78,5 +78,13 @@ No decorative motion. Buttons use `transition-colors` for hover state only.
 * All interactive elements are focusable via keyboard; both each layer-list row's label and the layer's canvas element are buttons (`aria-pressed` reflects selection), so layers can be selected without a mouse (Enter/Space on the canvas element), then nudged with the arrow keys, removed with Delete, or deselected with Escape. Focused canvas layers show a `2px` blue (`#3b82f6`) `:focus-visible` outline.
 * Icon-only buttons (reorder, duplicate, delete) carry an `aria-label`; the canvas is a labelled `role="group"`.
 * A visually hidden (`sr-only`) `aria-live="polite"` region announces layer add, delete, duplicate, and undo/redo.
-* Color contrast: action blue on white passes AA at 14px.
+* Every input has a programmatic name: `NumberInput` ties its `<label>` to the field with `htmlFor`/`id`, and the inline sliders, selects, and colour pickers carry an `aria-label`.
 * `title` elements on SVG text indicate the selected state for screen readers.
+
+### Colour contrast (audited)
+
+Measured against white using WCAG 2.x ratios:
+
+* Text that conveys information passes AA: `text-gray-900` (17.7:1), `text-gray-700` (10.3:1), and `text-gray-500` (4.8:1, used for control labels).
+* `text-gray-400` (`#9ca3af`) is **2.5:1** and does not meet AA. It is reserved for **non-essential, supplementary** hints and placeholders (for example "0 = off"); no information needed to operate the editor depends on it alone. Do not use it for primary labels or values.
+* Primary buttons use **blue-600** (`#2563eb`): white text on it is 5.2:1 (AA). The lighter blue-500 (`#3b82f6`, 3.68:1) is used only for **non-text** accents — the selection and focus rings — which need just 3:1 (WCAG 1.4.11).
