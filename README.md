@@ -8,6 +8,7 @@ Built with React 19, Vite 6, and Tailwind CSS 4. No heavy editor dependencies: t
 
 * **Square SVG canvas** with a fixed internal coordinate system that scales responsively.
 * **Background image** upload, displayed edge-to-edge with center-crop.
+* **Gradient background** — a linear or radial two-color gradient that fills the canvas when no image is loaded.
 * **Image layers** — stack logos or overlays over the background, each with opacity, blend mode, size, and a draggable position.
 * **Shapes** — add rectangles and circles with fill, stroke, and opacity, draggable and snappable.
 * **Color overlay** — a full-canvas solid or gradient (linear or radial) fill over the background with adjustable opacity and a blend mode, for text legibility.
@@ -115,6 +116,7 @@ Tailwind CSS 4 must be available in the host app, or the component's utility cla
 | [src/lib/images.js](src/lib/images.js) | Image-layer factory, blend modes, and fit/center helpers (unit-tested). |
 | [src/lib/shapes.js](src/lib/shapes.js) | Shape factory and ellipse geometry helpers (unit-tested). |
 | [src/lib/overlay.js](src/lib/overlay.js) | Color-overlay defaults and gradient-axis geometry (unit-tested). |
+| [src/lib/background.js](src/lib/background.js) | Gradient-background defaults and type guard (unit-tested). |
 | [src/index.js](src/index.js) | Library entry that re-exports `CoverGenerator`. |
 | [src/App.jsx](src/App.jsx) | Demo application wrapper. |
 | [src/main.jsx](src/main.jsx) | Vite entry point for the demo. |

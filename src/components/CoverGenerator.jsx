@@ -6,6 +6,7 @@ import { BUILTIN_FONTS, googleFontCssUrl, buildFontFaceRule, addFont, googleFont
 import { BLEND_MODES, createImageLayer, clampOpacity, centeredPosition, coverDimensions, scaleDimensions, dimensionPercent, aspectHeight, aspectWidth, offCanvasBounds, resizeFromCorner } from '../lib/images'
 import { SHAPE_TYPES, createShape, ellipseGeometry } from '../lib/shapes'
 import { DEFAULT_OVERLAY, OVERLAY_TYPES, gradientVector } from '../lib/overlay'
+import { DEFAULT_BACKGROUND_GRADIENT, BACKGROUND_GRADIENT_TYPES } from '../lib/background'
 import { averageRgb, pickContrastColor } from '../lib/color'
 import { isOpen as isCardOpen, toggleOpen, togglePin, openCard } from '../lib/accordion'
 import { AccordionContext, CollapsibleCard } from './Accordion'
@@ -19,6 +20,7 @@ const ENV_GOOGLE_FONTS_API_KEY = import.meta.env.VITE_GOOGLE_FONTS_API_KEY
 const DEFAULT_STATE = {
   backgroundImage: null,
   backgroundImageData: null,
+  backgroundGradient: DEFAULT_BACKGROUND_GRADIENT,
   texts: [],
   images: [],
   shapes: [],
@@ -330,6 +332,38 @@ function ShapeElement({ shape, onSelect, onDrag, snapToGrid, gridSpacing, canvas
   return <rect x={shape.x} y={shape.y} width={shape.width} height={shape.height} {...common} />
 }
 
+// Two-stop gradient that fills the canvas beneath the background image, so it
+// shows through when no image is loaded (an opaque image covers it). Reuses the
+// same gradient-axis math as the overlay. pointer-events stay off.
+function GradientBackground({ gradient, size }) {
+  if (!gradient || !gradient.enabled) return null
+  const id = 'background-gradient'
+  const stops = (
+    <>
+      <stop offset="0%" stopColor={gradient.color} />
+      <stop offset="100%" stopColor={gradient.color2} />
+    </>
+  )
+  const v = gradientVector(gradient.angle)
+  return (
+    <>
+      <defs>
+        {gradient.type === 'radial' ? (
+          <radialGradient id={id} cx="50%" cy="50%" r="50%">{stops}</radialGradient>
+        ) : (
+          <linearGradient id={id} x1={v.x1} y1={v.y1} x2={v.x2} y2={v.y2}>{stops}</linearGradient>
+        )}
+      </defs>
+      <rect
+        x={0} y={0} width={size} height={size}
+        fill={`url(#${id})`}
+        style={{ pointerEvents: 'none' }}
+        data-layer="background-gradient"
+      />
+    </>
+  )
+}
+
 // Full-canvas color overlay painted over the background (under every other
 // layer) to improve text legibility. Solid is a single color; linear/radial are
 // two-stop gradients whose stops carry their own alpha. The blend mode applies
@@ -423,6 +457,8 @@ function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, on
           )
         })}
       </defs>
+
+      <GradientBackground gradient={state.backgroundGradient} size={CANVAS_SIZE} />
 
       {state.backgroundImageData && (
         <image
@@ -910,6 +946,15 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     update(prev => ({ ...prev, overlay: { ...(prev.overlay || DEFAULT_OVERLAY), ...patch } }), coalesceKey)
   }, [update])
 
+  // Gradient background (shows beneath the image). One object, edited in place.
+  const updateBackgroundGradient = useCallback((patch, coalesceKey) => {
+    update(prev => ({ ...prev, backgroundGradient: { ...(prev.backgroundGradient || DEFAULT_BACKGROUND_GRADIENT), ...patch } }), coalesceKey)
+  }, [update])
+
+  const clearBackgroundImage = useCallback(() => {
+    update({ backgroundImage: null, backgroundImageData: null })
+  }, [update])
+
   // Grid
   const updateGrid = useCallback((patch, coalesceKey) => {
     update(prev => ({ ...prev, grid: { ...prev.grid, ...patch } }), coalesceKey)
@@ -1049,6 +1094,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const selectedImage = (state.images || []).find(i => i.id === selectedImageId)
   const selectedShape = (state.shapes || []).find(s => s.id === selectedShapeId)
   const overlay = state.overlay || DEFAULT_OVERLAY
+  const bgGradient = state.backgroundGradient || DEFAULT_BACKGROUND_GRADIENT
 
   return (
     <div className={`flex flex-col lg:flex-row gap-6 p-4 lg:p-6 min-h-screen bg-gray-50 lg:items-start ${className}`}>
@@ -1170,8 +1216,8 @@ export default function CoverGenerator({ initialState, onStateChange, className 
           </p>
         </CollapsibleCard>
 
-        {/* Background Image */}
-        <CollapsibleCard id="background" title="Background Image">
+        {/* Background */}
+        <CollapsibleCard id="background" title="Background">
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
           <button
             className="w-full btn-primary"
@@ -1179,6 +1225,42 @@ export default function CoverGenerator({ initialState, onStateChange, className 
           >
             {state.backgroundImage ? `Change image (${state.backgroundImage})` : 'Upload image'}
           </button>
+          {state.backgroundImage && (
+            <button className="w-full btn-secondary text-sm" onClick={clearBackgroundImage}>Remove image</button>
+          )}
+
+          <div className="border-t border-gray-100 pt-2 mt-1">
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" checked={bgGradient.enabled} onChange={e => updateBackgroundGradient({ enabled: e.target.checked })} className="accent-blue-500" />
+              Gradient background
+            </label>
+            {bgGradient.enabled && (
+              <div className="flex flex-col gap-2 mt-2">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Type</label>
+                  <select className="input w-full" value={bgGradient.type} onChange={e => updateBackgroundGradient({ type: e.target.value })}>
+                    {BACKGROUND_GRADIENT_TYPES.map(t => <option key={t} value={t}>{t === 'linear' ? 'Linear' : 'Radial'}</option>)}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Start color</label>
+                    <input type="color" className="w-full h-8 rounded border border-gray-200 cursor-pointer" value={bgGradient.color} onChange={e => updateBackgroundGradient({ color: e.target.value }, 'bg-grad-color')} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">End color</label>
+                    <input type="color" className="w-full h-8 rounded border border-gray-200 cursor-pointer" value={bgGradient.color2} onChange={e => updateBackgroundGradient({ color2: e.target.value }, 'bg-grad-color2')} />
+                  </div>
+                </div>
+                {bgGradient.type === 'linear' && (
+                  <NumberInput label="Angle" value={bgGradient.angle} min={0} max={360} onChange={v => updateBackgroundGradient({ angle: v }, 'bg-grad-angle')} hint="0° top→bottom, 90° left→right" />
+                )}
+                {state.backgroundImage && (
+                  <p className="text-[11px] text-gray-400 leading-tight">Hidden while a background image is loaded (it covers the canvas). Remove the image to see the gradient.</p>
+                )}
+              </div>
+            )}
+          </div>
         </CollapsibleCard>
 
         {/* Color overlay */}
