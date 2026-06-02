@@ -19,7 +19,8 @@ Built with React 19, Vite 6, and Tailwind CSS 4. No heavy editor dependencies: t
 * **Templates** — apply a predefined layout (title and artist, minimal, grid art) from a dropdown, keeping your uploaded image.
 * **Google Fonts** — add any Google font by name; used fonts are embedded into PNG and SVG exports so they stay portable.
 * **Save and load** the full layout as JSON, so a project can be reopened later with any image.
-* **Export** to high-quality PNG (rendered at 2x) and to clean, editable SVG.
+* **Export size presets** — 600, 1000, or 3000 (the square Spotify and Apple Music spec) for the PNG and SVG output.
+* **Export** to high-quality PNG and to clean, editable SVG.
 
 ## Getting started
 
@@ -117,6 +118,7 @@ Tailwind CSS 4 must be available in the host app, or the component's utility cla
 | [src/lib/shapes.js](src/lib/shapes.js) | Shape factory and ellipse geometry helpers (unit-tested). |
 | [src/lib/overlay.js](src/lib/overlay.js) | Color-overlay defaults and gradient-axis geometry (unit-tested). |
 | [src/lib/background.js](src/lib/background.js) | Gradient-background defaults and type guard (unit-tested). |
+| [src/lib/canvas.js](src/lib/canvas.js) | Export-size presets and scale helpers (unit-tested). |
 | [src/index.js](src/index.js) | Library entry that re-exports `CoverGenerator`. |
 | [src/App.jsx](src/App.jsx) | Demo application wrapper. |
 | [src/main.jsx](src/main.jsx) | Vite entry point for the demo. |
@@ -124,8 +126,8 @@ Tailwind CSS 4 must be available in the host app, or the component's utility cla
 
 ## Export formats
 
-* **PNG** renders the SVG to a canvas at 2x scale (1200x1200) for a crisp raster image. The grid overlay is stripped first.
-* **SVG** is serialized directly with the grid removed and interaction styles cleaned up, so it stays editable in tools such as Inkscape or Illustrator.
+* **PNG** renders the SVG to a canvas at the chosen export size (600, 1000, or 3000px square) for a crisp raster image. The grid overlay is stripped first.
+* **SVG** is serialized directly with the grid removed and interaction styles cleaned up, and its width/height set to the export size; the `viewBox` stays at 600 so it scales cleanly and stays editable in tools such as Inkscape or Illustrator.
 * **JSON** captures the layout (text, positions, grid, snap) without the embedded image data, keeping the file small and portable. Re-importing restores the layout over whichever image is loaded next.
 
 ## Documentation

@@ -30,7 +30,7 @@ Always run `npm run build` and `npm test` after non-trivial changes to confirm t
 
 The whole editor lives in [src/components/CoverGenerator.jsx](src/components/CoverGenerator.jsx). Read it before changing anything. Key pieces:
 
-* `CANVAS_SIZE` is the fixed internal SVG coordinate space (600). The rendered size scales via a `ResizeObserver`; all geometry is stored in canvas units, not screen pixels.
+* `CANVAS_SIZE` is the fixed internal SVG coordinate space (600). The rendered size scales via a `ResizeObserver`; all geometry is stored in canvas units, not screen pixels. The export resolution is independent: `state.exportSize` (a square pixel size chosen from `CANVAS_PRESETS` in [src/lib/canvas.js](src/lib/canvas.js)) sizes the exported PNG and the SVG's width/height, while the `viewBox` stays at 600 so output scales cleanly. Keep new geometry in 600-unit space; do not key it off `exportSize`.
 * `CoverGenerator` is the exported component. It owns all state and notifies the host through `onStateChange` (fired from an effect whenever state changes, skipping the initial mount).
 * `useHistoryState` wraps the single state object to provide undo and redo. Every mutation goes through its `commit(patch, coalesceKey)`. Discrete edits push a new history entry; rapid edits that share a `coalesceKey` (dragging a text, typing in a field) collapse into one step. Undo and redo are bound to Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z (and Ctrl+Y), and ignored while a form field is focused so native text undo still works. When adding a new continuous interaction, give it a stable `coalesceKey`; for one-off actions, omit it.
 * `SVGCanvas` renders the SVG tree: background `image`, then the grid, then text, then the selection outline.
@@ -69,6 +69,7 @@ The single state object is the contract for JSON import/export and the `initialS
   grid: { enabled, spacing, majorEvery },
   snapToGrid: boolean,
   fonts: [ string ],                   // custom (Google) font family names
+  exportSize: number,                  // square export pixel size (PNG + SVG)
 }
 ```
 
@@ -77,7 +78,7 @@ The single state object is the contract for JSON import/export and the `initialS
 ### Export rules
 
 * PNG and SVG exporters clone the live SVG, remove `[data-layer="grid"]`, and clear interaction-only styles. The grid must never appear in exports.
-* PNG renders at 2x for quality. SVG must stay valid and editable in external tools, so avoid embedding interaction handlers or editor-only attributes in the serialized output.
+* PNG rasterizes at `state.exportSize` (via `exportScale(exportSize, CANVAS_SIZE)` from [src/lib/canvas.js](src/lib/canvas.js)); SVG sets its width/height to the same size and keeps the 600 `viewBox`. SVG must stay valid and editable in external tools, so avoid embedding interaction handlers or editor-only attributes in the serialized output.
 
 ## Conventions
 

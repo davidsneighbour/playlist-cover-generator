@@ -7,6 +7,7 @@ import { BLEND_MODES, createImageLayer, clampOpacity, centeredPosition, coverDim
 import { SHAPE_TYPES, createShape, ellipseGeometry } from '../lib/shapes'
 import { DEFAULT_OVERLAY, OVERLAY_TYPES, gradientVector } from '../lib/overlay'
 import { DEFAULT_BACKGROUND_GRADIENT, BACKGROUND_GRADIENT_TYPES } from '../lib/background'
+import { CANVAS_PRESETS, DEFAULT_EXPORT_SIZE, exportScale, clampExportSize } from '../lib/canvas'
 import { averageRgb, pickContrastColor } from '../lib/color'
 import { isOpen as isCardOpen, toggleOpen, togglePin, openCard } from '../lib/accordion'
 import { AccordionContext, CollapsibleCard } from './Accordion'
@@ -32,6 +33,7 @@ const DEFAULT_STATE = {
   },
   snapToGrid: true,
   fonts: [],
+  exportSize: DEFAULT_EXPORT_SIZE,
 }
 
 let nextId = 1
@@ -1014,13 +1016,14 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     const blob = new Blob([svgStr], { type: 'image/svg+xml' })
     const url = URL.createObjectURL(blob)
 
+    const size = clampExportSize(state.exportSize)
     const img = new Image()
     img.onload = () => {
       const canvas = document.createElement('canvas')
-      const scale = 2
-      canvas.width = CANVAS_SIZE * scale
-      canvas.height = CANVAS_SIZE * scale
+      canvas.width = size
+      canvas.height = size
       const ctx = canvas.getContext('2d')
+      const scale = exportScale(size, CANVAS_SIZE)
       ctx.scale(scale, scale)
       ctx.drawImage(img, 0, 0)
       URL.revokeObjectURL(url)
@@ -1032,7 +1035,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
       }, 'image/png')
     }
     img.src = url
-  }, [embedFontsInClone])
+  }, [embedFontsInClone, state.exportSize])
 
   // Export SVG
   const exportSVG = useCallback(async () => {
@@ -1044,8 +1047,9 @@ export default function CoverGenerator({ initialState, onStateChange, className 
       el.style.cursor = ''
       el.style.userSelect = ''
     })
-    clone.setAttribute('width', CANVAS_SIZE)
-    clone.setAttribute('height', CANVAS_SIZE)
+    const size = clampExportSize(state.exportSize)
+    clone.setAttribute('width', size)
+    clone.setAttribute('height', size)
     await embedFontsInClone(clone)
 
     const serializer = new XMLSerializer()
@@ -1055,7 +1059,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     a.href = URL.createObjectURL(blob)
     a.download = 'cover.svg'
     a.click()
-  }, [embedFontsInClone])
+  }, [embedFontsInClone, state.exportSize])
 
   // Export JSON
   const exportJSON = useCallback(() => {
@@ -1095,6 +1099,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const selectedShape = (state.shapes || []).find(s => s.id === selectedShapeId)
   const overlay = state.overlay || DEFAULT_OVERLAY
   const bgGradient = state.backgroundGradient || DEFAULT_BACKGROUND_GRADIENT
+  const exportSize = clampExportSize(state.exportSize)
 
   return (
     <div className={`flex flex-col lg:flex-row gap-6 p-4 lg:p-6 min-h-screen bg-gray-50 lg:items-start ${className}`}>
@@ -1119,7 +1124,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
             displaySize={displaySize}
           />
         </div>
-        <p className="text-xs text-gray-400">{CANVAS_SIZE}×{CANVAS_SIZE}px canvas · click a layer to select · drag to move · Ctrl+Z to undo</p>
+        <p className="text-xs text-gray-400">Exports at {exportSize}×{exportSize}px · click a layer to select · drag to move · Ctrl+Z to undo</p>
       </div>
 
       {/* Controls */}
@@ -1638,6 +1643,17 @@ export default function CoverGenerator({ initialState, onStateChange, className 
 
         {/* Export / Import */}
         <CollapsibleCard id="export" title="Export & Import">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Export size</label>
+            <select
+              className="input w-full"
+              value={exportSize}
+              onChange={e => update({ exportSize: clampExportSize(Number(e.target.value)) })}
+            >
+              {CANVAS_PRESETS.map(p => <option key={p.id} value={p.size}>{p.label}</option>)}
+            </select>
+            <p className="text-[11px] text-gray-400 leading-tight mt-1">Sets the PNG pixel size and the SVG width/height. The editing canvas is always square.</p>
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <button className="btn-secondary text-sm" onClick={exportPNG}>Export PNG</button>
             <button className="btn-secondary text-sm" onClick={exportSVG}>Export SVG</button>
