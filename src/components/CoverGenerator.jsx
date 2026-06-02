@@ -7,6 +7,7 @@ import { BLEND_MODES, createImageLayer, clampOpacity, centeredPosition, coverDim
 import { SHAPE_TYPES, createShape, ellipseGeometry } from '../lib/shapes'
 import { DEFAULT_OVERLAY, OVERLAY_TYPES, gradientVector } from '../lib/overlay'
 import { DEFAULT_BACKGROUND_GRADIENT, BACKGROUND_GRADIENT_TYPES, DEFAULT_BACKGROUND_TRANSFORM, backgroundCrop } from '../lib/background'
+import { DEFAULT_FILTERS, isFilterActive, brightnessContrastTransfer } from '../lib/filters'
 import { CANVAS_PRESETS, DEFAULT_EXPORT_SIZE, exportScale, clampExportSize } from '../lib/canvas'
 import { rulerTicks } from '../lib/rulers'
 import { SHORTCUTS, formatKeys, nudgeDelta, isDeleteKey } from '../lib/shortcuts'
@@ -33,6 +34,7 @@ const DEFAULT_STATE = {
   backgroundNaturalWidth: null,
   backgroundNaturalHeight: null,
   backgroundTransform: DEFAULT_BACKGROUND_TRANSFORM,
+  backgroundFilters: DEFAULT_FILTERS,
   backgroundGradient: DEFAULT_BACKGROUND_GRADIENT,
   texts: [],
   images: [],
@@ -486,6 +488,11 @@ function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, on
     setTextBox({ x: b.x, y: b.y, width: b.width, height: b.height })
   }, [selectedTextId, state.texts])
 
+  const bgFilters = state.backgroundFilters || DEFAULT_FILTERS
+  const bgFilterActive = isFilterActive(bgFilters)
+  const bgFilterRef = bgFilterActive ? 'url(#bg-filter)' : undefined
+  const bgTransfer = brightnessContrastTransfer(bgFilters.brightness, bgFilters.contrast)
+
   return (
     <svg
       ref={svgRef}
@@ -515,6 +522,17 @@ function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, on
         <clipPath id="canvas-clip">
           <rect x={0} y={0} width={CANVAS_SIZE} height={CANVAS_SIZE} />
         </clipPath>
+        {bgFilterActive && (
+          <filter id="bg-filter" colorInterpolationFilters="sRGB">
+            <feColorMatrix type="saturate" values={bgFilters.saturate} />
+            <feComponentTransfer>
+              <feFuncR type="linear" slope={bgTransfer.slope} intercept={bgTransfer.intercept} />
+              <feFuncG type="linear" slope={bgTransfer.slope} intercept={bgTransfer.intercept} />
+              <feFuncB type="linear" slope={bgTransfer.slope} intercept={bgTransfer.intercept} />
+            </feComponentTransfer>
+            {bgFilters.blur > 0 && <feGaussianBlur stdDeviation={bgFilters.blur} />}
+          </filter>
+        )}
         {state.texts.map(t => {
           const s = textShadowFilter(t)
           if (!s) return null
@@ -540,6 +558,7 @@ function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, on
               x={0} y={0} width={CANVAS_SIZE} height={CANVAS_SIZE}
               preserveAspectRatio="xMidYMid slice"
               clipPath="url(#canvas-clip)"
+              filter={bgFilterRef}
               data-layer="background"
             />
           )
@@ -551,6 +570,7 @@ function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, on
             x={c.x} y={c.y} width={c.width} height={c.height}
             preserveAspectRatio="none"
             clipPath="url(#canvas-clip)"
+            filter={bgFilterRef}
             data-layer="background"
           />
         )
@@ -1201,6 +1221,11 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     update(prev => ({ ...prev, backgroundTransform: { ...(prev.backgroundTransform || DEFAULT_BACKGROUND_TRANSFORM), ...patch } }), coalesceKey)
   }, [update])
 
+  // Background image filters (brightness/contrast/saturation/blur).
+  const updateBackgroundFilters = useCallback((patch, coalesceKey) => {
+    update(prev => ({ ...prev, backgroundFilters: { ...(prev.backgroundFilters || DEFAULT_FILTERS), ...patch } }), coalesceKey)
+  }, [update])
+
   const clearBackgroundImage = useCallback(() => {
     update({ backgroundImage: null, backgroundImageData: null, backgroundNaturalWidth: null, backgroundNaturalHeight: null })
   }, [update])
@@ -1385,6 +1410,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const overlay = state.overlay || DEFAULT_OVERLAY
   const bgGradient = state.backgroundGradient || DEFAULT_BACKGROUND_GRADIENT
   const bgTransform = state.backgroundTransform || DEFAULT_BACKGROUND_TRANSFORM
+  const bgFilters = state.backgroundFilters || DEFAULT_FILTERS
   const exportSize = clampExportSize(state.exportSize)
 
   // Actions for the right-click menu, resolved to the handlers for its layer kind.
@@ -1571,6 +1597,29 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                 <input type="range" className="w-full accent-blue-500" min={0} max={100} value={Math.round((bgTransform.panY ?? 0.5) * 100)} onChange={e => updateBackgroundTransform({ panY: Number(e.target.value) / 100 }, 'bg-pany')} />
               </div>
               <button className="w-full btn-secondary text-sm" onClick={() => updateBackgroundTransform(DEFAULT_BACKGROUND_TRANSFORM)}>Reset crop</button>
+            </div>
+          )}
+
+          {state.backgroundImageData && (
+            <div className="flex flex-col gap-2 border-t border-gray-100 pt-2 mt-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Filters</p>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Brightness ({Math.round(bgFilters.brightness * 100)}%)</label>
+                <input type="range" className="w-full accent-blue-500" min={0} max={200} value={Math.round(bgFilters.brightness * 100)} onChange={e => updateBackgroundFilters({ brightness: Number(e.target.value) / 100 }, 'bg-brightness')} />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Contrast ({Math.round(bgFilters.contrast * 100)}%)</label>
+                <input type="range" className="w-full accent-blue-500" min={0} max={200} value={Math.round(bgFilters.contrast * 100)} onChange={e => updateBackgroundFilters({ contrast: Number(e.target.value) / 100 }, 'bg-contrast')} />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Saturation ({Math.round(bgFilters.saturate * 100)}%)</label>
+                <input type="range" className="w-full accent-blue-500" min={0} max={200} value={Math.round(bgFilters.saturate * 100)} onChange={e => updateBackgroundFilters({ saturate: Number(e.target.value) / 100 }, 'bg-saturate')} />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Blur ({bgFilters.blur}px)</label>
+                <input type="range" className="w-full accent-blue-500" min={0} max={20} step={0.5} value={bgFilters.blur} onChange={e => updateBackgroundFilters({ blur: Number(e.target.value) }, 'bg-blur')} />
+              </div>
+              <button className="w-full btn-secondary text-sm" onClick={() => updateBackgroundFilters(DEFAULT_FILTERS)}>Reset filters</button>
             </div>
           )}
 
