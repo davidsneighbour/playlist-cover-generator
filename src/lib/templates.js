@@ -22,6 +22,7 @@ export const TEXT_KEYS = [
   'anchor',
   'stroke',
   'strokeWidth',
+  'shadow',
 ]
 
 const DEFAULT_GRID = { enabled: false, spacing: 20, majorEvery: 5 }
@@ -41,8 +42,8 @@ export const TEMPLATES = [
     name: 'Title & artist',
     layout: {
       texts: [
-        { content: 'Playlist Title', x: 300, y: 300, fontSize: 56, fontFamily: SANS, color: '#ffffff', bold: true, italic: false, anchor: 'middle', stroke: '#000000', strokeWidth: 2 },
-        { content: 'Artist or Curator', x: 300, y: 356, fontSize: 26, fontFamily: SANS, color: '#ffffff', bold: false, italic: false, anchor: 'middle', stroke: '#000000', strokeWidth: 0 },
+        { content: 'Playlist Title', x: 300, y: 300, fontSize: 56, fontFamily: SANS, color: '#ffffff', bold: true, italic: false, anchor: 'middle', stroke: '#000000', strokeWidth: 2, shadow: { color: '#000000', blur: 4, dx: 0, dy: 2 } },
+        { content: 'Artist or Curator', x: 300, y: 356, fontSize: 26, fontFamily: SANS, color: '#ffffff', bold: false, italic: false, anchor: 'middle', stroke: '#000000', strokeWidth: 0, shadow: null },
       ],
       grid: { ...DEFAULT_GRID },
       snapToGrid: true,
@@ -53,7 +54,7 @@ export const TEMPLATES = [
     name: 'Minimal',
     layout: {
       texts: [
-        { content: 'minimal', x: 300, y: 320, fontSize: 44, fontFamily: SERIF, color: '#111827', bold: false, italic: true, anchor: 'middle', stroke: '#000000', strokeWidth: 0 },
+        { content: 'minimal', x: 300, y: 320, fontSize: 44, fontFamily: SERIF, color: '#111827', bold: false, italic: true, anchor: 'middle', stroke: '#000000', strokeWidth: 0, shadow: null },
       ],
       grid: { ...DEFAULT_GRID },
       snapToGrid: true,
@@ -64,8 +65,8 @@ export const TEMPLATES = [
     name: 'Grid art',
     layout: {
       texts: [
-        { content: 'VOL. 01', x: 40, y: 80, fontSize: 28, fontFamily: SANS, color: '#ffffff', bold: true, italic: false, anchor: 'start', stroke: '#000000', strokeWidth: 0 },
-        { content: 'Mixtape', x: 40, y: 560, fontSize: 72, fontFamily: SANS, color: '#ffffff', bold: true, italic: false, anchor: 'start', stroke: '#000000', strokeWidth: 3 },
+        { content: 'VOL. 01', x: 40, y: 80, fontSize: 28, fontFamily: SANS, color: '#ffffff', bold: true, italic: false, anchor: 'start', stroke: '#000000', strokeWidth: 0, shadow: null },
+        { content: 'Mixtape', x: 40, y: 560, fontSize: 72, fontFamily: SANS, color: '#ffffff', bold: true, italic: false, anchor: 'start', stroke: '#000000', strokeWidth: 3, shadow: null },
       ],
       grid: { enabled: true, spacing: 40, majorEvery: 4 },
       snapToGrid: true,

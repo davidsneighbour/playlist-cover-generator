@@ -9,7 +9,7 @@ Built with React 19, Vite 6, and Tailwind CSS 4. No heavy editor dependencies: t
 * **Square SVG canvas** with a fixed internal coordinate system that scales responsively.
 * **Background image** upload, displayed edge-to-edge with center-crop.
 * **Toggleable grid** with adjustable spacing and an optional heavier line every *N* cells.
-* **Editable text layers** with control over content, font, size, color, weight, style, anchor, position, and outline (stroke color and width).
+* **Editable text layers** with control over content, font, size, color, weight, style, anchor, position, outline (stroke color and width), and drop shadow.
 * **Drag to position** text directly on the canvas, with optional **snap to grid**.
 * **Reorderable layers** with drag-and-drop plus bring-to-front and send-to-back controls.
 * **Templates** — apply a predefined layout (title and artist, minimal, grid art) from a dropdown, keeping your uploaded image.

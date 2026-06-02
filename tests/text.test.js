@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { textStrokeAttrs, DEFAULT_STROKE_COLOR } from '../src/lib/text'
+import { textStrokeAttrs, textShadowFilter, DEFAULT_STROKE_COLOR, DEFAULT_SHADOW_COLOR } from '../src/lib/text'
 
 describe('textStrokeAttrs', () => {
   it('returns no stroke when strokeWidth is 0', () => {
@@ -35,5 +35,30 @@ describe('textStrokeAttrs', () => {
     const out = textStrokeAttrs({ strokeWidth: '3', stroke: '#abcdef' })
     expect(out.strokeWidth).toBe(3)
     expect(out.paintOrder).toBe('stroke')
+  })
+})
+
+describe('textShadowFilter', () => {
+  it('returns null when there is no shadow', () => {
+    expect(textShadowFilter({ id: 1 })).toBeNull()
+    expect(textShadowFilter({ id: 1, shadow: null })).toBeNull()
+  })
+
+  it('resolves filter parameters and a stable id from the layer id', () => {
+    const out = textShadowFilter({ id: 7, shadow: { color: '#222222', blur: 5, dx: 3, dy: 4 } })
+    expect(out).toEqual({ id: 'shadow-7', dx: 3, dy: 4, stdDeviation: 5, color: '#222222' })
+  })
+
+  it('falls back to the default shadow color', () => {
+    expect(textShadowFilter({ id: 2, shadow: { blur: 2 } }).color).toBe(DEFAULT_SHADOW_COLOR)
+  })
+
+  it('clamps a negative blur to zero', () => {
+    expect(textShadowFilter({ id: 3, shadow: { blur: -8 } }).stdDeviation).toBe(0)
+  })
+
+  it('defaults missing offsets to zero and coerces numeric strings', () => {
+    const out = textShadowFilter({ id: 4, shadow: { blur: '6', dx: '2' } })
+    expect(out).toMatchObject({ dx: 2, dy: 0, stdDeviation: 6 })
   })
 })

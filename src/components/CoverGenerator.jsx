@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { reorder, bringToFront, sendToBack, displayIndexToArrayIndex } from '../lib/layers'
 import { TEMPLATES, getTemplate, instantiateTemplate } from '../lib/templates'
-import { textStrokeAttrs } from '../lib/text'
+import { textStrokeAttrs, textShadowFilter } from '../lib/text'
 
 const CANVAS_SIZE = 600
 
@@ -165,9 +165,7 @@ function TextElement({ text, selected, onSelect, onDrag, snapToGrid, gridSpacing
     window.addEventListener('mouseup', onUp)
   }, [text, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize])
 
-  const fontStyle = []
-  if (text.italic) fontStyle.push('italic')
-  if (text.bold) fontStyle.push('bold')
+  const shadow = textShadowFilter(text)
 
   return (
     <text
@@ -177,6 +175,7 @@ function TextElement({ text, selected, onSelect, onDrag, snapToGrid, gridSpacing
       fontSize={text.fontSize}
       fill={text.color}
       {...textStrokeAttrs(text)}
+      filter={shadow ? `url(#${shadow.id})` : undefined}
       fontWeight={text.bold ? 'bold' : 'normal'}
       fontStyle={text.italic ? 'italic' : 'normal'}
       textAnchor={text.anchor || 'start'}
@@ -211,6 +210,15 @@ function SVGCanvas({ state, selectedTextId, onSelectText, onDragText, displaySiz
         <clipPath id="canvas-clip">
           <rect x={0} y={0} width={CANVAS_SIZE} height={CANVAS_SIZE} />
         </clipPath>
+        {state.texts.map(t => {
+          const s = textShadowFilter(t)
+          if (!s) return null
+          return (
+            <filter key={s.id} id={s.id} x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx={s.dx} dy={s.dy} stdDeviation={s.stdDeviation} floodColor={s.color} floodOpacity="1" />
+            </filter>
+          )
+        })}
       </defs>
 
       {state.backgroundImageData && (
@@ -357,6 +365,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
         anchor: 'middle',
         stroke: '#000000',
         strokeWidth: 0,
+        shadow: null,
       }]
     }))
     setSelectedTextId(id)
@@ -726,6 +735,36 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                 />
               </div>
             </div>
+
+            <label className="flex items-center gap-2 text-sm mt-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!!selectedText.shadow}
+                onChange={e => updateText(selectedText.id, { shadow: e.target.checked ? { color: '#000000', blur: 4, dx: 2, dy: 2 } : null })}
+                className="accent-blue-500"
+              />
+              Drop shadow
+            </label>
+            {selectedText.shadow && (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <NumberInput label="Blur" value={selectedText.shadow.blur ?? 0} min={0} max={40} onChange={v => updateText(selectedText.id, { shadow: { ...selectedText.shadow, blur: v } }, `shadow-blur-${selectedText.id}`)} />
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Shadow color</label>
+                    <input
+                      type="color"
+                      className="w-full h-8 rounded border border-gray-200 cursor-pointer"
+                      value={selectedText.shadow.color || '#000000'}
+                      onChange={e => updateText(selectedText.id, { shadow: { ...selectedText.shadow, color: e.target.value } }, `shadow-color-${selectedText.id}`)}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <NumberInput label="Offset X" value={selectedText.shadow.dx ?? 0} min={-40} max={40} onChange={v => updateText(selectedText.id, { shadow: { ...selectedText.shadow, dx: v } }, `shadow-dx-${selectedText.id}`)} />
+                  <NumberInput label="Offset Y" value={selectedText.shadow.dy ?? 0} min={-40} max={40} onChange={v => updateText(selectedText.id, { shadow: { ...selectedText.shadow, dy: v } }, `shadow-dy-${selectedText.id}`)} />
+                </div>
+              </>
+            )}
 
             <div className="grid grid-cols-2 gap-2 mt-2">
               <NumberInput label="X position" value={selectedText.x} min={0} max={CANVAS_SIZE} onChange={v => updateText(selectedText.id, { x: v }, `x-${selectedText.id}`)} />
