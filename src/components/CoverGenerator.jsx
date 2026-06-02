@@ -9,12 +9,17 @@ import { DEFAULT_OVERLAY, OVERLAY_TYPES, gradientVector } from '../lib/overlay'
 import { DEFAULT_BACKGROUND_GRADIENT, BACKGROUND_GRADIENT_TYPES } from '../lib/background'
 import { CANVAS_PRESETS, DEFAULT_EXPORT_SIZE, exportScale, clampExportSize } from '../lib/canvas'
 import { rulerTicks } from '../lib/rulers'
+import { SHORTCUTS, formatKeys } from '../lib/shortcuts'
 import { averageRgb, pickContrastColor } from '../lib/color'
 import { isOpen as isCardOpen, toggleOpen, togglePin, openCard } from '../lib/accordion'
 import { AccordionContext, CollapsibleCard } from './Accordion'
+import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
+import pkg from '../../package.json'
 
 const CANVAS_SIZE = 600
 const RULER = 22 // px thickness of each ruler strip
+const APP_VERSION = pkg.version
+const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent || '')
 
 // Optional Google Fonts API key for the font-search typeahead. Read from the
 // Vite env by default; a host embedding the component can pass its own.
@@ -624,6 +629,54 @@ function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, on
   )
 }
 
+// Help overlay: app info, version, keyboard shortcuts, and mouse tips. Opened
+// and closed with F1 (handled by the component); also closes on Escape, on a
+// click outside the panel (both via Headless UI Dialog's onClose), and on the X.
+function HelpDialog({ open, onClose }) {
+  return (
+    <Dialog open={open} onClose={onClose} className="relative z-50">
+      <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+      <div className="fixed inset-0 flex items-center justify-center p-4">
+        <DialogPanel className="w-full max-w-md bg-white rounded-lg shadow-xl border border-gray-200 max-h-[85vh] overflow-auto">
+          <div className="flex items-start justify-between gap-4 p-4 border-b border-gray-100">
+            <div>
+              <DialogTitle className="text-base font-semibold text-gray-900">Playlist cover generator</DialogTitle>
+              <p className="text-xs text-gray-400 mt-0.5">Version {APP_VERSION}</p>
+            </div>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-700 cursor-pointer text-lg leading-none px-1" aria-label="Close help">✕</button>
+          </div>
+          <div className="p-4 flex flex-col gap-4">
+            <p className="text-sm text-gray-600">Build a square playlist cover: set a background, layer text, shapes, and images, then export to PNG, SVG, or a re-loadable JSON project.</p>
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Keyboard shortcuts</h3>
+              <ul className="flex flex-col gap-1.5">
+                {SHORTCUTS.map(s => (
+                  <li key={s.id} className="flex items-center justify-between gap-4 text-sm">
+                    <span className="text-gray-600">{s.description}</span>
+                    <span className="flex gap-1">
+                      {formatKeys(s.keys, IS_MAC).map((k, i) => (
+                        <kbd key={i} className="px-1.5 py-0.5 text-[11px] font-medium bg-gray-100 border border-gray-200 rounded text-gray-700">{k}</kbd>
+                      ))}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Tips</h3>
+              <ul className="flex flex-col gap-1 text-sm text-gray-600 list-disc pl-4">
+                <li>Drag a layer on the canvas to move it; enable snap to grid for alignment.</li>
+                <li>Hold Shift while dragging an image corner to lock its aspect ratio.</li>
+                <li>Click an empty area of the canvas to deselect.</li>
+              </ul>
+            </div>
+          </div>
+        </DialogPanel>
+      </div>
+    </Dialog>
+  )
+}
+
 export default function CoverGenerator({ initialState, onStateChange, className = '', googleFontsApiKey = ENV_GOOGLE_FONTS_API_KEY }) {
   const { state, canUndo, canRedo, commit, undo, redo } = useHistoryState({
     ...DEFAULT_STATE,
@@ -635,6 +688,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const [selectedShapeId, setSelectedShapeId] = useState(null)
   const [displaySize, setDisplaySize] = useState(CANVAS_SIZE)
   const [showRulers, setShowRulers] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
   const [dragOverArrayIndex, setDragOverArrayIndex] = useState(null)
   const [selectedTemplate, setSelectedTemplate] = useState('')
   const [customFontInput, setCustomFontInput] = useState('')
@@ -716,6 +770,11 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   // Ignored while typing in a field so native text undo still works there.
   useEffect(() => {
     const onKey = (e) => {
+      if (e.key === 'F1') {
+        e.preventDefault()
+        setHelpOpen(o => !o)
+        return
+      }
       const tag = e.target.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable) return
       if (!(e.ctrlKey || e.metaKey)) return
@@ -1158,6 +1217,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
 
   return (
     <div className={`flex flex-col lg:flex-row gap-6 p-4 lg:p-6 min-h-screen bg-gray-50 lg:items-start ${className}`}>
+      <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
       {/* Canvas — square, stays visible on the left while the controls scroll */}
       <div ref={canvasColRef} className="w-full lg:w-[600px] lg:shrink-0 lg:sticky lg:top-6 lg:self-start flex flex-col items-center gap-3">
         <div
@@ -1189,6 +1249,13 @@ export default function CoverGenerator({ initialState, onStateChange, className 
           </div>
         </div>
         <p className="text-xs text-gray-400">Exports at {exportSize}×{exportSize}px · click a layer to select · drag to move · Ctrl+Z to undo</p>
+        <button
+          type="button"
+          className="text-xs text-gray-400 hover:text-gray-600 underline-offset-2 hover:underline cursor-pointer"
+          onClick={() => setHelpOpen(true)}
+        >
+          Keyboard shortcuts &amp; help (F1)
+        </button>
       </div>
 
       {/* Controls */}

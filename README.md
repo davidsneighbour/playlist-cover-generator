@@ -22,6 +22,7 @@ Built with React 19, Vite 6, and Tailwind CSS 4. No heavy editor dependencies: t
 * **Save and load** the full layout as JSON, so a project can be reopened later with any image.
 * **Export size presets** — 600, 1000, or 3000 (the square Spotify and Apple Music spec) for the PNG and SVG output.
 * **Export** to high-quality PNG and to clean, editable SVG.
+* **Help overlay** — press F1 (or the help link) for a modal of keyboard shortcuts, tips, and the app version.
 
 ## Getting started
 
@@ -121,6 +122,7 @@ Tailwind CSS 4 must be available in the host app, or the component's utility cla
 | [src/lib/background.js](src/lib/background.js) | Gradient-background defaults and type guard (unit-tested). |
 | [src/lib/canvas.js](src/lib/canvas.js) | Export-size presets and scale helpers (unit-tested). |
 | [src/lib/rulers.js](src/lib/rulers.js) | Ruler tick enumeration (unit-tested). |
+| [src/lib/shortcuts.js](src/lib/shortcuts.js) | Keyboard-shortcut list and platform-aware key formatter (unit-tested). |
 | [src/index.js](src/index.js) | Library entry that re-exports `CoverGenerator`. |
 | [src/App.jsx](src/App.jsx) | Demo application wrapper. |
 | [src/main.jsx](src/main.jsx) | Vite entry point for the demo. |
