@@ -12,6 +12,7 @@ Built with React 19, Vite 6, and Tailwind CSS 4. No heavy editor dependencies: t
 * **Editable text layers** with control over content, font, size, color, weight, style, anchor, and position.
 * **Drag to position** text directly on the canvas, with optional **snap to grid**.
 * **Reorderable layers** with drag-and-drop plus bring-to-front and send-to-back controls.
+* **Templates** — apply a predefined layout (title and artist, minimal, grid art) from a dropdown, keeping your uploaded image.
 * **Save and load** the full layout as JSON, so a project can be reopened later with any image.
 * **Export** to high-quality PNG (rendered at 2x) and to clean, editable SVG.
 
@@ -84,6 +85,7 @@ Tailwind CSS 4 must be available in the host app, or the component's utility cla
 |---|---|
 | [src/components/CoverGenerator.jsx](src/components/CoverGenerator.jsx) | The editor: canvas, controls, drag, grid, and export logic. |
 | [src/lib/layers.js](src/lib/layers.js) | Pure text-layer z-order helpers (unit-tested). |
+| [src/lib/templates.js](src/lib/templates.js) | Predefined cover layouts and the apply helper (unit-tested). |
 | [src/index.js](src/index.js) | Library entry that re-exports `CoverGenerator`. |
 | [src/App.jsx](src/App.jsx) | Demo application wrapper. |
 | [src/main.jsx](src/main.jsx) | Vite entry point for the demo. |

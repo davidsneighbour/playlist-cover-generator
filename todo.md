@@ -5,7 +5,7 @@ Items deferred from the initial implementation.
 ## High priority
 
 * [x] **Multiple text layers with z-order control** — done. Drag the layer list to reorder, with bring-to-front and send-to-back buttons; the list is shown front-to-back. Reorder helpers live in [src/lib/layers.js](src/lib/layers.js) and are covered by tests.
-* [ ] **Templates system** — predefined cover layouts (title and artist, minimal, grid art) selectable from a dropdown, using a JSON-based template format.
+* [x] **Templates system** — done. Pick a predefined layout (blank, title and artist, minimal, grid art) from a dropdown and apply it; it replaces text and grid while keeping the image, and a single Ctrl+Z reverts it. Definitions and the apply helper live in [src/lib/templates.js](src/lib/templates.js) and are covered by tests.
 * [x] **Undo and redo** — done. Ctrl+Z / Ctrl+Shift+Z (and Ctrl+Y) with a 50-step history; drags and bursts of typing coalesce into a single step. See `useHistoryState` in [src/components/CoverGenerator.jsx](src/components/CoverGenerator.jsx).
 * [ ] **Text stroke and outline** — configurable stroke color and width on SVG text for legibility over bright images.
 * [ ] **Text shadow** — a drop-shadow filter on SVG text.

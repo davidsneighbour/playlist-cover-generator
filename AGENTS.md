@@ -38,6 +38,7 @@ The whole editor lives in [src/components/CoverGenerator.jsx](src/components/Cov
 * `TextElement` handles pointer dragging by converting screen coordinates to SVG coordinates through `getScreenCTM().inverse()`. Do not reimplement drag math with raw offsets; the matrix transform keeps it correct under scaling.
 * `snapValue` rounds a coordinate to the grid when snapping is on. Reuse it rather than duplicating rounding logic.
 * Text-layer z-order is the `texts` array order: index 0 is painted first (bottom) and the last item is painted last (front). The pure reorder helpers (`reorder`, `bringToFront`, `sendToBack`, `displayIndexToArrayIndex`) live in [src/lib/layers.js](src/lib/layers.js) and return the same array reference on a no-op so reorders never add empty undo entries. The layer list is displayed front-to-back, so the UI converts display positions to array indices with `displayIndexToArrayIndex`.
+* Templates are plain layout data in [src/lib/templates.js](src/lib/templates.js). `instantiateTemplate` builds editor state from a template, keeping the current background image, deep-copying the grid, and assigning each text a fresh id from a `makeId` callback (the component passes the same `nextId` counter that `addText` uses). Applying a template goes through `update`, so it is one undoable step. Add new layouts to the `TEMPLATES` array; give every text layer all of `TEXT_KEYS`.
 
 ### State shape
 

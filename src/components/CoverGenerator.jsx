@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { reorder, bringToFront, sendToBack, displayIndexToArrayIndex } from '../lib/layers'
+import { TEMPLATES, getTemplate, instantiateTemplate } from '../lib/templates'
 
 const CANVAS_SIZE = 600
 
@@ -270,6 +271,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const [selectedTextId, setSelectedTextId] = useState(null)
   const [displaySize, setDisplaySize] = useState(CANVAS_SIZE)
   const [dragOverArrayIndex, setDragOverArrayIndex] = useState(null)
+  const [selectedTemplate, setSelectedTemplate] = useState('')
   const containerRef = useRef(null)
   const fileInputRef = useRef(null)
   const jsonInputRef = useRef(null)
@@ -354,6 +356,15 @@ export default function CoverGenerator({ initialState, onStateChange, className 
       }]
     }))
     setSelectedTextId(id)
+  }, [update])
+
+  // Apply a predefined template. The current background image is kept; text and
+  // grid are replaced. Goes through history, so it is a single undoable step.
+  const handleApplyTemplate = useCallback((templateId) => {
+    const template = getTemplate(templateId)
+    if (!template) return
+    update(prev => instantiateTemplate(template, prev, () => nextId++))
+    setSelectedTextId(null)
   }, [update])
 
   const updateText = useCallback((id, patch, coalesceKey) => {
@@ -537,6 +548,26 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               ↷ Redo
             </button>
           </div>
+        </Section>
+
+        {/* Template */}
+        <Section title="Template">
+          <select
+            className="input w-full"
+            value={selectedTemplate}
+            onChange={e => setSelectedTemplate(e.target.value)}
+          >
+            <option value="">Select a template…</option>
+            {TEMPLATES.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+          <button
+            className="w-full btn-secondary text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+            disabled={!selectedTemplate}
+            onClick={() => handleApplyTemplate(selectedTemplate)}
+          >
+            Apply template
+          </button>
+          <p className="text-[11px] text-gray-400 leading-tight">Replaces text layers and grid; keeps your image. Undo with Ctrl+Z.</p>
         </Section>
 
         {/* Background Image */}
