@@ -2,14 +2,19 @@
 
 Items deferred from the initial implementation.
 
-## High priority
+## Issues
 
-* [x] **Multiple text layers with z-order control** — done. Drag the layer list to reorder, with bring-to-front and send-to-back buttons; the list is shown front-to-back. Reorder helpers live in [src/lib/layers.js](src/lib/layers.js) and are covered by tests.
-* [x] **Templates system** — done. Pick a predefined layout (blank, title and artist, minimal, grid art) from a dropdown and apply it; it replaces text and grid while keeping the image, and a single Ctrl+Z reverts it. Definitions and the apply helper live in [src/lib/templates.js](src/lib/templates.js) and are covered by tests.
-* [x] **Undo and redo** — done. Ctrl+Z / Ctrl+Shift+Z (and Ctrl+Y) with a 50-step history; drags and bursts of typing coalesce into a single step. See `useHistoryState` in [src/components/CoverGenerator.jsx](src/components/CoverGenerator.jsx).
-* [x] **Text stroke and outline** — done. Per-layer stroke color and width (0 = off), painted under the fill with `paint-order` for a true outline. Logic in [src/lib/text.js](src/lib/text.js), covered by tests.
-* [x] **Text shadow** — done. Per-layer drop shadow (color, blur, offset X/Y) via an SVG `feDropShadow` filter, so it stays editable in other SVG tools. Logic in [src/lib/text.js](src/lib/text.js), covered by tests.
-* [x] **Google Fonts integration** — done. Add any Google font by name; it loads via an injected stylesheet, joins the font picker, and persists in the JSON state. On export, the fonts actually used are fetched and inlined as base64 `@font-face` so PNG and SVG match the canvas and stay portable; fetch failures (e.g. CORS) fall back gracefully. Pure URL/parse/build helpers live in [src/lib/fonts.js](src/lib/fonts.js), covered by tests. Note: export embedding and font rendering should be verified in a real browser (not exercised by the headless suite).
+* [ ] **Image dragging** - it is only possible to drag the background image so overlay goes to the right and down, not to the left and up if the width or height is larger than the canvas (or the image is dragged to the corners). Positioning of the image should be possible in all directions around the canvas.
+* [ ] **Image resizing** - on load the image should cover the canvas, not being resized very small. Depending on the aspect ratio of the image it should be resized to fit by height or width, or both if the aspect ratio is the same as the canvas. After that it should be possible to resize the image by dragging its corners, and to maintain the aspect ratio by dragging while holding Shift key.
+* [ ] **Image resizing** - add percentage based slider to resize without entering pixel values, and to show the current size as a percentage of the original image dimensions. keep aspect ratio by default or not, depending on a checkbox or a toggle switch.
+* [ ] **Text properties** - are shown below all cards, instead of inside the text properties card. They should be moved inside the text properties card, and the card should be expanded by default when a text layer is selected or added.
+* [x] **Blue selection lines are exported** - when a layer is selected (shape, image, etc) then we see blue selection lines. Those lines seem to be exported as part of the image (PNG) which is not expected. **Fixed:** selection outlines are tagged `data-layer="selection"` and stripped from PNG and SVG export.
+* [x] **Text selection lines are not properly positioned** - the blue selection lines for text layers are not properly positioned, they are shifted to the right and down compared to the text. The exported text is in the proper position when the selection lines are not visible (the text is unselected before export) **Fixed:** the box now uses the text node's real `getBBox()`, so it matches the text at any anchor, font, or weight.
+* [ ] **SVG export does not show Google font** - when exporting as SVG the Google font is not embedded in the file, so it falls back to a default font. The SVG export should include the Google font so that it looks the same as in the editor. DO NOT FIX THAT YET WHEN ASKED TO SELECT ANY ITEM TO FIX.
+* [ ] **Font selection usability** - the font selection dropdown should show the font names in their respective fonts, not the default font
+* [ ] **Font adding usability** - nothing happens when adding a font. Adding the font itself works nicely, but assume we don't know a fonts name and type just something, I would expect some form of preselection in the dropdown that shows me available fonts while I am typing.
+* [ ] **Adding text adds white on white** - the system should use a color that contrasts with the current background when adding a new text layer so we see the layer.
+
 
 ## Medium priority
 

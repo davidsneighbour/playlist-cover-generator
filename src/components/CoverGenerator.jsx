@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react'
 import { reorder, bringToFront, sendToBack, displayIndexToArrayIndex } from '../lib/layers'
 import { TEMPLATES, getTemplate, instantiateTemplate } from '../lib/templates'
 import { textStrokeAttrs, textShadowFilter } from '../lib/text'
@@ -268,8 +268,23 @@ function ShapeElement({ shape, onSelect, onDrag, snapToGrid, gridSpacing, canvas
 }
 
 function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, onSelectText, onSelectImage, onSelectShape, onDragText, onDragImage, onDragShape, displaySize }) {
+  const svgRef = useRef(null)
+  const [textBox, setTextBox] = useState(null)
+
+  // Measure the selected text's real bounds (accounts for anchor, font, and
+  // weight) instead of approximating, so the outline lines up exactly. Runs in
+  // SVG user space, so it is independent of the on-screen scale.
+  useLayoutEffect(() => {
+    if (!selectedTextId || !svgRef.current) { setTextBox(null); return }
+    const node = svgRef.current.querySelector(`[data-text-id="${selectedTextId}"]`)
+    if (!node) { setTextBox(null); return }
+    const b = node.getBBox()
+    setTextBox({ x: b.x, y: b.y, width: b.width, height: b.height })
+  }, [selectedTextId, state.texts])
+
   return (
     <svg
+      ref={svgRef}
       xmlns="http://www.w3.org/2000/svg"
       width={displaySize}
       height={displaySize}
@@ -355,6 +370,7 @@ function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, on
         const img = state.images.find(i => i.id === selectedImageId)
         return (
           <rect
+            data-layer="selection"
             x={img.x}
             y={img.y}
             width={img.width}
@@ -372,6 +388,7 @@ function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, on
         const shape = state.shapes.find(s => s.id === selectedShapeId)
         return (
           <rect
+            data-layer="selection"
             x={shape.x}
             y={shape.y}
             width={shape.width}
@@ -385,17 +402,15 @@ function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, on
         )
       })()}
 
-      {selectedTextId && state.texts.find(t => t.id === selectedTextId) && (() => {
-        const t = state.texts.find(t => t.id === selectedTextId)
-        const pad = 6
-        const approxW = t.content.length * t.fontSize * 0.6
-        const approxH = t.fontSize
+      {textBox && selectedTextId && state.texts.some(t => t.id === selectedTextId) && (() => {
+        const pad = 4
         return (
           <rect
-            x={t.x - pad}
-            y={t.y - approxH - pad / 2}
-            width={approxW + pad * 2}
-            height={approxH + pad}
+            data-layer="selection"
+            x={textBox.x - pad}
+            y={textBox.y - pad}
+            width={textBox.width + pad * 2}
+            height={textBox.height + pad * 2}
             fill="none"
             stroke="#3b82f6"
             strokeWidth={1.5}
@@ -744,7 +759,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     const svgEl = containerRef.current?.querySelector('svg')
     if (!svgEl) return
     const clone = svgEl.cloneNode(true)
-    clone.querySelectorAll('[data-layer="grid"]').forEach(el => el.remove())
+    clone.querySelectorAll('[data-layer="grid"], [data-layer="selection"]').forEach(el => el.remove())
     clone.setAttribute('width', CANVAS_SIZE)
     clone.setAttribute('height', CANVAS_SIZE)
     await embedFontsInClone(clone)
@@ -779,7 +794,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     const svgEl = containerRef.current?.querySelector('svg')
     if (!svgEl) return
     const clone = svgEl.cloneNode(true)
-    clone.querySelectorAll('[data-layer="grid"]').forEach(el => el.remove())
+    clone.querySelectorAll('[data-layer="grid"], [data-layer="selection"]').forEach(el => el.remove())
     clone.querySelectorAll('[data-text-id]').forEach(el => {
       el.style.cursor = ''
       el.style.userSelect = ''
