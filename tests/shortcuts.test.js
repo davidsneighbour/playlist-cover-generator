@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { SHORTCUTS, formatKeys } from '../src/lib/shortcuts'
+import { SHORTCUTS, formatKeys, nudgeDelta, isDeleteKey } from '../src/lib/shortcuts'
 
 describe('SHORTCUTS', () => {
   it('is a non-empty list with unique ids', () => {
@@ -34,5 +34,36 @@ describe('formatKeys', () => {
   it('leaves non-mod keys untouched', () => {
     expect(formatKeys(['Ctrl', 'Y'], true)).toEqual(['Ctrl', 'Y'])
     expect(formatKeys(['F1'])).toEqual(['F1'])
+  })
+})
+
+describe('nudgeDelta', () => {
+  it('maps arrow keys to unit deltas (down is +y)', () => {
+    expect(nudgeDelta('ArrowLeft')).toEqual([-1, 0])
+    expect(nudgeDelta('ArrowRight')).toEqual([1, 0])
+    expect(nudgeDelta('ArrowUp')).toEqual([0, -1])
+    expect(nudgeDelta('ArrowDown')).toEqual([0, 1])
+  })
+
+  it('scales by the step', () => {
+    expect(nudgeDelta('ArrowRight', 20)).toEqual([20, 0])
+    expect(nudgeDelta('ArrowUp', 20)).toEqual([0, -20])
+  })
+
+  it('returns null for non-arrow keys', () => {
+    expect(nudgeDelta('Enter')).toBeNull()
+    expect(nudgeDelta('a', 20)).toBeNull()
+  })
+})
+
+describe('isDeleteKey', () => {
+  it('matches Delete and Backspace', () => {
+    expect(isDeleteKey('Delete')).toBe(true)
+    expect(isDeleteKey('Backspace')).toBe(true)
+  })
+
+  it('rejects other keys', () => {
+    expect(isDeleteKey('d')).toBe(false)
+    expect(isDeleteKey('ArrowUp')).toBe(false)
   })
 })

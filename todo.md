@@ -28,7 +28,7 @@ Items deferred from the initial implementation.
 
 ## Lower priority
 
-* [ ] **Keyboard shortcuts** — Delete to remove the selected element; arrow keys to nudge by 1px or by grid spacing.
+* [x] **Keyboard shortcuts** — done. With a layer selected, Delete/Backspace removes it and the arrow keys nudge it by 1px (or by the grid spacing with Shift); nudges coalesce into one undo step. Ignored while typing in a field or while the help overlay is open. Pure `nudgeDelta`/`isDeleteKey` in [src/lib/shortcuts.js](src/lib/shortcuts.js), covered by tests; the shortcuts also appear in the F1 help overlay.
 * [ ] **Context menu** — right-click an element for delete, duplicate, and bring-forward actions.
 * [ ] **Duplicate element** — copy a text layer with one click.
 * [ ] **Image crop and position controls** — pan and zoom the background within the canvas frame instead of always using `xMidYMid slice`.

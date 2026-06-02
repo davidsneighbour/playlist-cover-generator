@@ -9,7 +9,7 @@ import { DEFAULT_OVERLAY, OVERLAY_TYPES, gradientVector } from '../lib/overlay'
 import { DEFAULT_BACKGROUND_GRADIENT, BACKGROUND_GRADIENT_TYPES } from '../lib/background'
 import { CANVAS_PRESETS, DEFAULT_EXPORT_SIZE, exportScale, clampExportSize } from '../lib/canvas'
 import { rulerTicks } from '../lib/rulers'
-import { SHORTCUTS, formatKeys } from '../lib/shortcuts'
+import { SHORTCUTS, formatKeys, nudgeDelta, isDeleteKey } from '../lib/shortcuts'
 import { averageRgb, pickContrastColor } from '../lib/color'
 import { isOpen as isCardOpen, toggleOpen, togglePin, openCard } from '../lib/accordion'
 import { AccordionContext, CollapsibleCard } from './Accordion'
@@ -1075,6 +1075,43 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const updateGrid = useCallback((patch, coalesceKey) => {
     update(prev => ({ ...prev, grid: { ...prev.grid, ...patch } }), coalesceKey)
   }, [update])
+
+  // Move the selected layer (text, image, or shape) by a delta in canvas units.
+  // Coalesced per layer so a burst of arrow presses is a single undo step.
+  const nudgeSelected = useCallback((dx, dy) => {
+    update(prev => {
+      if (selectedTextId != null) return { ...prev, texts: prev.texts.map(t => t.id === selectedTextId ? { ...t, x: t.x + dx, y: t.y + dy } : t) }
+      if (selectedImageId != null) return { ...prev, images: (prev.images || []).map(i => i.id === selectedImageId ? { ...i, x: i.x + dx, y: i.y + dy } : i) }
+      if (selectedShapeId != null) return { ...prev, shapes: (prev.shapes || []).map(s => s.id === selectedShapeId ? { ...s, x: s.x + dx, y: s.y + dy } : s) }
+      return prev
+    }, `nudge-${selectedTextId ?? ''}-${selectedImageId ?? ''}-${selectedShapeId ?? ''}`)
+  }, [update, selectedTextId, selectedImageId, selectedShapeId])
+
+  // Delete the selected layer; arrow keys nudge it (Shift = by grid spacing).
+  // Ignored while a field is focused or the help overlay is open, and only when
+  // something is selected, so plain arrows still scroll the page otherwise.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (helpOpen) return
+      const tag = e.target.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable) return
+      if (selectedTextId == null && selectedImageId == null && selectedShapeId == null) return
+      if (isDeleteKey(e.key)) {
+        e.preventDefault()
+        if (selectedTextId != null) deleteText(selectedTextId)
+        else if (selectedImageId != null) deleteImage(selectedImageId)
+        else if (selectedShapeId != null) deleteShape(selectedShapeId)
+        return
+      }
+      const delta = nudgeDelta(e.key, e.shiftKey ? state.grid.spacing : 1)
+      if (delta) {
+        e.preventDefault()
+        nudgeSelected(delta[0], delta[1])
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [helpOpen, selectedTextId, selectedImageId, selectedShapeId, deleteText, deleteImage, deleteShape, nudgeSelected, state.grid.spacing])
 
   // Inline the custom fonts actually used by text layers as base64 @font-face
   // rules in the cloned SVG, so PNG and SVG exports render and stay portable.
