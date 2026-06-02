@@ -9,6 +9,9 @@ import {
   googleFontsListUrl,
   parseFontFamilies,
   filterFontNames,
+  fontVariantKey,
+  variantFontFace,
+  pickVariantFile,
 } from '../src/lib/fonts'
 
 describe('BUILTIN_FONTS', () => {
@@ -160,5 +163,43 @@ describe('filterFontNames', () => {
 
   it('respects the limit', () => {
     expect(filterFontNames(names, 'o', 2)).toHaveLength(2)
+  })
+})
+
+describe('fontVariantKey', () => {
+  it('maps bold/italic to Google variant keys', () => {
+    expect(fontVariantKey(false, false)).toBe('regular')
+    expect(fontVariantKey(true, false)).toBe('700')
+    expect(fontVariantKey(false, true)).toBe('italic')
+    expect(fontVariantKey(true, true)).toBe('700italic')
+  })
+})
+
+describe('variantFontFace', () => {
+  it('maps variant keys to css weight/style', () => {
+    expect(variantFontFace('regular')).toEqual({ weight: '400', style: 'normal' })
+    expect(variantFontFace('italic')).toEqual({ weight: '400', style: 'italic' })
+    expect(variantFontFace('700')).toEqual({ weight: '700', style: 'normal' })
+    expect(variantFontFace('700italic')).toEqual({ weight: '700', style: 'italic' })
+  })
+})
+
+describe('pickVariantFile', () => {
+  const files = { regular: 'r.ttf', '700': 'b.ttf', italic: 'i.ttf' }
+
+  it('returns the exact variant when present', () => {
+    expect(pickVariantFile(files, '700')).toBe('b.ttf')
+  })
+
+  it('falls back to regular when the variant is missing', () => {
+    expect(pickVariantFile({ regular: 'r.ttf' }, '700italic')).toBe('r.ttf')
+  })
+
+  it('falls back to any file when there is no regular', () => {
+    expect(pickVariantFile({ '500': 'm.ttf' }, '700')).toBe('m.ttf')
+  })
+
+  it('returns null for empty input', () => {
+    expect(pickVariantFile(null, 'regular')).toBeNull()
   })
 })

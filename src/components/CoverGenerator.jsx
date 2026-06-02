@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } fr
 import { reorder, bringToFront, sendToBack, displayIndexToArrayIndex } from '../lib/layers'
 import { TEMPLATES, getTemplate, instantiateTemplate } from '../lib/templates'
 import { textStrokeAttrs, textShadowFilter } from '../lib/text'
-import { BUILTIN_FONTS, googleFontCssUrl, parseFontFaces, buildFontFaceRule, addFont, googleFontsListUrl, parseFontFamilies, filterFontNames } from '../lib/fonts'
+import { BUILTIN_FONTS, googleFontCssUrl, buildFontFaceRule, addFont, googleFontsListUrl, filterFontNames, fontVariantKey, variantFontFace, pickVariantFile } from '../lib/fonts'
 import { BLEND_MODES, createImageLayer, clampOpacity, centeredPosition, coverDimensions, scaleDimensions, dimensionPercent, aspectHeight, aspectWidth, offCanvasBounds, resizeFromCorner } from '../lib/images'
 import { SHAPE_TYPES, createShape, ellipseGeometry } from '../lib/shapes'
 import { averageRgb, pickContrastColor } from '../lib/color'
@@ -669,18 +669,28 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     setCustomFontInput('')
   }, [update])
 
-  // Lazily fetch the Google Fonts catalog once (for the typeahead) when a key is
-  // configured. Filtering happens client-side; failures degrade to no suggestions.
+  // Fetch the Google Fonts catalog once (cached promise), shared by the
+  // typeahead and by export embedding. Each item carries its gstatic font-file
+  // URLs, which (unlike the CSS endpoint) are CORS-enabled and can be inlined.
+  const fontCatalogRef = useRef(null)
+  const loadFontCatalog = useCallback(() => {
+    if (!googleFontsApiKey) return Promise.resolve([])
+    if (!fontCatalogRef.current) {
+      fontCatalogRef.current = fetch(googleFontsListUrl(googleFontsApiKey))
+        .then(r => (r.ok ? r.json() : Promise.reject(r.status)))
+        .then(json => json.items || [])
+        .catch(() => [])
+    }
+    return fontCatalogRef.current
+  }, [googleFontsApiKey])
+
+  // Lazily populate the typeahead name list from the catalog. Failures (or no
+  // key) degrade to no suggestions.
   const [googleFonts, setGoogleFonts] = useState(null)
-  const googleFontsLoading = useRef(false)
   const ensureFontCatalog = useCallback(() => {
-    if (googleFonts !== null || googleFontsLoading.current || !googleFontsApiKey) return
-    googleFontsLoading.current = true
-    fetch(googleFontsListUrl(googleFontsApiKey))
-      .then(r => (r.ok ? r.json() : Promise.reject(r.status)))
-      .then(json => setGoogleFonts(parseFontFamilies(json)))
-      .catch(() => setGoogleFonts([]))
-  }, [googleFonts, googleFontsApiKey])
+    if (googleFonts !== null || !googleFontsApiKey) return
+    loadFontCatalog().then(items => setGoogleFonts(items.map(i => i.family)))
+  }, [googleFonts, googleFontsApiKey, loadFontCatalog])
 
   const fontSuggestions = useMemo(() => {
     if (!googleFonts || googleFonts.length === 0) return []
@@ -848,29 +858,36 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     update(prev => ({ ...prev, grid: { ...prev.grid, ...patch } }), coalesceKey)
   }, [update])
 
-  // Build @font-face rules with base64-embedded font files for the custom fonts
-  // actually used by text layers, and inject them into the cloned SVG so PNG and
-  // SVG exports render correctly and stay portable. Fetch failures (e.g. CORS on
-  // the Google CSS endpoint) are swallowed so export still succeeds with a
-  // fallback font.
+  // Inline the custom fonts actually used by text layers as base64 @font-face
+  // rules in the cloned SVG, so PNG and SVG exports render and stay portable.
+  // Font files come from the Developer API catalog (gstatic URLs are CORS-
+  // enabled, unlike the CSS endpoint). Only the weights/styles in use are
+  // embedded. Fetch failures are swallowed so export still succeeds.
   const embedFontsInClone = useCallback(async (clone) => {
     const used = new Set(state.texts.map(t => t.fontFamily))
     const families = (state.fonts || []).filter(f => used.has(f))
     if (families.length === 0) return
+    const catalog = await loadFontCatalog()
+    const byFamily = new Map(catalog.map(item => [item.family, item]))
     const rules = []
     for (const family of families) {
-      try {
-        const cssRes = await fetch(googleFontCssUrl(family))
-        if (!cssRes.ok) continue
-        const faces = parseFontFaces(await cssRes.text())
-        for (const face of faces) {
-          const fontRes = await fetch(face.url)
-          if (!fontRes.ok) continue
-          const dataUri = `data:font/woff2;base64,${bufferToBase64(await fontRes.arrayBuffer())}`
-          rules.push(buildFontFaceRule(family, { ...face, url: dataUri }))
+      const item = byFamily.get(family)
+      if (!item || !item.files) continue
+      const variants = new Set(
+        state.texts.filter(t => t.fontFamily === family).map(t => fontVariantKey(t.bold, t.italic))
+      )
+      for (const variant of variants) {
+        const fileUrl = pickVariantFile(item.files, variant)
+        if (!fileUrl) continue
+        try {
+          const res = await fetch(fileUrl.replace(/^http:/, 'https:'))
+          if (!res.ok) continue
+          const dataUri = `data:font/ttf;base64,${bufferToBase64(await res.arrayBuffer())}`
+          const { weight, style } = variantFontFace(variant)
+          rules.push(buildFontFaceRule(family, { url: dataUri, weight, style, format: 'truetype' }))
+        } catch {
+          // Could not fetch this face; export proceeds with a fallback.
         }
-      } catch {
-        // Font could not be fetched; export proceeds with a fallback face.
       }
     }
     if (rules.length === 0) return
@@ -878,7 +895,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     style.setAttribute('data-embedded-fonts', '')
     style.textContent = rules.join('\n')
     clone.insertBefore(style, clone.firstChild)
-  }, [state.texts, state.fonts])
+  }, [state.texts, state.fonts, loadFontCatalog])
 
   // Export PNG
   const exportPNG = useCallback(async () => {

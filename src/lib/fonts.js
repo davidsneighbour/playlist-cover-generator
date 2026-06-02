@@ -91,6 +91,29 @@ export function parseFontFamilies(apiResponse) {
   return (apiResponse?.items || []).map(item => item.family).filter(Boolean)
 }
 
+// Google Fonts API variant key for a weight/style combination.
+export function fontVariantKey(bold, italic) {
+  if (bold && italic) return '700italic'
+  if (bold) return '700'
+  if (italic) return 'italic'
+  return 'regular'
+}
+
+// CSS font-weight/font-style for a Google Fonts variant key.
+export function variantFontFace(variantKey) {
+  const italic = variantKey.endsWith('italic')
+  const numeric = variantKey.replace('italic', '')
+  const weight = !numeric || numeric === 'regular' ? '400' : numeric
+  return { weight, style: italic ? 'italic' : 'normal' }
+}
+
+// Pick a font-file URL for a variant from an API item's `files` map, falling
+// back to the regular face and then to any available file.
+export function pickVariantFile(files, variantKey) {
+  if (!files) return null
+  return files[variantKey] || files.regular || Object.values(files)[0] || null
+}
+
 // Typeahead filter over font names: case-insensitive, names starting with the
 // query rank above names merely containing it, capped at `limit`.
 export function filterFontNames(names, query, limit = 8) {
