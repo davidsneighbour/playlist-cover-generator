@@ -25,8 +25,12 @@ An embeddable React component that generates square playlist cover art. A user u
 | `npm run preview` | Serve the production build. |
 | `npm test` | Run the Vitest suite once. |
 | `npm run test:watch` | Run Vitest in watch mode. |
+| `npm run lint` | Lint with ESLint (react-hooks and jsx-a11y). Run in CI. |
+| `npm run lint:fix` | Lint and auto-fix what is fixable. |
+| `npm run format` | Format with Prettier (opt-in; not enforced in CI). |
+| `npm run format:check` | Check formatting without writing. |
 
-Always run `npm run build` and `npm test` after non-trivial changes to confirm the project still compiles and the suite passes.
+Always run `npm run lint`, `npm run build`, and `npm test` after non-trivial changes to confirm the project still lints, compiles, and the suite passes. CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs lint, tests, and both builds on push and pull request. ESLint is configured in [eslint.config.js](eslint.config.js); the `jsx-a11y` rules that conflict with documented design decisions (self-labelled inline controls, non-interactive layer-row wrappers) are kept as warnings, not errors.
 
 ## Architecture
 

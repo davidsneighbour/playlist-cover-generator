@@ -15,15 +15,21 @@
   ],
   "main": "./dist/playlist-cover-generator.cjs",
   "module": "./dist/playlist-cover-generator.js",
+  "types": "./index.d.ts",
   "exports": {
     ".": {
+      "types": "./index.d.ts",
       "import": "./dist/playlist-cover-generator.js",
       "require": "./dist/playlist-cover-generator.cjs"
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "index.d.ts"
   ],
+  "engines": {
+    "node": ">=18"
+  },
   "sideEffects": false,
   "scripts": {
     "dev": "vite",
@@ -32,6 +38,10 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "prepublishOnly": "npm run build:lib"
   },
   "peerDependencies": {
@@ -44,8 +54,16 @@
   },
   "devDependencies": {
     "@dnbhq/markdownlint-config": "0.2.7",
+    "@eslint/js": "9.39.4",
     "@tailwindcss/vite": "^4.1.8",
     "@vitejs/plugin-react": "^4.5.2",
+    "eslint": "9.39.4",
+    "eslint-config-prettier": "9.1.2",
+    "eslint-plugin-jsx-a11y": "6.10.2",
+    "eslint-plugin-react": "7.37.5",
+    "eslint-plugin-react-hooks": "5.2.0",
+    "globals": "15.15.0",
+    "prettier": "3.8.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "tailwindcss": "^4.1.8",

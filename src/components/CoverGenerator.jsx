@@ -4,7 +4,7 @@ import { TEMPLATES, getTemplate, instantiateTemplate } from '../lib/templates'
 import { textStrokeAttrs, textShadowFilter } from '../lib/text'
 import { BUILTIN_FONTS, googleFontCssUrl, buildFontFaceRule, addFont, googleFontsListUrl, filterFontNames, fontVariantKey, variantFontFace, pickVariantFile } from '../lib/fonts'
 import { BLEND_MODES, createImageLayer, clampOpacity, centeredPosition, coverDimensions, scaleDimensions, dimensionPercent, aspectHeight, aspectWidth, offCanvasBounds, resizeFromCorner } from '../lib/images'
-import { SHAPE_TYPES, createShape, ellipseGeometry } from '../lib/shapes'
+import { createShape, ellipseGeometry } from '../lib/shapes'
 import { DEFAULT_OVERLAY, OVERLAY_TYPES, gradientVector } from '../lib/overlay'
 import { DEFAULT_BACKGROUND_GRADIENT, BACKGROUND_GRADIENT_TYPES, DEFAULT_BACKGROUND_TRANSFORM, backgroundCrop } from '../lib/background'
 import { DEFAULT_FILTERS, isFilterActive, brightnessContrastTransfer } from '../lib/filters'
@@ -853,7 +853,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   // opened that link to see that design. An explicit initialState still wins.
   const sharedFromUrl = useMemo(
     () => (typeof window !== 'undefined' ? decodeShareState(readShareToken(window.location.hash)) : null),
-    [], // eslint-disable-line react-hooks/exhaustive-deps -- read once at mount
+    [], // read once at mount; decodeShareState/readShareToken are stable module imports
   )
   const { state, canUndo, canRedo, commit, undo, redo } = useHistoryState({
     ...DEFAULT_STATE,
