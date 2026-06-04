@@ -9,8 +9,7 @@ import { DEFAULT_OVERLAY, OVERLAY_TYPES, gradientVector } from '../lib/overlay'
 import { DEFAULT_BACKGROUND_GRADIENT, BACKGROUND_GRADIENT_TYPES, DEFAULT_BACKGROUND_TRANSFORM, backgroundCrop } from '../lib/background'
 import { DEFAULT_FILTERS, isFilterActive, brightnessContrastTransfer } from '../lib/filters'
 import { CANVAS_PRESETS, DEFAULT_EXPORT_SIZE, exportScale, clampExportSize } from '../lib/canvas'
-import { SHORTCUTS, formatKeys, nudgeDelta, isDeleteKey, isEditableTarget } from '../lib/shortcuts'
-import { clampMenuPosition } from '../lib/menu'
+import { nudgeDelta, isDeleteKey, isEditableTarget } from '../lib/shortcuts'
 import { stripExportArtifacts } from '../lib/export'
 import { mergeInitialState } from '../lib/state'
 import { snapValue } from '../lib/grid'
@@ -24,18 +23,18 @@ import { buildLayerList } from '../lib/layerList'
 import { averageRgb, pickContrastColor } from '../lib/color'
 import { isOpen as isCardOpen, toggleOpen, togglePin, openCard } from '../lib/accordion'
 import { AccordionContext, CollapsibleCard } from './Accordion'
-import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
 import {
   Undo2, Redo2, LayoutTemplate, Plus, Search, Upload, Trash2, RotateCcw,
   Square, Circle, GripVertical, Copy, BringToFront, SendToBack,
-  FileImage, FileCode, Save, FolderOpen, Link, Package, CircleHelp, X,
+  FileImage, FileCode, Save, FolderOpen, Link, Package, CircleHelp,
   Type, Blend, Image as ImageIcon,
 } from 'lucide-react'
-import { version as APP_VERSION } from '../../package.json'
-import { CANVAS_SIZE, RULER, DUP_OFFSET, IS_MAC } from '../lib/constants'
+import { CANVAS_SIZE, RULER, DUP_OFFSET } from '../lib/constants'
 import { GridOverlay } from './GridOverlay'
 import { TopRuler, LeftRuler } from './Rulers'
 import { NumberInput } from './NumberInput'
+import { HelpDialog } from './HelpDialog'
+import { ContextMenu } from './ContextMenu'
 
 // Optional Google Fonts API key for the font-search typeahead. Read from the
 // Vite env by default; a host embedding the component can pass its own.
@@ -532,100 +531,6 @@ function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, on
 // Help overlay: app info, version, keyboard shortcuts, and mouse tips. Opened
 // and closed with F1 (handled by the component); also closes on Escape, on a
 // click outside the panel (both via Headless UI Dialog's onClose), and on the X.
-function HelpDialog({ open, onClose }) {
-  return (
-    <Dialog open={open} onClose={onClose} className="relative z-50">
-      <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
-      <div className="fixed inset-0 flex items-center justify-center p-4">
-        <DialogPanel className="w-full max-w-md bg-white rounded-lg shadow-xl border border-gray-200 max-h-[85vh] overflow-auto">
-          <div className="flex items-start justify-between gap-4 p-4 border-b border-gray-100">
-            <div>
-              <DialogTitle className="text-base font-semibold text-gray-900">Playlist cover generator</DialogTitle>
-              <p className="text-xs text-gray-400 mt-0.5">Version {APP_VERSION}</p>
-            </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-700 cursor-pointer p-1 -m-1" aria-label="Close help"><X className="h-5 w-5" /></button>
-          </div>
-          <div className="p-4 flex flex-col gap-4">
-            <p className="text-sm text-gray-600">Build a square playlist cover: set a background, layer text, shapes, and images, then export to PNG, SVG, or a re-loadable JSON project.</p>
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Keyboard shortcuts</h3>
-              <ul className="flex flex-col gap-1.5">
-                {SHORTCUTS.map(s => (
-                  <li key={s.id} className="flex items-center justify-between gap-4 text-sm">
-                    <span className="text-gray-600">{s.description}</span>
-                    <span className="flex gap-1">
-                      {formatKeys(s.keys, IS_MAC).map((k, i) => (
-                        <kbd key={i} className="px-1.5 py-0.5 text-[11px] font-medium bg-gray-100 border border-gray-200 rounded text-gray-700">{k}</kbd>
-                      ))}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Tips</h3>
-              <ul className="flex flex-col gap-1 text-sm text-gray-600 list-disc pl-4">
-                <li>Drag a layer on the canvas to move it; enable snap to grid for alignment.</li>
-                <li>Hold Shift while dragging an image corner to lock its aspect ratio.</li>
-                <li>Click an empty area of the canvas to deselect.</li>
-              </ul>
-            </div>
-          </div>
-        </DialogPanel>
-      </div>
-    </Dialog>
-  )
-}
-
-// Right-click context menu for a layer. Positioned at the cursor and clamped to
-// the viewport once measured. Closes on an outside mousedown, Escape, scroll, or
-// after an action runs.
-function ContextMenu({ x, y, actions, onClose }) {
-  const ref = useRef(null)
-  const [pos, setPos] = useState({ x, y })
-
-  useLayoutEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const r = el.getBoundingClientRect()
-    setPos(clampMenuPosition(x, y, r.width, r.height, window.innerWidth, window.innerHeight))
-  }, [x, y])
-
-  useEffect(() => {
-    const onDown = (e) => { if (!ref.current?.contains(e.target)) onClose() }
-    const onKey = (e) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('mousedown', onDown)
-    window.addEventListener('keydown', onKey)
-    window.addEventListener('scroll', onClose, true)
-    return () => {
-      window.removeEventListener('mousedown', onDown)
-      window.removeEventListener('keydown', onKey)
-      window.removeEventListener('scroll', onClose, true)
-    }
-  }, [onClose])
-
-  return (
-    <div
-      ref={ref}
-      className="fixed z-50 min-w-[10rem] bg-white border border-gray-200 rounded-md shadow-lg py-1 text-sm"
-      style={{ top: pos.y, left: pos.x }}
-      onContextMenu={(e) => e.preventDefault()}
-    >
-      {actions.map((a) => (
-        <button
-          key={a.label}
-          type="button"
-          className={`flex w-full items-center gap-2 text-left px-3 py-1.5 cursor-pointer hover:bg-gray-50 ${a.danger ? 'text-red-600 hover:bg-red-50' : 'text-gray-700'}`}
-          onClick={() => { a.onClick(); onClose() }}
-        >
-          {a.icon && <a.icon className="h-4 w-4" aria-hidden="true" />}
-          {a.label}
-        </button>
-      ))}
-    </div>
-  )
-}
-
 // Icon glyphs for the Layers overview rows, keyed by the entry's `icon` string
 // from buildLayerList (kept out of the lib so it stays DOM-free and testable).
 const LAYER_ICONS = { type: Type, square: Square, circle: Circle, image: ImageIcon, blend: Blend }
