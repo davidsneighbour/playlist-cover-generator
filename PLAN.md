@@ -30,13 +30,14 @@ Status: largely done.
 
 ## 3. Decompose the large component
 
-2356 lines and 111 hooks in one file is the main maintainability risk. The sub-components are already separable; extract them without changing behavior, behind the new CI and tests.
+2356 lines and 111 hooks in one file is the main maintainability risk. The sub-components are already separable; extract them without changing behavior, behind the new CI and tests. In progress, one safe slice per commit.
 
-* Move `useHistoryState` and `useSvgDrag` into `src/hooks/`.
+* Done: `useHistoryState` moved to [src/hooks/useHistoryState.js](src/hooks/useHistoryState.js) and tested via `renderHook` (coalescing, discrete steps, redo-clearing). The initial-state precedence merge is now the pure, tested `mergeInitialState` in [src/lib/state.js](src/lib/state.js).
+* Next: move `useSvgDrag` into `src/hooks/`.
 * Move presentational pieces (`SVGCanvas`, `GridOverlay`, the rulers, `HelpDialog`, `ContextMenu`, `NumberInput`) into `src/components/`.
-* Move export logic (PNG, SVG, batch, font embedding) into `src/lib/export.js`, so the DOM-free parts become testable per section 2.
+* Move the remaining export logic (PNG, SVG, batch, font embedding) toward [src/lib/export.js](src/lib/export.js), so the DOM-free parts become testable per section 2.
 
-This is a refactor only and should land after the safety net, not before.
+This is a refactor only and lands after the safety net, not before.
 
 ## 4. New features
 

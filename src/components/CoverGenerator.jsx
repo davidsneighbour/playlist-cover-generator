@@ -13,6 +13,8 @@ import { rulerTicks } from '../lib/rulers'
 import { SHORTCUTS, formatKeys, nudgeDelta, isDeleteKey, isEditableTarget } from '../lib/shortcuts'
 import { clampMenuPosition } from '../lib/menu'
 import { stripExportArtifacts } from '../lib/export'
+import { mergeInitialState } from '../lib/state'
+import { useHistoryState } from '../hooks/useHistoryState'
 import { STORAGE_KEY, serializeState, serializeStateWithoutImage, parseStoredState } from '../lib/storage'
 import { SHARE_PARAM, encodeShareState, decodeShareState, readShareToken } from '../lib/share'
 import { buildZip } from '../lib/zip'
@@ -91,70 +93,6 @@ function loadImageFile(file) {
 function snapValue(value, spacing, enabled) {
   if (!enabled) return value
   return Math.round(value / spacing) * spacing
-}
-
-const HISTORY_LIMIT = 50
-const COALESCE_MS = 600
-
-// Undo/redo history wrapper around a single state object. Discrete edits push a
-// new entry; rapid edits that share a coalesceKey (dragging, typing in a field)
-// collapse into one so a single undo reverts the whole gesture rather than one
-// pixel or one keystroke at a time.
-function useHistoryState(initial) {
-  const [history, setHistory] = useState(() => ({
-    past: [],
-    present: initial,
-    future: [],
-  }))
-  const lastKey = useRef(null)
-  const lastTime = useRef(0)
-
-  const commit = useCallback((patch, coalesceKey = null) => {
-    const now = Date.now()
-    const coalesce =
-      coalesceKey != null &&
-      coalesceKey === lastKey.current &&
-      now - lastTime.current < COALESCE_MS
-    lastKey.current = coalesceKey
-    lastTime.current = now
-    setHistory(h => {
-      const present = typeof patch === 'function' ? patch(h.present) : { ...h.present, ...patch }
-      if (present === h.present) return h
-      if (coalesce) {
-        // Same gesture continuing: replace present, keep the existing checkpoint.
-        return { past: h.past, present, future: [] }
-      }
-      const past = h.past.length >= HISTORY_LIMIT ? h.past.slice(1) : h.past
-      return { past: [...past, h.present], present, future: [] }
-    })
-  }, [])
-
-  const undo = useCallback(() => {
-    lastKey.current = null
-    setHistory(h => {
-      if (h.past.length === 0) return h
-      const present = h.past[h.past.length - 1]
-      return { past: h.past.slice(0, -1), present, future: [h.present, ...h.future] }
-    })
-  }, [])
-
-  const redo = useCallback(() => {
-    lastKey.current = null
-    setHistory(h => {
-      if (h.future.length === 0) return h
-      const present = h.future[0]
-      return { past: [...h.past, h.present], present, future: h.future.slice(1) }
-    })
-  }, [])
-
-  return {
-    state: history.present,
-    canUndo: history.past.length > 0,
-    canRedo: history.future.length > 0,
-    commit,
-    undo,
-    redo,
-  }
 }
 
 function GridOverlay({ grid, size }) {
@@ -856,12 +794,9 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     () => (typeof window !== 'undefined' ? decodeShareState(readShareToken(window.location.hash)) : null),
     [], // read once at mount; decodeShareState/readShareToken are stable module imports
   )
-  const { state, canUndo, canRedo, commit, undo, redo } = useHistoryState({
-    ...DEFAULT_STATE,
-    ...(restored || {}),
-    ...(sharedFromUrl || {}),
-    ...initialState,
-  })
+  const { state, canUndo, canRedo, commit, undo, redo } = useHistoryState(
+    mergeInitialState(DEFAULT_STATE, restored, sharedFromUrl, initialState),
+  )
   const update = commit
   // Speak a message through the ARIA live region (re-announces repeats via the
   // changing nonce, see the rendered region below).
