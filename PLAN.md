@@ -34,7 +34,8 @@ Status: largely done.
 
 * Done: `useHistoryState` moved to [src/hooks/useHistoryState.js](src/hooks/useHistoryState.js) and tested via `renderHook` (coalescing, discrete steps, redo-clearing). The initial-state precedence merge is now the pure, tested `mergeInitialState` in [src/lib/state.js](src/lib/state.js).
 * Done: `useSvgDrag` moved to [src/hooks/useSvgDrag.js](src/hooks/useSvgDrag.js); its `snapValue` dependency is now the tested pure helper in [src/lib/grid.js](src/lib/grid.js).
-* Next: move presentational pieces (`SVGCanvas`, `GridOverlay`, the rulers, `HelpDialog`, `ContextMenu`, `NumberInput`) into `src/components/`.
+* Done: the self-contained presentational leaves moved to their own files — [src/components/GridOverlay.jsx](src/components/GridOverlay.jsx), [src/components/Rulers.jsx](src/components/Rulers.jsx), [src/components/NumberInput.jsx](src/components/NumberInput.jsx) — with the shared constants (`CANVAS_SIZE`, `RULER`, `DUP_OFFSET`, `IS_MAC`) lifted to [src/lib/constants.js](src/lib/constants.js). The component is down from 2356 to ~2140 lines.
+* Next: move `HelpDialog` and `ContextMenu` (also fairly self-contained), then the coupled canvas cluster (`SVGCanvas` with `TextElement`/`ImageElement`/`ShapeElement`/`ResizeHandles`/`GradientBackground`/`ColorOverlay`). The canvas cluster is the largest and most coupled slice; do it last and behind the component smoke test.
 * Move the remaining export logic (PNG, SVG, batch, font embedding) toward [src/lib/export.js](src/lib/export.js), so the DOM-free parts become testable per section 2.
 
 This is a refactor only and lands after the safety net, not before.

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo, useId } from 'react'
+import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react'
 import { reorder, bringToFront, sendToBack, displayIndexToArrayIndex, duplicateById } from '../lib/layers'
 import { TEMPLATES, getTemplate, instantiateTemplate } from '../lib/templates'
 import { textStrokeAttrs, textShadowFilter } from '../lib/text'
@@ -9,7 +9,6 @@ import { DEFAULT_OVERLAY, OVERLAY_TYPES, gradientVector } from '../lib/overlay'
 import { DEFAULT_BACKGROUND_GRADIENT, BACKGROUND_GRADIENT_TYPES, DEFAULT_BACKGROUND_TRANSFORM, backgroundCrop } from '../lib/background'
 import { DEFAULT_FILTERS, isFilterActive, brightnessContrastTransfer } from '../lib/filters'
 import { CANVAS_PRESETS, DEFAULT_EXPORT_SIZE, exportScale, clampExportSize } from '../lib/canvas'
-import { rulerTicks } from '../lib/rulers'
 import { SHORTCUTS, formatKeys, nudgeDelta, isDeleteKey, isEditableTarget } from '../lib/shortcuts'
 import { clampMenuPosition } from '../lib/menu'
 import { stripExportArtifacts } from '../lib/export'
@@ -33,11 +32,10 @@ import {
   Type, Blend, Image as ImageIcon,
 } from 'lucide-react'
 import { version as APP_VERSION } from '../../package.json'
-
-const CANVAS_SIZE = 600
-const RULER = 22 // px thickness of each ruler strip
-const DUP_OFFSET = 16 // canvas units a duplicated layer is shifted so it is visible
-const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent || '')
+import { CANVAS_SIZE, RULER, DUP_OFFSET, IS_MAC } from '../lib/constants'
+import { GridOverlay } from './GridOverlay'
+import { TopRuler, LeftRuler } from './Rulers'
+import { NumberInput } from './NumberInput'
 
 // Optional Google Fonts API key for the font-search typeahead. Read from the
 // Vite env by default; a host embedding the component can pass its own.
@@ -90,85 +88,6 @@ function loadImageFile(file) {
     reader.onerror = () => reject(new Error('read failed'))
     reader.readAsDataURL(file)
   })
-}
-
-function GridOverlay({ grid, size }) {
-  if (!grid.enabled) return null
-
-  const lines = []
-  const { spacing, majorEvery } = grid
-
-  for (let x = spacing; x < size; x += spacing) {
-    const isMajor = majorEvery > 0 && (x / spacing) % majorEvery === 0
-    lines.push(
-      <line
-        key={`vx${x}`}
-        x1={x} y1={0} x2={x} y2={size}
-        stroke={isMajor ? '#94a3b8' : '#cbd5e1'}
-        strokeWidth={isMajor ? 0.8 : 0.4}
-        strokeOpacity={isMajor ? 0.8 : 0.5}
-      />
-    )
-  }
-  for (let y = spacing; y < size; y += spacing) {
-    const isMajor = majorEvery > 0 && (y / spacing) % majorEvery === 0
-    lines.push(
-      <line
-        key={`hy${y}`}
-        x1={0} y1={y} x2={size} y2={y}
-        stroke={isMajor ? '#94a3b8' : '#cbd5e1'}
-        strokeWidth={isMajor ? 0.8 : 0.4}
-        strokeOpacity={isMajor ? 0.8 : 0.5}
-      />
-    )
-  }
-
-  return <g data-layer="grid" style={{ pointerEvents: 'none' }}>{lines}</g>
-}
-
-// Rulers along the top and left of the canvas, showing canvas-unit coordinates
-// (0..CANVAS_SIZE). They are plain chrome rendered outside the exported SVG, so
-// they never appear in PNG or SVG output. Tick values come from the pure
-// `rulerTicks`; pixel positions scale with the live `displaySize`.
-function RulerMarks({ displaySize, axis }) {
-  const ticks = rulerTicks(CANVAS_SIZE)
-  return ticks.map(({ value, major }) => {
-    const px = (value / CANVAS_SIZE) * displaySize
-    const len = major ? 8 : 5
-    const showLabel = major && value !== 0 && value !== CANVAS_SIZE
-    if (axis === 'top') {
-      return (
-        <g key={value}>
-          <line x1={px} y1={RULER - len} x2={px} y2={RULER} stroke="#cbd5e1" strokeWidth={0.75} />
-          {showLabel && <text x={px} y={9} fontSize={8} fill="#9ca3af" textAnchor="middle">{value}</text>}
-        </g>
-      )
-    }
-    return (
-      <g key={value}>
-        <line x1={RULER - len} y1={px} x2={RULER} y2={px} stroke="#cbd5e1" strokeWidth={0.75} />
-        {showLabel && <text x={11} y={px} fontSize={8} fill="#9ca3af" textAnchor="middle" transform={`rotate(-90 11 ${px})`}>{value}</text>}
-      </g>
-    )
-  })
-}
-
-function TopRuler({ displaySize }) {
-  return (
-    <svg width={displaySize} height={RULER} className="block bg-gray-50" aria-hidden="true">
-      <line x1={0} y1={RULER - 0.5} x2={displaySize} y2={RULER - 0.5} stroke="#e5e7eb" strokeWidth={1} />
-      <RulerMarks displaySize={displaySize} axis="top" />
-    </svg>
-  )
-}
-
-function LeftRuler({ displaySize }) {
-  return (
-    <svg width={RULER} height={displaySize} className="block bg-gray-50" aria-hidden="true">
-      <line x1={RULER - 0.5} y1={0} x2={RULER - 0.5} y2={displaySize} stroke="#e5e7eb" strokeWidth={1} />
-      <RulerMarks displaySize={displaySize} axis="left" />
-    </svg>
-  )
 }
 
 function TextElement({ text, selected, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize }) {
@@ -2219,20 +2138,3 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   )
 }
 
-function NumberInput({ label, value, min, max, onChange, hint }) {
-  const id = useId()
-  return (
-    <div>
-      <label htmlFor={id} className="block text-xs text-gray-500 mb-1">{label}{hint && <span className="text-gray-400 ml-1">({hint})</span>}</label>
-      <input
-        id={id}
-        type="number"
-        className="input w-full"
-        value={value}
-        min={min}
-        max={max}
-        onChange={e => onChange(Number(e.target.value))}
-      />
-    </div>
-  )
-}
