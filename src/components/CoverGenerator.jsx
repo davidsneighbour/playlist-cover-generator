@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react'
+import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo, memo } from 'react'
 import { reorder, bringToFront, sendToBack, displayIndexToArrayIndex, duplicateById } from '../lib/layers'
 import { TEMPLATES, getTemplate, instantiateTemplate } from '../lib/templates'
 import { textStrokeAttrs, textShadowFilter } from '../lib/text'
@@ -89,7 +89,7 @@ function loadImageFile(file) {
   })
 }
 
-function TextElement({ text, selected, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize }) {
+const TextElement = memo(function TextElement({ text, selected, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize }) {
   const handleMouseDown = useSvgDrag({
     getAnchor: () => ({ x: text.x, y: text.y }),
     onMove: (nx, ny) => onDrag(text.id, nx, ny),
@@ -127,9 +127,9 @@ function TextElement({ text, selected, onSelect, onDrag, snapToGrid, gridSpacing
       )}
     </text>
   )
-}
+})
 
-function ImageElement({ image, selected, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize }) {
+const ImageElement = memo(function ImageElement({ image, selected, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize }) {
   const handleMouseDown = useSvgDrag({
     getAnchor: () => ({ x: image.x, y: image.y }),
     onMove: (nx, ny) => onDrag(image.id, nx, ny),
@@ -159,7 +159,7 @@ function ImageElement({ image, selected, onSelect, onDrag, snapToGrid, gridSpaci
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(image.id) } }}
     />
   )
-}
+})
 
 // Corner handles for resizing the selected image. The opposite corner stays
 // fixed; holding Shift locks the aspect ratio. Tagged via the wrapping group so
@@ -209,7 +209,7 @@ function ResizeHandles({ box, ratio, onResize }) {
   ))
 }
 
-function ShapeElement({ shape, selected, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize }) {
+const ShapeElement = memo(function ShapeElement({ shape, selected, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize }) {
   const handleMouseDown = useSvgDrag({
     getAnchor: () => ({ x: shape.x, y: shape.y }),
     onMove: (nx, ny) => onDrag(shape.id, nx, ny),
@@ -238,12 +238,12 @@ function ShapeElement({ shape, selected, onSelect, onDrag, snapToGrid, gridSpaci
     return <ellipse cx={g.cx} cy={g.cy} rx={g.rx} ry={g.ry} {...common} />
   }
   return <rect x={shape.x} y={shape.y} width={shape.width} height={shape.height} {...common} />
-}
+})
 
 // Two-stop gradient that fills the canvas beneath the background image, so it
 // shows through when no image is loaded (an opaque image covers it). Reuses the
 // same gradient-axis math as the overlay. pointer-events stay off.
-function GradientBackground({ gradient, size }) {
+const GradientBackground = memo(function GradientBackground({ gradient, size }) {
   if (!gradient || !gradient.enabled) return null
   const id = 'background-gradient'
   const stops = (
@@ -270,14 +270,14 @@ function GradientBackground({ gradient, size }) {
       />
     </>
   )
-}
+})
 
 // Full-canvas color overlay painted over the background (under every other
 // layer) to improve text legibility. Solid is a single color; linear/radial are
 // two-stop gradients whose stops carry their own alpha. The blend mode applies
 // to the overlay rect, so e.g. "multiply" darkens only the background beneath.
 // pointer-events stay off so clicks fall through to the canvas for deselection.
-function ColorOverlay({ overlay, size }) {
+const ColorOverlay = memo(function ColorOverlay({ overlay, size }) {
   if (!overlay || !overlay.enabled) return null
   const blend = overlay.blendMode && overlay.blendMode !== 'normal' ? overlay.blendMode : undefined
 
@@ -318,7 +318,7 @@ function ColorOverlay({ overlay, size }) {
       />
     </>
   )
-}
+})
 
 function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, onSelectText, onSelectImage, onSelectShape, onDragText, onDragImage, onDragShape, onResizeImage, onContextMenuLayer, displaySize }) {
   const svgRef = useRef(null)

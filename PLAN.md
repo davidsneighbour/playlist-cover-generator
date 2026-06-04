@@ -55,9 +55,11 @@ Ordered by value-to-effort. All extend the documented state contract cleanly.
 
 ## 5. Performance and robustness
 
-* **Large background in localStorage** — large data URLs already trigger the documented quota fallback that drops the image. Consider IndexedDB for the image blob (keeping the small layout in localStorage) to avoid silently losing the background.
+In progress.
+
+* Done: **render audit during drag**. The drag/select handlers passed down are all `useCallback`-stable and the drag commit updates layers immutably (non-dragged layers keep their references), so wrapping the canvas leaf views in `React.memo` lets unchanged layers bail out of re-render on every drag tick. Memoized `TextElement`, `ImageElement`, `ShapeElement`, `GradientBackground`, `ColorOverlay`, and `GridOverlay` (so the grid is not rebuilt mid-drag).
+* Next: **large background in localStorage** — large data URLs already trigger the documented quota fallback that drops the image. Move the image blob to IndexedDB (keeping the small layout in localStorage) to avoid silently losing the background.
 * **Large-canvas export** — 3000px rasterization runs on the main thread. Consider `OffscreenCanvas` or a worker for batch export so multi-image ZIPs do not freeze the UI.
-* **Render audit during drag** — confirm the `SVGCanvas` subtree is not re-rendering every drag tick; `React.memo` on leaf elements keyed by layer id would help.
 
 ## 6. Accessibility and UX polish
 

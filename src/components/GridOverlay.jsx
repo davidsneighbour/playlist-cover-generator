@@ -1,7 +1,11 @@
+import { memo } from 'react'
+
 // Snap-grid overlay drawn over the canvas: minor lines every `spacing`, with a
 // heavier major line every `majorEvery` cells. Marked data-layer="grid" so the
 // exporters strip it (see stripExportArtifacts); it never appears in output.
-export function GridOverlay({ grid, size }) {
+// Memoized so it is not rebuilt on every drag tick (its props are stable while
+// dragging a layer).
+export const GridOverlay = memo(function GridOverlay({ grid, size }) {
   if (!grid.enabled) return null
 
   const lines = []
@@ -33,4 +37,4 @@ export function GridOverlay({ grid, size }) {
   }
 
   return <g data-layer="grid" style={{ pointerEvents: 'none' }}>{lines}</g>
-}
+})
