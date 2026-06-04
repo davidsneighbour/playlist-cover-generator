@@ -33,8 +33,8 @@ Status: largely done.
 2356 lines and 111 hooks in one file is the main maintainability risk. The sub-components are already separable; extract them without changing behavior, behind the new CI and tests. In progress, one safe slice per commit.
 
 * Done: `useHistoryState` moved to [src/hooks/useHistoryState.js](src/hooks/useHistoryState.js) and tested via `renderHook` (coalescing, discrete steps, redo-clearing). The initial-state precedence merge is now the pure, tested `mergeInitialState` in [src/lib/state.js](src/lib/state.js).
-* Next: move `useSvgDrag` into `src/hooks/`.
-* Move presentational pieces (`SVGCanvas`, `GridOverlay`, the rulers, `HelpDialog`, `ContextMenu`, `NumberInput`) into `src/components/`.
+* Done: `useSvgDrag` moved to [src/hooks/useSvgDrag.js](src/hooks/useSvgDrag.js); its `snapValue` dependency is now the tested pure helper in [src/lib/grid.js](src/lib/grid.js).
+* Next: move presentational pieces (`SVGCanvas`, `GridOverlay`, the rulers, `HelpDialog`, `ContextMenu`, `NumberInput`) into `src/components/`.
 * Move the remaining export logic (PNG, SVG, batch, font embedding) toward [src/lib/export.js](src/lib/export.js), so the DOM-free parts become testable per section 2.
 
 This is a refactor only and lands after the safety net, not before.

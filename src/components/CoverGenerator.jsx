@@ -14,7 +14,9 @@ import { SHORTCUTS, formatKeys, nudgeDelta, isDeleteKey, isEditableTarget } from
 import { clampMenuPosition } from '../lib/menu'
 import { stripExportArtifacts } from '../lib/export'
 import { mergeInitialState } from '../lib/state'
+import { snapValue } from '../lib/grid'
 import { useHistoryState } from '../hooks/useHistoryState'
+import { useSvgDrag } from '../hooks/useSvgDrag'
 import { STORAGE_KEY, serializeState, serializeStateWithoutImage, parseStoredState } from '../lib/storage'
 import { SHARE_PARAM, encodeShareState, decodeShareState, readShareToken } from '../lib/share'
 import { buildZip } from '../lib/zip'
@@ -88,11 +90,6 @@ function loadImageFile(file) {
     reader.onerror = () => reject(new Error('read failed'))
     reader.readAsDataURL(file)
   })
-}
-
-function snapValue(value, spacing, enabled) {
-  if (!enabled) return value
-  return Math.round(value / spacing) * spacing
 }
 
 function GridOverlay({ grid, size }) {
@@ -172,55 +169,6 @@ function LeftRuler({ displaySize }) {
       <RulerMarks displaySize={displaySize} axis="left" />
     </svg>
   )
-}
-
-// Shared SVG dragging. Returns an onMouseDown handler that converts pointer
-// movement into snapped, clamped canvas coordinates. getAnchor() reads the
-// element's position at drag start; onMove(nx, ny) receives the new position;
-// onStart() runs once on press (used to select).
-function useSvgDrag({ getAnchor, onMove, onStart, snapToGrid, gridSpacing, canvasSize, bounds }) {
-  const dragging = useRef(false)
-  const start = useRef({ mx: 0, my: 0, ax: 0, ay: 0 })
-
-  return useCallback((e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    onStart?.()
-    dragging.current = true
-    const svg = e.currentTarget.closest('svg')
-    const toSvg = (clientX, clientY) => {
-      const p = svg.createSVGPoint()
-      p.x = clientX
-      p.y = clientY
-      return p.matrixTransform(svg.getScreenCTM().inverse())
-    }
-    const sp = toSvg(e.clientX, e.clientY)
-    const anchor = getAnchor()
-    start.current = { mx: sp.x, my: sp.y, ax: anchor.x, ay: anchor.y }
-
-    const onMouseMove = (ev) => {
-      if (!dragging.current) return
-      const m = toSvg(ev.clientX, ev.clientY)
-      let nx = start.current.ax + (m.x - start.current.mx)
-      let ny = start.current.ay + (m.y - start.current.my)
-      nx = snapValue(nx, gridSpacing, snapToGrid)
-      ny = snapValue(ny, gridSpacing, snapToGrid)
-      const minX = bounds ? bounds.minX : 0
-      const minY = bounds ? bounds.minY : 0
-      const maxX = bounds ? bounds.maxX : canvasSize
-      const maxY = bounds ? bounds.maxY : canvasSize
-      nx = Math.max(minX, Math.min(maxX, nx))
-      ny = Math.max(minY, Math.min(maxY, ny))
-      onMove(nx, ny)
-    }
-    const onMouseUp = () => {
-      dragging.current = false
-      window.removeEventListener('mousemove', onMouseMove)
-      window.removeEventListener('mouseup', onMouseUp)
-    }
-    window.addEventListener('mousemove', onMouseMove)
-    window.addEventListener('mouseup', onMouseUp)
-  }, [getAnchor, onMove, onStart, snapToGrid, gridSpacing, canvasSize, bounds])
 }
 
 function TextElement({ text, selected, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize }) {
