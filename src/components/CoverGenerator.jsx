@@ -10,8 +10,9 @@ import { DEFAULT_BACKGROUND_GRADIENT, BACKGROUND_GRADIENT_TYPES, DEFAULT_BACKGRO
 import { DEFAULT_FILTERS, isFilterActive, brightnessContrastTransfer } from '../lib/filters'
 import { CANVAS_PRESETS, DEFAULT_EXPORT_SIZE, exportScale, clampExportSize } from '../lib/canvas'
 import { rulerTicks } from '../lib/rulers'
-import { SHORTCUTS, formatKeys, nudgeDelta, isDeleteKey } from '../lib/shortcuts'
+import { SHORTCUTS, formatKeys, nudgeDelta, isDeleteKey, isEditableTarget } from '../lib/shortcuts'
 import { clampMenuPosition } from '../lib/menu'
+import { stripExportArtifacts } from '../lib/export'
 import { STORAGE_KEY, serializeState, serializeStateWithoutImage, parseStoredState } from '../lib/storage'
 import { SHARE_PARAM, encodeShareState, decodeShareState, readShareToken } from '../lib/share'
 import { buildZip } from '../lib/zip'
@@ -1006,8 +1007,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
         setHelpOpen(o => !o)
         return
       }
-      const tag = e.target.tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable) return
+      if (isEditableTarget(e.target)) return
       if (!(e.ctrlKey || e.metaKey)) return
       const key = e.key.toLowerCase()
       if (key === 'z' && !e.shiftKey) {
@@ -1385,8 +1385,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   useEffect(() => {
     const onKey = (e) => {
       if (helpOpen || contextMenu) return
-      const tag = e.target.tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable) return
+      if (isEditableTarget(e.target)) return
       if (selectedTextId == null && selectedImageId == null && selectedShapeId == null) return
       if (e.key === 'Escape') {
         selectText(null)
@@ -1478,7 +1477,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     const svgEl = containerRef.current?.querySelector('svg')
     if (!svgEl) return
     const clone = svgEl.cloneNode(true)
-    clone.querySelectorAll('[data-layer="grid"], [data-layer="selection"]').forEach(el => el.remove())
+    stripExportArtifacts(clone)
     clone.setAttribute('width', CANVAS_SIZE)
     clone.setAttribute('height', CANVAS_SIZE)
     await embedFontsInClone(clone)
@@ -1505,7 +1504,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
         let loaded
         try { loaded = await loadImageFile(list[i]) } catch { continue }
         const clone = svgEl.cloneNode(true)
-        clone.querySelectorAll('[data-layer="grid"], [data-layer="selection"]').forEach(el => el.remove())
+        stripExportArtifacts(clone)
         clone.setAttribute('width', CANVAS_SIZE)
         clone.setAttribute('height', CANVAS_SIZE)
         let bg = clone.querySelector('[data-layer="background"]')
@@ -1550,7 +1549,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     const svgEl = containerRef.current?.querySelector('svg')
     if (!svgEl) return
     const clone = svgEl.cloneNode(true)
-    clone.querySelectorAll('[data-layer="grid"], [data-layer="selection"]').forEach(el => el.remove())
+    stripExportArtifacts(clone)
     clone.querySelectorAll('[data-text-id]').forEach(el => {
       el.style.cursor = ''
       el.style.userSelect = ''

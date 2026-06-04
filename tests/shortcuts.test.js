@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { SHORTCUTS, formatKeys, nudgeDelta, isDeleteKey } from '../src/lib/shortcuts'
+import { SHORTCUTS, formatKeys, nudgeDelta, isDeleteKey, isEditableTarget } from '../src/lib/shortcuts'
 
 describe('SHORTCUTS', () => {
   it('is a non-empty list with unique ids', () => {
@@ -65,5 +65,22 @@ describe('isDeleteKey', () => {
   it('rejects other keys', () => {
     expect(isDeleteKey('d')).toBe(false)
     expect(isDeleteKey('ArrowUp')).toBe(false)
+  })
+})
+
+describe('isEditableTarget', () => {
+  it('matches text-editing controls', () => {
+    expect(isEditableTarget({ tagName: 'INPUT' })).toBe(true)
+    expect(isEditableTarget({ tagName: 'TEXTAREA' })).toBe(true)
+    expect(isEditableTarget({ tagName: 'SELECT' })).toBe(true)
+    expect(isEditableTarget({ tagName: 'DIV', isContentEditable: true })).toBe(true)
+  })
+
+  it('rejects non-editable elements and missing targets', () => {
+    expect(isEditableTarget({ tagName: 'DIV' })).toBe(false)
+    expect(isEditableTarget({ tagName: 'BUTTON' })).toBe(false)
+    expect(isEditableTarget({ tagName: 'svg' })).toBe(false)
+    expect(isEditableTarget(null)).toBe(false)
+    expect(isEditableTarget(undefined)).toBe(false)
   })
 })

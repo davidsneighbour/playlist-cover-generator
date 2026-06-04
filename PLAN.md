@@ -22,8 +22,11 @@ Cheap, high value, and currently absent.
 
 The pure-function tests are strong, but [src/components/CoverGenerator.jsx](src/components/CoverGenerator.jsx) (2356 lines) has no tests, and it holds the hardest-to-reason-about behavior.
 
-* Add component tests with `@testing-library/react` and jsdom for: undo and redo coalescing, the `DEFAULT_STATE` < restored < shared < `initialState` precedence, Escape-to-deselect, and the form-field shortcut guards.
-* Add one export smoke test asserting the cloned SVG strips `[data-layer="grid"]` and `[data-layer="selection"]`. This is the most important export invariant and is currently unguarded.
+Status: largely done.
+
+* Done: component tests with `@testing-library/react` and jsdom ([tests/CoverGenerator.test.jsx](tests/CoverGenerator.test.jsx)) for add-text, keyboard undo and redo, Escape-to-deselect, and the form-field shortcut guard.
+* Done: the export invariant is now guarded — `stripExportArtifacts` was extracted to [src/lib/export.js](src/lib/export.js) and unit-tested to assert the clone drops `[data-layer="grid"]` and `[data-layer="selection"]` while keeping the artwork. The form-field guard was likewise extracted to `isEditableTarget` in [src/lib/shortcuts.js](src/lib/shortcuts.js) and tested.
+* Deferred to item 3: the `DEFAULT_STATE` < restored < shared < `initialState` precedence is still inline in the component with no clean seam. Extract it into a pure merge helper during the decomposition and test it directly then.
 
 ## 3. Decompose the large component
 

@@ -156,6 +156,7 @@ The project is MIT licensed: see [LICENSE.md](LICENSE.md), declared as `"license
 | [src/lib/storage.js](src/lib/storage.js) | localStorage auto-save serialize/parse helpers (unit-tested). |
 | [src/lib/share.js](src/lib/share.js) | Share-link URL-safe state encode/decode (unit-tested). |
 | [src/lib/zip.js](src/lib/zip.js) | Dependency-free ZIP writer (STORE) and CRC-32 for batch export (unit-tested). |
+| [src/lib/export.js](src/lib/export.js) | Strips editor-only layers (grid, selection) from the export clone (unit-tested). |
 | [src/lib/a11y.js](src/lib/a11y.js) | Accessibility announcement message helpers (unit-tested). |
 | [src/index.js](src/index.js) | Library entry that re-exports `CoverGenerator`. |
 | [src/App.jsx](src/App.jsx) | Demo application wrapper. |

@@ -38,3 +38,12 @@ export function nudgeDelta(key, step = 1) {
 export function isDeleteKey(key) {
   return key === 'Delete' || key === 'Backspace'
 }
+
+// Whether an event target is a text-editing control, where editor shortcuts
+// (undo/redo, delete, nudge) must defer to native behavior. Guards the global
+// keydown handlers so typing in a field is never hijacked.
+export function isEditableTarget(target) {
+  if (!target) return false
+  const tag = target.tagName
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable === true
+}

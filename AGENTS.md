@@ -97,7 +97,7 @@ The single state object is the contract for JSON import/export and the `initialS
 
 ### Export rules
 
-* PNG and SVG exporters clone the live SVG, remove `[data-layer="grid"]`, and clear interaction-only styles. The grid must never appear in exports.
+* PNG and SVG exporters clone the live SVG, then call `stripExportArtifacts(clone)` ([src/lib/export.js](src/lib/export.js), tested) to remove the editor-only `[data-layer="grid"]` and `[data-layer="selection"]` elements, and clear interaction-only styles. The grid and selection chrome must never appear in exports; reuse the helper rather than re-listing the selector.
 * PNG rasterizes at `state.exportSize` (via `exportScale(exportSize, CANVAS_SIZE)` from [src/lib/canvas.js](src/lib/canvas.js)); SVG sets its width/height to the same size and keeps the 600 `viewBox`. PNG rasterization is shared through `svgCloneToPngBlob` (prepare the clone, then it serializes, loads, and draws to a canvas), used by both single and batch export.
 * Batch export clones the live SVG once per uploaded image, swaps that image in as the `data-layer="background"` element (creating one after the gradient/defs when there is no current background), crops it with `backgroundCrop` and the current transform/filter, rasterizes via `svgCloneToPngBlob`, and packs the PNGs with the dependency-free STORE-method ZIP writer (`buildZip`/`crc32` in [src/lib/zip.js](src/lib/zip.js), tested). SVG must stay valid and editable in external tools, so avoid embedding interaction handlers or editor-only attributes in the serialized output.
 
@@ -113,6 +113,8 @@ The single state object is the contract for JSON import/export and the `initialS
 ### Tests
 
 Tests run on Vitest. Prefer extracting non-trivial logic into pure functions under [src/lib/](src/lib/) and testing those directly, rather than driving the DOM; SVG drag and HTML drag-and-drop are hard to test headlessly, but the math behind them is not. Tests live in [tests/](tests/), named `<module>.test.js`, and import the module under test from the matching path under `../src/lib`. Add or update tests for any new pure logic.
+
+The default environment is Node. For the few tests that need a DOM, add the `// @vitest-environment jsdom` pragma at the top of the file. [tests/CoverGenerator.test.jsx](tests/CoverGenerator.test.jsx) renders the whole component with `@testing-library/react` to cover wiring that has no pure-function seam — add a text layer, undo/redo it, deselect on Escape, and the form-field shortcut guard. jsdom has no SVG layout or `ResizeObserver`, so that file stubs `getBBox`, `scrollIntoView`, and `ResizeObserver`; reuse those stubs for new DOM tests.
 
 ### Markdown
 
