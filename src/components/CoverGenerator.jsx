@@ -583,6 +583,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const [helpOpen, setHelpOpen] = useState(false)
   const [contextMenu, setContextMenu] = useState(null)
   const [shareCopied, setShareCopied] = useState(false)
+  const [customSizeMode, setCustomSizeMode] = useState(false)
   const [batchBusy, setBatchBusy] = useState(false)
   const [live, setLive] = useState({ msg: '', n: 0 })
   const [dragOverArrayIndex, setDragOverArrayIndex] = useState(null)
@@ -2010,12 +2011,29 @@ export default function CoverGenerator({ initialState, onStateChange, className 
             <label className="block text-xs text-gray-500 mb-1">Export size</label>
             <select
               className="input w-full"
-              value={exportSize}
+              value={customSizeMode || !CANVAS_PRESETS.some(p => p.size === exportSize) ? 'custom' : exportSize}
               aria-label="Export size"
-              onChange={e => update({ exportSize: clampExportSize(Number(e.target.value)) })}
+              onChange={e => {
+                if (e.target.value === 'custom') { setCustomSizeMode(true); return }
+                setCustomSizeMode(false)
+                update({ exportSize: clampExportSize(Number(e.target.value)) })
+              }}
             >
               {CANVAS_PRESETS.map(p => <option key={p.id} value={p.size}>{p.label}</option>)}
+              <option value="custom">Custom…</option>
             </select>
+            {(customSizeMode || !CANVAS_PRESETS.some(p => p.size === exportSize)) && (
+              <div className="mt-2">
+                <NumberInput
+                  label="Custom size (px)"
+                  value={state.exportSize}
+                  min={16}
+                  max={8000}
+                  onChange={v => update({ exportSize: v }, 'export-size')}
+                  hint="16–8000, square"
+                />
+              </div>
+            )}
             <p className="text-[11px] text-gray-400 leading-tight mt-1">Sets the PNG pixel size and the SVG width/height. The editing canvas is always square.</p>
           </div>
           <div className="grid grid-cols-2 gap-2">
