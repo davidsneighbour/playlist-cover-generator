@@ -27,7 +27,7 @@ import {
   Undo2, Redo2, LayoutTemplate, Plus, Search, Upload, Trash2, RotateCcw,
   Square, Circle, GripVertical, Copy, BringToFront, SendToBack,
   FileImage, FileCode, Save, FolderOpen, Link, Package, CircleHelp,
-  Type, Blend, Image as ImageIcon, Eye, EyeOff, Lock, LockOpen,
+  Type, Blend, Image as ImageIcon, Eye, EyeOff, Lock, LockOpen, Loader2, Check,
 } from 'lucide-react'
 import { CANVAS_SIZE, RULER, DUP_OFFSET } from '../lib/constants'
 import { GridOverlay } from './GridOverlay'
@@ -622,6 +622,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const [contextMenu, setContextMenu] = useState(null)
   const [shareCopied, setShareCopied] = useState(false)
   const [customSizeMode, setCustomSizeMode] = useState(false)
+  const [saveStatus, setSaveStatus] = useState('saved') // 'saved' | 'pending'
   const [batchBusy, setBatchBusy] = useState(false)
   const [live, setLive] = useState({ msg: '', n: 0 })
   const [dragOverArrayIndex, setDragOverArrayIndex] = useState(null)
@@ -730,8 +731,13 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   // Auto-save the session to localStorage, debounced so frequent edits (drags,
   // typing) do not write on every change. Falls back to saving without the
   // (large) background image if the full payload exceeds the storage quota.
+  const didMountSave = useRef(false)
   useEffect(() => {
     if (!autoSave || typeof localStorage === 'undefined') return
+    // The mounted state is already what was restored/persisted, so don't flash
+    // "Saving…" on first render — only mark pending once the user edits.
+    if (!didMountSave.current) { didMountSave.current = true; return }
+    setSaveStatus('pending')
     const id = setTimeout(() => {
       try {
         localStorage.setItem(STORAGE_KEY, serializeState(state))
@@ -742,6 +748,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
           // Storage unavailable or still over quota; skip this save.
         }
       }
+      setSaveStatus('saved')
     }, 500)
     return () => clearTimeout(id)
   }, [state, autoSave])
@@ -1450,7 +1457,16 @@ export default function CoverGenerator({ initialState, onStateChange, className 
             />
           </div>
         </div>
-        <p className="text-xs text-gray-400">Exports at {exportSize}×{exportSize}px · click a layer to select · drag to move · Ctrl+Z to undo</p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs text-gray-400">Exports at {exportSize}×{exportSize}px · click a layer to select · drag to move · Ctrl+Z to undo</p>
+          {autoSave && (
+            <span className="inline-flex items-center gap-1 text-xs text-gray-400 shrink-0" aria-live="polite">
+              {saveStatus === 'pending'
+                ? <><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />Saving…</>
+                : <><Check className="h-3.5 w-3.5 text-green-600" aria-hidden="true" />Saved</>}
+            </span>
+          )}
+        </div>
         <button
           type="button"
           className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 underline-offset-2 hover:underline cursor-pointer"

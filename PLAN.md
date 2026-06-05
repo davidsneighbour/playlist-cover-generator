@@ -67,7 +67,7 @@ The foundation is strong (ARIA live region, keyboard layer selection, focus ring
 
 * Wire the new `jsx-a11y` lint and an automated axe pass into a component test.
 * Verify touch behavior: drag uses pointer events, but the icon-only layer-row buttons at `h-3.5 w-3.5` are below comfortable tap-target size on mobile.
-* Add a visible saved or unsaved indicator for the 500ms auto-save debounce.
+* ~~Add a visible saved or unsaved indicator for the 500ms auto-save debounce.~~ Done — a "Saving…/Saved" badge under the canvas tracks the debounce (`saveStatus`).
 
 ## Suggested sequencing
 
