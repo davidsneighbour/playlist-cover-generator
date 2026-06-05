@@ -36,8 +36,8 @@ Status: largely done.
 * Done: `useSvgDrag` moved to [src/hooks/useSvgDrag.js](src/hooks/useSvgDrag.js); its `snapValue` dependency is now the tested pure helper in [src/lib/grid.js](src/lib/grid.js).
 * Done: the self-contained presentational leaves moved to their own files — [src/components/GridOverlay.jsx](src/components/GridOverlay.jsx), [src/components/Rulers.jsx](src/components/Rulers.jsx), [src/components/NumberInput.jsx](src/components/NumberInput.jsx) — with the shared constants (`CANVAS_SIZE`, `RULER`, `DUP_OFFSET`, `IS_MAC`) lifted to [src/lib/constants.js](src/lib/constants.js). The component is down from 2356 to ~2140 lines.
 * Done: `HelpDialog` moved to [src/components/HelpDialog.jsx](src/components/HelpDialog.jsx) and `ContextMenu` to [src/components/ContextMenu.jsx](src/components/ContextMenu.jsx). The component is down to ~2045 lines (−311 from the original).
-* Remaining (optional, lowest priority): the coupled canvas cluster (`SVGCanvas` with `TextElement`/`ImageElement`/`ShapeElement`/`ResizeHandles`/`GradientBackground`/`ColorOverlay`). This is the largest, most coupled slice and is purely organizational — the testability goal of this section is already met, so it can wait. Do it behind the component smoke test if pursued.
-* Move the remaining export logic (PNG, SVG, batch, font embedding) toward [src/lib/export.js](src/lib/export.js), so the DOM-free parts become testable per section 2.
+* Remaining (optional, lowest priority): the coupled canvas cluster (`SVGCanvas` with `TextElement`/`ImageElement`/`ShapeElement`/`ResizeHandles`/`GradientBackground`/`ColorOverlay`). This is the largest, most coupled slice and is purely organizational — the testability goal of this section is already met, so it can wait. Do it behind the component smoke test if pursued. Tracked in issue #8.
+* Move the remaining export logic (PNG, SVG, batch, font embedding) toward [src/lib/export.js](src/lib/export.js), so the DOM-free parts become testable per section 2. Tracked in issue #7.
 
 This is a refactor only and lands after the safety net, not before.
 
@@ -46,27 +46,27 @@ This is a refactor only and lands after the safety net, not before.
 Ordered by value-to-effort. All extend the documented state contract cleanly.
 
 * ~~**Multi-line text with line-height**~~ Done — `content` accepts newlines, rendered one `<tspan>` per line with a `lineHeight` control (`textLines`/`lineHeightEm` in [src/lib/text.js](src/lib/text.js), tested).
-* **Curved or arced text** — high visual payoff; renders as `<textPath>` and stays exportable SVG.
-* ~~**Layer lock and visibility toggles**~~ Done — each real layer row in the Layers panel has eye and lock buttons setting per-layer `hidden`/`locked` flags; hidden layers drop out of the canvas and exports, locked layers can't be dragged, resized, nudged, or deleted. (Per-layer opacity for text/shape is still open — tracked as a GitHub issue.)
-* **More shapes** — triangle and a rounded-rect radius are done (`trianglePoints`/`cornerRadius` in [src/lib/shapes.js](src/lib/shapes.js), tested). A line primitive (different fill/resize model) is still open — tracked as a GitHub issue.
-* **More templates** — only three exist. Templates are pure data in [src/lib/templates.js](src/lib/templates.js); adding five to eight polished layouts is low risk and high perceived value.
-* **Custom export sizes** — presets are 600, 1000, and 3000; allow an arbitrary square size for other platform specs.
-* **Layer rotation** — text, image, and shape layers lack rotation; a single transform generalizes across all three.
+* **Curved or arced text** — high visual payoff; renders as `<textPath>` and stays exportable SVG. Tracked in issue #1.
+* ~~**Layer lock and visibility toggles**~~ Done — each real layer row in the Layers panel has eye and lock buttons setting per-layer `hidden`/`locked` flags; hidden layers drop out of the canvas and exports, locked layers can't be dragged, resized, nudged, or deleted. (Per-layer opacity for text/shape is still open — tracked in issue #3.)
+* **More shapes** — triangle and a rounded-rect radius are done (`trianglePoints`/`cornerRadius` in [src/lib/shapes.js](src/lib/shapes.js), tested). A line primitive (different fill/resize model) is still open — tracked in issue #4.
+* ~~**More templates**~~ Done — nine layouts now ship (a `text()` helper keeps each in sync with `TEXT_KEYS`) in [src/lib/templates.js](src/lib/templates.js).
+* ~~**Custom export sizes**~~ Done — a "Custom…" option in the Export size select reveals an arbitrary square-size input (clamped by `clampExportSize`).
+* **Layer rotation** — text, image, and shape layers lack rotation; a single transform generalizes across all three. Tracked in issue #2.
 
 ## 5. Performance and robustness
 
 In progress.
 
 * Done: **render audit during drag**. The drag/select handlers passed down are all `useCallback`-stable and the drag commit updates layers immutably (non-dragged layers keep their references), so wrapping the canvas leaf views in `React.memo` lets unchanged layers bail out of re-render on every drag tick. Memoized `TextElement`, `ImageElement`, `ShapeElement`, `GradientBackground`, `ColorOverlay`, and `GridOverlay` (so the grid is not rebuilt mid-drag).
-* Next: **large background in localStorage** — large data URLs already trigger the documented quota fallback that drops the image. Move the image blob to IndexedDB (keeping the small layout in localStorage) to avoid silently losing the background.
-* **Large-canvas export** — 3000px rasterization runs on the main thread. Consider `OffscreenCanvas` or a worker for batch export so multi-image ZIPs do not freeze the UI.
+* Next: **large background in localStorage** — large data URLs already trigger the documented quota fallback that drops the image. Move the image blob to IndexedDB (keeping the small layout in localStorage) to avoid silently losing the background. Tracked in issue #5.
+* **Large-canvas export** — 3000px rasterization runs on the main thread. Consider `OffscreenCanvas` or a worker for batch export so multi-image ZIPs do not freeze the UI. Tracked in issue #6.
 
 ## 6. Accessibility and UX polish
 
 The foundation is strong (ARIA live region, keyboard layer selection, focus rings). Smaller wins:
 
-* Wire the new `jsx-a11y` lint and an automated axe pass into a component test.
-* Verify touch behavior: drag uses pointer events, but the icon-only layer-row buttons at `h-3.5 w-3.5` are below comfortable tap-target size on mobile.
+* Wire the new `jsx-a11y` lint and an automated axe pass into a component test. Tracked in issue #9.
+* Verify touch behavior: drag uses pointer events, but the icon-only layer-row buttons at `h-3.5 w-3.5` are below comfortable tap-target size on mobile (the new lock/visibility toggles already wrap their icons in larger `p-1` hit areas). Tracked in issue #10.
 * ~~Add a visible saved or unsaved indicator for the 500ms auto-save debounce.~~ Done — a "Saving…/Saved" badge under the canvas tracks the debounce (`saveStatus`).
 
 ## Suggested sequencing
