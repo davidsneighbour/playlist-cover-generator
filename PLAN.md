@@ -16,7 +16,7 @@ Cheap, high value, and currently absent.
 | No linter or formatter | Add ESLint (flat config) with `eslint-plugin-react-hooks` and `eslint-plugin-jsx-a11y`, plus Prettier. With 111 hook calls in one component, the hooks plugin alone will catch real dependency-array bugs. |
 | No shipped types | Hand-write an `index.d.ts` for the `CoverGenerator` props and the state-object contract, and add a `"types"` field to package.json. The state shape is already documented in [AGENTS.md](AGENTS.md), so this is largely transcription. |
 | No `engines` field | The README states Node 18+, but package.json does not enforce it. Add `"engines": { "node": ">=18" }`. |
-| No changelog | Commits already follow Conventional Commits. Adopt a generated `CHANGELOG.md` so the eventual publish past `0.1.0` is traceable. |
+| ~~No changelog~~ Done | A [CHANGELOG.md](CHANGELOG.md) (Keep a Changelog format) now records the `0.1.0` work and carries an Unreleased section for ongoing changes. |
 
 ## 2. Test coverage gap
 
