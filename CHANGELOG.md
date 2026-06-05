@@ -4,7 +4,11 @@ All notable changes to this project are documented here. The format is based on 
 
 ## Unreleased
 
-Nothing yet.
+### Added
+
+* Six more cover layout templates (Top & bottom, Quote, Bold stack, Podcast, Festival, Corner label).
+* A custom square export size, beyond the 600/1000/3000 presets.
+* Multi-line text: the content field accepts newlines, with a per-layer line-height control.
 
 ## 0.1.0 - 2026-06-05
 

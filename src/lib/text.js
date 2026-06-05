@@ -1,5 +1,22 @@
 // Pure helpers for text-layer presentation.
 
+// Default line-height (as a multiple of the font size) for multi-line text.
+export const DEFAULT_LINE_HEIGHT = 1.2
+
+// Split a text layer's content into its individual lines. Newlines (\n) in the
+// content become separate lines, each rendered as its own <tspan>. Always
+// returns at least one entry so a single-line layer renders unchanged.
+export function textLines(text) {
+  return String(text?.content ?? '').split('\n')
+}
+
+// Line-height as a multiple of the font size, used as the per-line `dy` (in em).
+// Falls back to the default for missing or non-positive values.
+export function lineHeightEm(text) {
+  const lh = Number(text?.lineHeight)
+  return Number.isFinite(lh) && lh > 0 ? lh : DEFAULT_LINE_HEIGHT
+}
+
 // Default outline color used when a layer turns on a stroke without picking one.
 export const DEFAULT_STROKE_COLOR = '#000000'
 

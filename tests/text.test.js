@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { textStrokeAttrs, textShadowFilter, DEFAULT_STROKE_COLOR, DEFAULT_SHADOW_COLOR } from '../src/lib/text'
+import { textStrokeAttrs, textShadowFilter, textLines, lineHeightEm, DEFAULT_STROKE_COLOR, DEFAULT_SHADOW_COLOR, DEFAULT_LINE_HEIGHT } from '../src/lib/text'
 
 describe('textStrokeAttrs', () => {
   it('returns no stroke when strokeWidth is 0', () => {
@@ -60,5 +60,37 @@ describe('textShadowFilter', () => {
   it('defaults missing offsets to zero and coerces numeric strings', () => {
     const out = textShadowFilter({ id: 4, shadow: { blur: '6', dx: '2' } })
     expect(out).toMatchObject({ dx: 2, dy: 0, stdDeviation: 6 })
+  })
+})
+
+describe('textLines', () => {
+  it('returns a single entry for single-line content', () => {
+    expect(textLines({ content: 'hello' })).toEqual(['hello'])
+  })
+
+  it('splits on newlines into one entry per line', () => {
+    expect(textLines({ content: 'a\nb\nc' })).toEqual(['a', 'b', 'c'])
+  })
+
+  it('preserves empty lines', () => {
+    expect(textLines({ content: 'a\n\nb' })).toEqual(['a', '', 'b'])
+  })
+
+  it('returns a single empty string for missing content', () => {
+    expect(textLines({})).toEqual([''])
+    expect(textLines(null)).toEqual([''])
+  })
+})
+
+describe('lineHeightEm', () => {
+  it('returns the layer line-height when valid', () => {
+    expect(lineHeightEm({ lineHeight: 1.5 })).toBe(1.5)
+  })
+
+  it('falls back to the default for missing or invalid values', () => {
+    expect(lineHeightEm({})).toBe(DEFAULT_LINE_HEIGHT)
+    expect(lineHeightEm({ lineHeight: 0 })).toBe(DEFAULT_LINE_HEIGHT)
+    expect(lineHeightEm({ lineHeight: -2 })).toBe(DEFAULT_LINE_HEIGHT)
+    expect(lineHeightEm({ lineHeight: 'x' })).toBe(DEFAULT_LINE_HEIGHT)
   })
 })

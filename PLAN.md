@@ -45,7 +45,7 @@ This is a refactor only and lands after the safety net, not before.
 
 Ordered by value-to-effort. All extend the documented state contract cleanly.
 
-* **Multi-line text with line-height** — text is currently a single string with an anchor. Multi-line via `<tspan>` plus a line-height control is the most common gap for cover art.
+* ~~**Multi-line text with line-height**~~ Done — `content` accepts newlines, rendered one `<tspan>` per line with a `lineHeight` control (`textLines`/`lineHeightEm` in [src/lib/text.js](src/lib/text.js), tested).
 * **Curved or arced text** — high visual payoff; renders as `<textPath>` and stays exportable SVG.
 * **Layer opacity, lock, and visibility toggles** in the layers overview — the panel already lists every layer, so adding eye and lock icons per `LayerRow` is a natural extension.
 * **More shapes** — line, triangle or polygon, and a rounded-rect radius. The `x/y/width/height` model already generalizes.

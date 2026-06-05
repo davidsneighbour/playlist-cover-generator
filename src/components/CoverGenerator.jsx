@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo, memo } from 'react'
 import { reorder, bringToFront, sendToBack, displayIndexToArrayIndex, duplicateById } from '../lib/layers'
 import { TEMPLATES, getTemplate, instantiateTemplate } from '../lib/templates'
-import { textStrokeAttrs, textShadowFilter } from '../lib/text'
+import { textStrokeAttrs, textShadowFilter, textLines, lineHeightEm } from '../lib/text'
 import { BUILTIN_FONTS, googleFontCssUrl, buildFontFaceRule, addFont, googleFontsListUrl, filterFontNames, fontVariantKey, variantFontFace, pickVariantFile } from '../lib/fonts'
 import { BLEND_MODES, createImageLayer, clampOpacity, centeredPosition, coverDimensions, scaleDimensions, dimensionPercent, aspectHeight, aspectWidth, offCanvasBounds, resizeFromCorner } from '../lib/images'
 import { createShape, ellipseGeometry } from '../lib/shapes'
@@ -121,7 +121,11 @@ const TextElement = memo(function TextElement({ text, selected, onSelect, onDrag
       aria-pressed={selected}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(text.id) } }}
     >
-      {text.content}
+      {textLines(text).map((line, i) => (
+        <tspan key={i} x={text.x} dy={i === 0 ? 0 : `${lineHeightEm(text)}em`}>
+          {line || '\u200b'}
+        </tspan>
+      ))}
       {selected && (
         <title>Selected: drag to move</title>
       )}
@@ -808,6 +812,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
         stroke: '#000000',
         strokeWidth: 0,
         shadow: null,
+        lineHeight: 1.2,
       }]
     }))
     selectText(id)
@@ -1604,12 +1609,14 @@ export default function CoverGenerator({ initialState, onStateChange, className 
         {selectedText && (
           <CollapsibleCard id="props-text" title="Text Properties">
             <label className="block text-xs text-gray-500 mb-1">Content</label>
-            <input
-              className="input w-full"
+            <textarea
+              className="input w-full resize-y"
               aria-label="Text content"
+              rows={2}
               value={selectedText.content}
               onChange={e => updateText(selectedText.id, { content: e.target.value }, `content-${selectedText.id}`)}
             />
+            <p className="text-[11px] text-gray-400 leading-tight mt-1">Press Enter for a new line.</p>
 
             <div className="grid grid-cols-2 gap-2 mt-2">
               <div>
@@ -1632,6 +1639,17 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                   value={selectedText.fontSize}
                   min={8} max={200}
                   onChange={e => updateText(selectedText.id, { fontSize: Number(e.target.value) }, `size-${selectedText.id}`)}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Line height</label>
+                <input
+                  type="number"
+                  className="input w-full"
+                  aria-label="Line height"
+                  value={selectedText.lineHeight ?? 1.2}
+                  min={0.5} max={3} step={0.1}
+                  onChange={e => updateText(selectedText.id, { lineHeight: Number(e.target.value) }, `line-height-${selectedText.id}`)}
                 />
               </div>
             </div>
