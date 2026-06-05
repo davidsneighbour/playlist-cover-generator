@@ -11,6 +11,7 @@ All notable changes to this project are documented here. The format is based on 
 * Multi-line text: the content field accepts newlines, with a per-layer line-height control.
 * Per-layer lock and visibility toggles in the Layers panel: hidden layers leave the canvas and exports; locked layers can't be dragged, resized, nudged, or deleted.
 * A "Saving…/Saved" auto-save indicator under the canvas reflecting the 500ms debounce.
+* A triangle shape primitive and a corner-radius control for rectangles.
 
 ## 0.1.0 - 2026-06-05
 

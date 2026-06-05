@@ -4,7 +4,7 @@ import { TEMPLATES, getTemplate, instantiateTemplate } from '../lib/templates'
 import { textStrokeAttrs, textShadowFilter, textLines, lineHeightEm } from '../lib/text'
 import { BUILTIN_FONTS, googleFontCssUrl, buildFontFaceRule, addFont, googleFontsListUrl, filterFontNames, fontVariantKey, variantFontFace, pickVariantFile } from '../lib/fonts'
 import { BLEND_MODES, createImageLayer, clampOpacity, centeredPosition, coverDimensions, scaleDimensions, dimensionPercent, aspectHeight, aspectWidth, offCanvasBounds, resizeFromCorner } from '../lib/images'
-import { createShape, ellipseGeometry } from '../lib/shapes'
+import { createShape, ellipseGeometry, trianglePoints, cornerRadius } from '../lib/shapes'
 import { DEFAULT_OVERLAY, OVERLAY_TYPES, gradientVector } from '../lib/overlay'
 import { DEFAULT_BACKGROUND_GRADIENT, BACKGROUND_GRADIENT_TYPES, DEFAULT_BACKGROUND_TRANSFORM, backgroundCrop } from '../lib/background'
 import { DEFAULT_FILTERS, isFilterActive, brightnessContrastTransfer } from '../lib/filters'
@@ -25,7 +25,7 @@ import { isOpen as isCardOpen, toggleOpen, togglePin, openCard } from '../lib/ac
 import { AccordionContext, CollapsibleCard } from './Accordion'
 import {
   Undo2, Redo2, LayoutTemplate, Plus, Search, Upload, Trash2, RotateCcw,
-  Square, Circle, GripVertical, Copy, BringToFront, SendToBack,
+  Square, Circle, Triangle, GripVertical, Copy, BringToFront, SendToBack,
   FileImage, FileCode, Save, FolderOpen, Link, Package, CircleHelp,
   Type, Blend, Image as ImageIcon, Eye, EyeOff, Lock, LockOpen, Loader2, Check,
 } from 'lucide-react'
@@ -241,7 +241,11 @@ const ShapeElement = memo(function ShapeElement({ shape, selected, locked, onSel
     const g = ellipseGeometry(shape)
     return <ellipse cx={g.cx} cy={g.cy} rx={g.rx} ry={g.ry} {...common} />
   }
-  return <rect x={shape.x} y={shape.y} width={shape.width} height={shape.height} {...common} />
+  if (shape.type === 'triangle') {
+    return <polygon points={trianglePoints(shape)} {...common} />
+  }
+  const r = cornerRadius(shape)
+  return <rect x={shape.x} y={shape.y} width={shape.width} height={shape.height} rx={r || undefined} ry={r || undefined} {...common} />
 })
 
 // Two-stop gradient that fills the canvas beneath the background image, so it
@@ -540,7 +544,7 @@ function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, on
 // click outside the panel (both via Headless UI Dialog's onClose), and on the X.
 // Icon glyphs for the Layers overview rows, keyed by the entry's `icon` string
 // from buildLayerList (kept out of the lib so it stays DOM-free and testable).
-const LAYER_ICONS = { type: Type, square: Square, circle: Circle, image: ImageIcon, blend: Blend }
+const LAYER_ICONS = { type: Type, square: Square, circle: Circle, triangle: Triangle, image: ImageIcon, blend: Blend }
 
 // One row in the Layers overview panel. Clicking it jumps to that layer's
 // controls (selecting it, or opening the background/overlay card). Selection is
@@ -1912,9 +1916,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
 
         {/* Shapes */}
         <CollapsibleCard id="shapes" title="Shapes">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <button className="btn-primary text-sm" onClick={() => addShape('rect')}><Square className="h-4 w-4" />Rectangle</button>
             <button className="btn-primary text-sm" onClick={() => addShape('circle')}><Circle className="h-4 w-4" />Circle</button>
+            <button className="btn-primary text-sm" onClick={() => addShape('triangle')}><Triangle className="h-4 w-4" />Triangle</button>
           </div>
           {(state.shapes || []).length === 0 && <p className="text-xs text-gray-400 text-center py-1">No shapes yet</p>}
           {[...(state.shapes || [])].reverse().map((shape) => {
@@ -1971,6 +1976,9 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               <NumberInput label="Width" value={selectedShape.width} min={1} max={CANVAS_SIZE} onChange={v => updateShape(selectedShape.id, { width: v }, `shape-w-${selectedShape.id}`)} />
               <NumberInput label="Height" value={selectedShape.height} min={1} max={CANVAS_SIZE} onChange={v => updateShape(selectedShape.id, { height: v }, `shape-h-${selectedShape.id}`)} />
             </div>
+            {selectedShape.type === 'rect' && (
+              <NumberInput label="Corner radius" value={selectedShape.radius ?? 0} min={0} max={Math.floor(Math.min(selectedShape.width, selectedShape.height) / 2)} onChange={v => updateShape(selectedShape.id, { radius: v }, `shape-radius-${selectedShape.id}`)} hint="0 = sharp" />
+            )}
             <div className="grid grid-cols-2 gap-2">
               <NumberInput label="X position" value={selectedShape.x} min={0} max={CANVAS_SIZE} onChange={v => updateShape(selectedShape.id, { x: v }, `shape-x-${selectedShape.id}`)} />
               <NumberInput label="Y position" value={selectedShape.y} min={0} max={CANVAS_SIZE} onChange={v => updateShape(selectedShape.id, { y: v }, `shape-y-${selectedShape.id}`)} />

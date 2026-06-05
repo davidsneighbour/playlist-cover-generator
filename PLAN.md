@@ -48,7 +48,7 @@ Ordered by value-to-effort. All extend the documented state contract cleanly.
 * ~~**Multi-line text with line-height**~~ Done — `content` accepts newlines, rendered one `<tspan>` per line with a `lineHeight` control (`textLines`/`lineHeightEm` in [src/lib/text.js](src/lib/text.js), tested).
 * **Curved or arced text** — high visual payoff; renders as `<textPath>` and stays exportable SVG.
 * ~~**Layer lock and visibility toggles**~~ Done — each real layer row in the Layers panel has eye and lock buttons setting per-layer `hidden`/`locked` flags; hidden layers drop out of the canvas and exports, locked layers can't be dragged, resized, nudged, or deleted. (Per-layer opacity for text/shape is still open — tracked as a GitHub issue.)
-* **More shapes** — line, triangle or polygon, and a rounded-rect radius. The `x/y/width/height` model already generalizes.
+* **More shapes** — triangle and a rounded-rect radius are done (`trianglePoints`/`cornerRadius` in [src/lib/shapes.js](src/lib/shapes.js), tested). A line primitive (different fill/resize model) is still open — tracked as a GitHub issue.
 * **More templates** — only three exist. Templates are pure data in [src/lib/templates.js](src/lib/templates.js); adding five to eight polished layouts is low risk and high perceived value.
 * **Custom export sizes** — presets are 600, 1000, and 3000; allow an arbitrary square size for other platform specs.
 * **Layer rotation** — text, image, and shape layers lack rotation; a single transform generalizes across all three.

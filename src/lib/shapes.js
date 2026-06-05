@@ -3,7 +3,7 @@
 // dragging and snapping are identical, and they live in their own `shapes`
 // array whose order is paint order.
 
-export const SHAPE_TYPES = ['rect', 'circle']
+export const SHAPE_TYPES = ['rect', 'circle', 'triangle']
 
 export const DEFAULT_SHAPE = {
   x: 220,
@@ -14,6 +14,7 @@ export const DEFAULT_SHAPE = {
   stroke: '#000000',
   strokeWidth: 0,
   opacity: 1,
+  radius: 0, // corner radius for rectangles; ignored by other types
 }
 
 export function isShapeType(type) {
@@ -34,4 +35,23 @@ export function ellipseGeometry(shape) {
     rx: shape.width / 2,
     ry: shape.height / 2,
   }
+}
+
+// SVG `points` for a triangle fit to the box: apex at the top-center, base
+// across the bottom edge. Returned as the "x,y x,y x,y" string a <polygon> uses.
+export function trianglePoints(shape) {
+  const { x, y, width, height } = shape
+  const apex = `${x + width / 2},${y}`
+  const bl = `${x},${y + height}`
+  const br = `${x + width},${y + height}`
+  return `${apex} ${bl} ${br}`
+}
+
+// Corner radius for a rectangle, clamped so it never exceeds half the smaller
+// side (an over-large radius otherwise renders oddly). Non-rects get 0.
+export function cornerRadius(shape) {
+  if (shape.type !== 'rect') return 0
+  const r = Number(shape.radius) || 0
+  if (r <= 0) return 0
+  return Math.min(r, Math.min(shape.width, shape.height) / 2)
 }
