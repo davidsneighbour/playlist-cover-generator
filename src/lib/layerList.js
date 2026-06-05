@@ -24,7 +24,9 @@ export function buildLayerList(state, selection = {}) {
       icon: 'type',
       label: t.content && t.content.trim() ? t.content : '(empty text)',
       selected: t.id === selectedTextId,
-      muted: false,
+      muted: !!t.hidden,
+      hidden: !!t.hidden,
+      locked: !!t.locked,
     })
   }
 
@@ -39,7 +41,9 @@ export function buildLayerList(state, selection = {}) {
       icon: s.type === 'circle' ? 'circle' : 'square',
       label: s.type === 'circle' ? 'Circle' : 'Rectangle',
       selected: s.id === selectedShapeId,
-      muted: false,
+      muted: !!s.hidden,
+      hidden: !!s.hidden,
+      locked: !!s.locked,
     })
   }
 
@@ -54,7 +58,9 @@ export function buildLayerList(state, selection = {}) {
       icon: 'image',
       label: img.name || 'Image',
       selected: img.id === selectedImageId,
-      muted: false,
+      muted: !!img.hidden,
+      hidden: !!img.hidden,
+      locked: !!img.locked,
     })
   }
 

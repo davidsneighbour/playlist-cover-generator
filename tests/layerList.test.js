@@ -76,4 +76,19 @@ describe('buildLayerList', () => {
     const list = buildLayerList({ overlay: { enabled: true } })
     expect(list.find(e => e.kind === 'overlay').muted).toBe(false)
   })
+
+  it('carries hidden and locked flags for each layer, defaulting to false', () => {
+    const state = {
+      texts: [{ id: 1, content: 'T', hidden: true }],
+      shapes: [{ id: 2, type: 'rect', locked: true }],
+      images: [{ id: 3, name: 'i' }],
+    }
+    const list = buildLayerList(state)
+    const text = list.find(e => e.kind === 'text')
+    const shape = list.find(e => e.kind === 'shape')
+    const image = list.find(e => e.kind === 'image')
+    expect(text).toMatchObject({ hidden: true, locked: false, muted: true })
+    expect(shape).toMatchObject({ hidden: false, locked: true, muted: false })
+    expect(image).toMatchObject({ hidden: false, locked: false, muted: false })
+  })
 })

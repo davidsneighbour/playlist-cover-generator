@@ -18,7 +18,7 @@ import { useSvgDrag } from '../hooks/useSvgDrag'
 import { STORAGE_KEY, serializeState, serializeStateWithoutImage, parseStoredState } from '../lib/storage'
 import { SHARE_PARAM, encodeShareState, decodeShareState, readShareToken } from '../lib/share'
 import { buildZip } from '../lib/zip'
-import { actionAnnouncement, describeLayer } from '../lib/a11y'
+import { actionAnnouncement, describeLayer, layerNoun } from '../lib/a11y'
 import { buildLayerList } from '../lib/layerList'
 import { averageRgb, pickContrastColor } from '../lib/color'
 import { isOpen as isCardOpen, toggleOpen, togglePin, openCard } from '../lib/accordion'
@@ -27,7 +27,7 @@ import {
   Undo2, Redo2, LayoutTemplate, Plus, Search, Upload, Trash2, RotateCcw,
   Square, Circle, GripVertical, Copy, BringToFront, SendToBack,
   FileImage, FileCode, Save, FolderOpen, Link, Package, CircleHelp,
-  Type, Blend, Image as ImageIcon,
+  Type, Blend, Image as ImageIcon, Eye, EyeOff, Lock, LockOpen,
 } from 'lucide-react'
 import { CANVAS_SIZE, RULER, DUP_OFFSET } from '../lib/constants'
 import { GridOverlay } from './GridOverlay'
@@ -89,7 +89,7 @@ function loadImageFile(file) {
   })
 }
 
-const TextElement = memo(function TextElement({ text, selected, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize }) {
+const TextElement = memo(function TextElement({ text, selected, locked, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize }) {
   const handleMouseDown = useSvgDrag({
     getAnchor: () => ({ x: text.x, y: text.y }),
     onMove: (nx, ny) => onDrag(text.id, nx, ny),
@@ -112,14 +112,14 @@ const TextElement = memo(function TextElement({ text, selected, onSelect, onDrag
       fontStyle={text.italic ? 'italic' : 'normal'}
       textAnchor={text.anchor || 'start'}
       dominantBaseline="auto"
-      style={{ cursor: 'move', userSelect: 'none' }}
-      onMouseDown={handleMouseDown}
+      style={{ cursor: locked ? 'default' : 'move', userSelect: 'none', pointerEvents: locked ? 'none' : undefined }}
+      onMouseDown={locked ? undefined : handleMouseDown}
       data-text-id={text.id}
-      tabIndex={0}
+      tabIndex={locked ? -1 : 0}
       role="button"
       aria-label={describeLayer('text', text)}
       aria-pressed={selected}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(text.id) } }}
+      onKeyDown={(e) => { if (!locked && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onSelect(text.id) } }}
     >
       {textLines(text).map((line, i) => (
         <tspan key={i} x={text.x} dy={i === 0 ? 0 : `${lineHeightEm(text)}em`}>
@@ -133,7 +133,7 @@ const TextElement = memo(function TextElement({ text, selected, onSelect, onDrag
   )
 })
 
-const ImageElement = memo(function ImageElement({ image, selected, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize }) {
+const ImageElement = memo(function ImageElement({ image, selected, locked, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize }) {
   const handleMouseDown = useSvgDrag({
     getAnchor: () => ({ x: image.x, y: image.y }),
     onMove: (nx, ny) => onDrag(image.id, nx, ny),
@@ -153,14 +153,14 @@ const ImageElement = memo(function ImageElement({ image, selected, onSelect, onD
       height={image.height}
       opacity={image.opacity}
       preserveAspectRatio="none"
-      style={{ cursor: 'move', mixBlendMode: image.blendMode !== 'normal' ? image.blendMode : undefined }}
-      onMouseDown={handleMouseDown}
+      style={{ cursor: locked ? 'default' : 'move', pointerEvents: locked ? 'none' : undefined, mixBlendMode: image.blendMode !== 'normal' ? image.blendMode : undefined }}
+      onMouseDown={locked ? undefined : handleMouseDown}
       data-image-id={image.id}
-      tabIndex={0}
+      tabIndex={locked ? -1 : 0}
       role="button"
       aria-label={describeLayer('image', image)}
       aria-pressed={selected}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(image.id) } }}
+      onKeyDown={(e) => { if (!locked && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onSelect(image.id) } }}
     />
   )
 })
@@ -213,7 +213,7 @@ function ResizeHandles({ box, ratio, onResize }) {
   ))
 }
 
-const ShapeElement = memo(function ShapeElement({ shape, selected, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize }) {
+const ShapeElement = memo(function ShapeElement({ shape, selected, locked, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize }) {
   const handleMouseDown = useSvgDrag({
     getAnchor: () => ({ x: shape.x, y: shape.y }),
     onMove: (nx, ny) => onDrag(shape.id, nx, ny),
@@ -227,14 +227,14 @@ const ShapeElement = memo(function ShapeElement({ shape, selected, onSelect, onD
     stroke: shape.strokeWidth > 0 ? shape.stroke : 'none',
     strokeWidth: shape.strokeWidth,
     opacity: shape.opacity,
-    style: { cursor: 'move' },
-    onMouseDown: handleMouseDown,
+    style: { cursor: locked ? 'default' : 'move', pointerEvents: locked ? 'none' : undefined },
+    onMouseDown: locked ? undefined : handleMouseDown,
     'data-shape-id': shape.id,
-    tabIndex: 0,
+    tabIndex: locked ? -1 : 0,
     role: 'button',
     'aria-label': describeLayer('shape', shape),
     'aria-pressed': selected,
-    onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(shape.id) } },
+    onKeyDown: (e) => { if (!locked && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onSelect(shape.id) } },
   }
 
   if (shape.type === 'circle') {
@@ -431,11 +431,12 @@ function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, on
 
       <ColorOverlay overlay={state.overlay} size={CANVAS_SIZE} />
 
-      {(state.images || []).map((image) => (
+      {(state.images || []).filter(image => !image.hidden).map((image) => (
         <ImageElement
           key={image.id}
           image={image}
           selected={image.id === selectedImageId}
+          locked={!!image.locked}
           onSelect={onSelectImage}
           onDrag={onDragImage}
           snapToGrid={state.snapToGrid}
@@ -444,11 +445,12 @@ function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, on
         />
       ))}
 
-      {(state.shapes || []).map((shape) => (
+      {(state.shapes || []).filter(shape => !shape.hidden).map((shape) => (
         <ShapeElement
           key={shape.id}
           shape={shape}
           selected={shape.id === selectedShapeId}
+          locked={!!shape.locked}
           onSelect={onSelectShape}
           onDrag={onDragShape}
           snapToGrid={state.snapToGrid}
@@ -459,11 +461,12 @@ function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, on
 
       <GridOverlay grid={state.grid} size={CANVAS_SIZE} />
 
-      {state.texts.map((text) => (
+      {state.texts.filter(text => !text.hidden).map((text) => (
         <TextElement
           key={text.id}
           text={text}
           selected={text.id === selectedTextId}
+          locked={!!text.locked}
           onSelect={onSelectText}
           onDrag={onDragText}
           snapToGrid={state.snapToGrid}
@@ -472,7 +475,7 @@ function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, on
         />
       ))}
 
-      {selectedImageId && (state.images || []).find(i => i.id === selectedImageId) && (() => {
+      {selectedImageId && (state.images || []).find(i => i.id === selectedImageId && !i.hidden) && (() => {
         const img = state.images.find(i => i.id === selectedImageId)
         const ratio = img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : img.width / img.height
         return (
@@ -488,12 +491,12 @@ function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, on
               strokeDasharray="4 2"
               style={{ pointerEvents: 'none' }}
             />
-            <ResizeHandles box={img} ratio={ratio} onResize={(patch) => onResizeImage(img.id, patch)} />
+            {!img.locked && <ResizeHandles box={img} ratio={ratio} onResize={(patch) => onResizeImage(img.id, patch)} />}
           </g>
         )
       })()}
 
-      {selectedShapeId && (state.shapes || []).find(s => s.id === selectedShapeId) && (() => {
+      {selectedShapeId && (state.shapes || []).find(s => s.id === selectedShapeId && !s.hidden) && (() => {
         const shape = state.shapes.find(s => s.id === selectedShapeId)
         return (
           <rect
@@ -511,7 +514,7 @@ function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, on
         )
       })()}
 
-      {textBox && selectedTextId && state.texts.some(t => t.id === selectedTextId) && (() => {
+      {textBox && selectedTextId && state.texts.some(t => t.id === selectedTextId && !t.hidden) && (() => {
         const pad = 4
         return (
           <rect
@@ -542,18 +545,49 @@ const LAYER_ICONS = { type: Type, square: Square, circle: Circle, image: ImageIc
 // One row in the Layers overview panel. Clicking it jumps to that layer's
 // controls (selecting it, or opening the background/overlay card). Selection is
 // reflected like the per-type lists; singletons that are off/empty are muted.
-function LayerRow({ entry, onSelect }) {
+function LayerRow({ entry, onSelect, onToggleVisibility, onToggleLock }) {
   const Icon = LAYER_ICONS[entry.icon]
+  // Real layers (text/image/shape) carry an id and can be hidden or locked; the
+  // overlay/background singletons have their own enable controls elsewhere.
+  const togglable = entry.id != null
   return (
-    <button
-      type="button"
-      onClick={() => onSelect(entry)}
-      aria-pressed={entry.selected}
-      className={`flex w-full items-center gap-2 rounded border px-2 py-1.5 text-left text-sm transition-colors cursor-pointer ${entry.selected ? 'border-blue-400 bg-blue-50 text-gray-900' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'}`}
+    <div
+      className={`flex w-full items-center gap-1.5 rounded border px-2 py-1.5 text-sm transition-colors ${entry.selected ? 'border-blue-400 bg-blue-50 text-gray-900' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'}`}
     >
-      {Icon && <Icon className={`h-3.5 w-3.5 shrink-0 ${entry.muted ? 'text-gray-300' : 'text-gray-400'}`} aria-hidden="true" />}
-      <span className={`truncate flex-1 ${entry.muted ? 'text-gray-400 italic' : ''}`}>{entry.label}</span>
-    </button>
+      <button
+        type="button"
+        onClick={() => onSelect(entry)}
+        aria-pressed={entry.selected}
+        className="flex flex-1 items-center gap-2 text-left cursor-pointer min-w-0"
+      >
+        {Icon && <Icon className={`h-3.5 w-3.5 shrink-0 ${entry.muted ? 'text-gray-300' : 'text-gray-400'}`} aria-hidden="true" />}
+        <span className={`truncate flex-1 ${entry.muted ? 'text-gray-400 italic' : ''}`}>{entry.label}</span>
+      </button>
+      {togglable && (
+        <>
+          <button
+            type="button"
+            onClick={() => onToggleLock(entry)}
+            aria-pressed={entry.locked}
+            title={entry.locked ? 'Unlock layer' : 'Lock layer'}
+            aria-label={entry.locked ? 'Unlock layer' : 'Lock layer'}
+            className="shrink-0 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 cursor-pointer"
+          >
+            {entry.locked ? <Lock className="h-3.5 w-3.5" /> : <LockOpen className="h-3.5 w-3.5" />}
+          </button>
+          <button
+            type="button"
+            onClick={() => onToggleVisibility(entry)}
+            aria-pressed={!entry.hidden}
+            title={entry.hidden ? 'Show layer' : 'Hide layer'}
+            aria-label={entry.hidden ? 'Show layer' : 'Hide layer'}
+            className="shrink-0 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 cursor-pointer"
+          >
+            {entry.hidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+          </button>
+        </>
+      )}
+    </div>
   )
 }
 
@@ -644,6 +678,27 @@ export default function CoverGenerator({ initialState, onStateChange, className 
       default: break
     }
   }, [selectText, selectShape, selectImage, accOpenCard])
+
+  // Map a layer-list entry kind to its array key in state. Only text/image/shape
+  // are stored as arrays of layers; returns null for the singletons.
+  const layerArrayKey = (kind) => (kind === 'text' ? 'texts' : kind === 'image' ? 'images' : kind === 'shape' ? 'shapes' : null)
+
+  // Toggle a per-layer boolean flag (hidden/locked) by id. One undo step each.
+  const setLayerFlag = useCallback((entry, flag, value) => {
+    const key = layerArrayKey(entry.kind)
+    if (!key) return
+    update(prev => ({ ...prev, [key]: (prev[key] || []).map(l => l.id === entry.id ? { ...l, [flag]: value } : l) }))
+  }, [update])
+
+  const toggleLayerVisibility = useCallback((entry) => {
+    setLayerFlag(entry, 'hidden', !entry.hidden)
+    announce(`${layerNoun(entry.kind)} ${entry.hidden ? 'shown' : 'hidden'}`)
+  }, [setLayerFlag, announce])
+
+  const toggleLayerLock = useCallback((entry) => {
+    setLayerFlag(entry, 'locked', !entry.locked)
+    announce(`${layerNoun(entry.kind)} ${entry.locked ? 'unlocked' : 'locked'}`)
+  }, [setLayerFlag, announce])
 
   // Fit the canvas to the column, leaving room for the rulers when shown. We
   // observe the column (its width comes from the page layout, not its children)
@@ -1085,9 +1140,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   // Coalesced per layer so a burst of arrow presses is a single undo step.
   const nudgeSelected = useCallback((dx, dy) => {
     update(prev => {
-      if (selectedTextId != null) return { ...prev, texts: prev.texts.map(t => t.id === selectedTextId ? { ...t, x: t.x + dx, y: t.y + dy } : t) }
-      if (selectedImageId != null) return { ...prev, images: (prev.images || []).map(i => i.id === selectedImageId ? { ...i, x: i.x + dx, y: i.y + dy } : i) }
-      if (selectedShapeId != null) return { ...prev, shapes: (prev.shapes || []).map(s => s.id === selectedShapeId ? { ...s, x: s.x + dx, y: s.y + dy } : s) }
+      // Locked layers stay put even when selected via the panel.
+      if (selectedTextId != null) return { ...prev, texts: prev.texts.map(t => t.id === selectedTextId && !t.locked ? { ...t, x: t.x + dx, y: t.y + dy } : t) }
+      if (selectedImageId != null) return { ...prev, images: (prev.images || []).map(i => i.id === selectedImageId && !i.locked ? { ...i, x: i.x + dx, y: i.y + dy } : i) }
+      if (selectedShapeId != null) return { ...prev, shapes: (prev.shapes || []).map(s => s.id === selectedShapeId && !s.locked ? { ...s, x: s.x + dx, y: s.y + dy } : s) }
       return prev
     }, `nudge-${selectedTextId ?? ''}-${selectedImageId ?? ''}-${selectedShapeId ?? ''}`)
   }, [update, selectedTextId, selectedImageId, selectedShapeId])
@@ -1106,9 +1162,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
       }
       if (isDeleteKey(e.key)) {
         e.preventDefault()
-        if (selectedTextId != null) deleteText(selectedTextId)
-        else if (selectedImageId != null) deleteImage(selectedImageId)
-        else if (selectedShapeId != null) deleteShape(selectedShapeId)
+        // Locked layers are not removed by the keyboard; unlock them first.
+        if (selectedTextId != null) { if (!state.texts.find(t => t.id === selectedTextId)?.locked) deleteText(selectedTextId) }
+        else if (selectedImageId != null) { if (!(state.images || []).find(i => i.id === selectedImageId)?.locked) deleteImage(selectedImageId) }
+        else if (selectedShapeId != null) { if (!(state.shapes || []).find(s => s.id === selectedShapeId)?.locked) deleteShape(selectedShapeId) }
         return
       }
       const delta = nudgeDelta(e.key, e.shiftKey ? state.grid.spacing : 1)
@@ -1119,7 +1176,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [helpOpen, contextMenu, selectedTextId, selectedImageId, selectedShapeId, selectText, deleteText, deleteImage, deleteShape, nudgeSelected, state.grid.spacing])
+  }, [helpOpen, contextMenu, selectedTextId, selectedImageId, selectedShapeId, selectText, deleteText, deleteImage, deleteShape, nudgeSelected, state.grid.spacing, state.texts, state.images, state.shapes])
 
   // Inline the custom fonts actually used by text layers as base64 @font-face
   // rules in the cloned SVG, so PNG and SVG exports render and stay portable.
@@ -1410,7 +1467,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
         {/* Layers — overview of everything on the canvas; click an entry to open its controls */}
         <CollapsibleCard id="layers" title="Layers">
           {layerList.map(entry => (
-            <LayerRow key={entry.key} entry={entry} onSelect={goToLayer} />
+            <LayerRow key={entry.key} entry={entry} onSelect={goToLayer} onToggleVisibility={toggleLayerVisibility} onToggleLock={toggleLayerLock} />
           ))}
           <p className="text-[11px] text-gray-400 leading-tight">Click a layer to open its controls. Listed front to back.</p>
         </CollapsibleCard>
