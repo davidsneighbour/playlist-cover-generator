@@ -1,7 +1,10 @@
-// Pure helpers for stacked image layers (logos, overlays) placed over the
-// background. Layer order in the `images` array is the paint order: index 0 is
-// drawn first (lowest), the last item on top. The generic reorder helpers in
-// layers.js work on these objects too, since they key off `id`.
+/**
+ * @module images
+ * @description Pure helpers for stacked image layers (logos, overlays) placed over the
+ * background. Layer order in the `images` array is the paint order: index 0 is
+ * drawn first (lowest), the last item on top. The generic reorder helpers in
+ * layers.js work on these objects too, since they key off `id`.
+ */
 
 // CSS mix-blend-mode values offered for image layers.
 export const BLEND_MODES = [

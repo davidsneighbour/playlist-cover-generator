@@ -1,6 +1,9 @@
-// Node.js programmatic PNG generation from a template and named inputs.
-// Rasterizes with @resvg/resvg-js (optional peer dependency).
-// For browser generation, see src/lib/generate.js.
+/**
+ * @module generate.node
+ * @description Node.js programmatic PNG generation from a template and named
+ * inputs. Rasterizes with `@resvg/resvg-js` (optional peer dependency).
+ * For browser generation, see `src/lib/generate.js`.
+ */
 
 import { createElement } from 'react'
 import { renderToString } from 'react-dom/server'
@@ -34,14 +37,20 @@ function prepareNodeSvg(rawHtml, exportWidth, exportHeight) {
 }
 
 /**
- * Generate a PNG Buffer from a template id (or template object) and named inputs.
- * Requires @resvg/resvg-js to be installed.
+ * Generate a PNG buffer from a template and named inputs. **Node.js only.**
+ * Requires `@resvg/resvg-js` to be installed (`npm install @resvg/resvg-js`).
  *
- * inputs may include:
- *   backgroundImageData  — data URL for the background image
- *   [fieldName]          — string mapped to a text layer via template.fields
+ * @param {string|Object} templateOrId - Template id string or template object.
+ * @param {Object} [inputs={}] - Named inputs; see {@link buildStateFromTemplate}.
+ * @param {string} [inputs.backgroundImageData] - Data URL for the background image.
+ * @returns {Promise<Uint8Array>} PNG bytes at the template's `exportWidth × exportHeight`.
  *
- * Returns: Promise<Uint8Array> (PNG bytes)
+ * @example
+ * import { generateFromTemplate } from 'posterboy-image-generator/node'
+ * import { writeFileSync } from 'fs'
+ *
+ * const png = await generateFromTemplate('social-post', { title: 'Hello' })
+ * writeFileSync('output.png', png)
  */
 export async function generateFromTemplate(templateOrId, inputs = {}) {
   const state = buildStateFromTemplate(templateOrId, inputs)

@@ -1,7 +1,10 @@
-// Minimal, dependency-free ZIP writer using the STORE method (no compression).
-// PNGs are already compressed, so storing them as-is keeps the archive small
-// without pulling in a deflate implementation. The byte layout is pure and
-// unit-tested; the component supplies the file bytes and triggers the download.
+/**
+ * @module zip
+ * @description Minimal, dependency-free ZIP writer using the STORE method (no compression).
+ * PNGs are already compressed, so storing them as-is keeps the archive small
+ * without pulling in a deflate implementation. The byte layout is pure and
+ * unit-tested; the component supplies the file bytes and triggers the download.
+ */
 
 let CRC_TABLE = null
 function crcTable() {

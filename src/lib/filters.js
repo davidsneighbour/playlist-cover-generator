@@ -1,7 +1,10 @@
-// Pure helpers for the background image filters. The filter itself is an SVG
-// <filter> (so it survives PNG and SVG export, unlike a CSS `filter`); this
-// module holds the defaults, an "is anything changed?" check, and the math that
-// folds brightness and contrast into a single linear transfer function.
+/**
+ * @module filters
+ * @description Pure helpers for the background image filters. The filter itself is an SVG
+ * `<filter>` (so it survives PNG and SVG export, unlike a CSS `filter`); this
+ * module holds the defaults, an "is anything changed?" check, and the math that
+ * folds brightness and contrast into a single linear transfer function.
+ */
 
 // All multipliers are 1 = unchanged; blur is in canvas units (0 = none).
 export const DEFAULT_FILTERS = { brightness: 1, contrast: 1, saturate: 1, blur: 0 }

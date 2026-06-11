@@ -1,7 +1,10 @@
-// Pure helpers for shape primitives (rectangles and circles/ellipses). Shapes
-// share the same bounding-box model as image layers (x, y, width, height), so
-// dragging and snapping are identical, and they live in their own `shapes`
-// array whose order is paint order.
+/**
+ * @module shapes
+ * @description Pure helpers for shape primitives (rectangles, circles/ellipses, and
+ * triangles). Shapes share the same bounding-box model as image layers (x, y, width,
+ * height), so dragging and snapping are identical, and they live in their own `shapes`
+ * array whose order is paint order.
+ */
 
 export const SHAPE_TYPES = ['rect', 'circle', 'triangle']
 

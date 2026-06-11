@@ -1,0 +1,57 @@
+{
+  "source": {
+    "include": [
+      "src/index.js",
+      "src/lib/templateApi.js",
+      "src/lib/generate.js",
+      "src/generate.node.js",
+      "src/lib/templates.js",
+      "src/lib/background.js",
+      "src/lib/canvas.js",
+      "src/lib/constants.js",
+      "src/lib/export.js",
+      "src/lib/filters.js",
+      "src/lib/images.js",
+      "src/lib/layers.js",
+      "src/lib/overlay.js",
+      "src/lib/shapes.js",
+      "src/lib/storage.js",
+      "src/lib/text.js",
+      "src/lib/grid.js",
+      "src/lib/share.js",
+      "src/lib/zip.js",
+      "src/lib/color.js",
+      "src/lib/a11y.js",
+      "src/lib/shortcuts.js",
+      "src/lib/fonts.js",
+      "src/lib/rulers.js",
+      "src/lib/accordion.js",
+      "src/lib/layerList.js",
+      "src/lib/menu.js",
+      "src/lib/state.js"
+    ],
+    "excludePattern": "(node_modules|dist|docs)"
+  },
+  "opts": {
+    "destination": "./docs/api",
+    "recurse": false,
+    "readme": "README.md",
+    "package": "./package.json",
+    "template": "node_modules/clean-jsdoc-theme"
+  },
+  "plugins": ["plugins/markdown"],
+  "templates": {
+    "cleverLinks": true,
+    "monospaceLinks": true,
+    "default": {
+      "includeDate": false
+    }
+  },
+  "clean-jsdoc-theme-opts": {
+    "title": "posterboy-image-generator API",
+    "codepen": false,
+    "homepageTitle": "posterboy-image-generator",
+    "search": true,
+    "moduleDirectories": ["src/lib", "src"]
+  }
+}

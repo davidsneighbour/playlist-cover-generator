@@ -1,7 +1,10 @@
-// Keyboard shortcuts shown in the help overlay. Kept as data plus a pure,
-// platform-aware formatter so the list and its rendering are unit-tested; the
-// modal and the actual key handling live in the component. The 'mod' token
-// stands for the primary modifier (Cmd on macOS, Ctrl elsewhere).
+/**
+ * @module shortcuts
+ * @description Keyboard shortcuts shown in the help overlay. Kept as data plus a pure,
+ * platform-aware formatter so the list and its rendering are unit-tested; the
+ * modal and the actual key handling live in the component. The `mod` token
+ * stands for the primary modifier (Cmd on macOS, Ctrl elsewhere).
+ */
 
 export const SHORTCUTS = [
   { id: 'undo', keys: ['mod', 'Z'], description: 'Undo' },

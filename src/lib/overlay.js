@@ -1,8 +1,11 @@
-// Pure helpers for the color overlay: a full-canvas fill painted over the
-// background image (but under the other layers) to improve text legibility.
-// It is either a solid color or a two-stop linear/radial gradient. The network
-// and DOM-free math here — chiefly the gradient direction — is what we unit-test;
-// the rendering lives in the component.
+/**
+ * @module overlay
+ * @description Pure helpers for the color overlay: a full-canvas fill painted over the
+ * background image (but under the other layers) to improve text legibility.
+ * It is either a solid color or a two-stop linear/radial gradient. The network
+ * and DOM-free math here — chiefly the gradient direction — is what we unit-test;
+ * the rendering lives in the component.
+ */
 
 // Overlay fill kinds.
 export const OVERLAY_TYPES = ['solid', 'linear', 'radial']

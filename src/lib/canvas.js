@@ -1,8 +1,11 @@
-// Canvas/export-size helpers. The editor's internal coordinate space uses
-// canvasWidth × canvasHeight (both stored in state), so each template can have
-// its own aspect ratio. These presets define common export pixel sizes for the
-// square (music cover) use case; non-square templates store their native export
-// dimensions in their template definition.
+/**
+ * @module canvas
+ * @description Canvas/export-size helpers. The editor's internal coordinate space uses
+ * canvasWidth × canvasHeight (both stored in state), so each template can have
+ * its own aspect ratio. These presets define common export pixel sizes for the
+ * square (music cover) use case; non-square templates store their native export
+ * dimensions in their template definition.
+ */
 
 export const CANVAS_PRESETS = [
   { id: 'px600', label: '600 × 600', size: 600, width: 600, height: 600 },

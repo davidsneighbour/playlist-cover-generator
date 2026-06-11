@@ -1,10 +1,11 @@
-// Pure helpers for text-layer z-ordering.
-//
-// The `texts` array order is the SVG paint order: index 0 is painted first
-// (the bottom layer) and the last item is painted last (the top / front layer).
-// Every function returns a NEW array when something changes, or the SAME array
-// reference when the operation is a no-op, so callers can skip empty history
-// entries with a simple identity check.
+/**
+ * @module layers
+ * @description Pure helpers for layer z-ordering. The array order is the SVG paint order:
+ * index 0 is painted first (the bottom layer) and the last item is painted last (front).
+ * Every function returns a NEW array when something changes, or the SAME array
+ * reference when the operation is a no-op, so callers can skip empty history
+ * entries with a simple identity check.
+ */
 
 // Move the item at `fromIndex` to `toIndex`, shifting the rest. Used by
 // drag-and-drop reordering.

@@ -1,9 +1,12 @@
-// Build a unified, front-to-back list of everything on the canvas for the
-// Layers overview panel. Text, shape, and image entries carry their layer id
-// and selection state; the color overlay and background are singletons that are
-// always listed (muted when disabled/empty) so the panel can navigate to their
-// editing sections too. Each entry's `kind` tells the UI which card to open and
-// `icon` which glyph to show. Pure (no DOM/React), so it is unit-tested.
+/**
+ * @module layerList
+ * @description Build a unified, front-to-back list of everything on the canvas for the
+ * Layers overview panel. Text, shape, and image entries carry their layer id
+ * and selection state; the color overlay and background are singletons that are
+ * always listed (muted when disabled/empty) so the panel can navigate to their
+ * editing sections too. Each entry's `kind` tells the UI which card to open and
+ * `icon` which glyph to show. Pure (no DOM/React), so it is unit-tested.
+ */
 
 export function buildLayerList(state, selection = {}) {
   const {

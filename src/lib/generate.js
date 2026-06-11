@@ -1,6 +1,10 @@
-// Browser-only programmatic PNG generation from a template and named inputs.
-// Uses react-dom/server to render SVGCanvas to a string, then rasterizes with
-// the Canvas 2D API. For Node.js rasterization, see src/generate.node.js.
+/**
+ * @module generate
+ * @description Browser-only programmatic PNG generation from a template and
+ * named inputs. Uses `react-dom/server` to render `SVGCanvas` to a string,
+ * then rasterizes with the Canvas 2D API.
+ * For Node.js rasterization, see `src/generate.node.js`.
+ */
 
 import { createElement } from 'react'
 import { renderToString } from 'react-dom/server'
@@ -10,7 +14,11 @@ import { SVGCanvas } from '../components/SVGCanvas'
 
 /**
  * Render editor state to a clean SVG string ready for export.
- * `width`/`height` are set to the export dimensions; editor chrome is stripped.
+ * Sets `width`/`height` attributes to the export dimensions and strips
+ * editor-only chrome (grid, selection handles).
+ *
+ * @param {Object} state - Editor state object (e.g. from {@link buildStateFromTemplate}).
+ * @returns {string} Serialized SVG markup ready to display or rasterize.
  */
 export function renderStateToSvgString(state) {
   const ew = state.exportWidth ?? state.canvasWidth ?? 600
@@ -35,12 +43,20 @@ export function renderStateToSvgString(state) {
 }
 
 /**
- * Generate a PNG Blob from a template id (or template object) and named inputs.
- * Browser-only; returns a Promise<Blob>.
+ * Generate a PNG Blob from a template and named inputs. **Browser-only.**
  *
- * inputs may include:
- *   backgroundImageData  — data URL for the background image
- *   [fieldName]          — string mapped to a text layer via template.fields
+ * @param {string|Object} templateOrId - Template id string or template object.
+ * @param {Object} [inputs={}] - Named inputs; see {@link buildStateFromTemplate}.
+ * @param {string} [inputs.backgroundImageData] - Data URL for the background image.
+ * @returns {Promise<Blob>} A PNG Blob at the template's `exportWidth × exportHeight`.
+ *
+ * @example
+ * const blob = await generateFromTemplate('social-post', {
+ *   backgroundImageData: 'data:image/jpeg;base64,...',
+ *   title: 'My post',
+ * })
+ * const url = URL.createObjectURL(blob)
+ * img.src = url
  */
 export async function generateFromTemplate(templateOrId, inputs = {}) {
   const state = buildStateFromTemplate(templateOrId, inputs)

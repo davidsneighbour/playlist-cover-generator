@@ -1,5 +1,8 @@
-// Export helpers for turning the live editor SVG into portable output.
-// Kept DOM-light so the invariants can be unit-tested.
+/**
+ * @module export
+ * @description Export helpers for turning the live editor SVG into portable output.
+ * Kept DOM-light so the invariants can be unit-tested.
+ */
 
 // Editor-only elements that must never appear in exported PNG/SVG: the snap grid
 // and the selection outline/handles. Both carry a `data-layer` marker.

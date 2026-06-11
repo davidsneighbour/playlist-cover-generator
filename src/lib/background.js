@@ -1,7 +1,10 @@
-// Pure helpers for the background: the gradient fill (a two-stop linear or
-// radial gradient shown beneath the image) and the image crop/pan/zoom geometry.
-// The gradient-axis math is shared with the overlay (`gradientVector` in
-// overlay.js); the crop reuses `coverDimensions` from images.js.
+/**
+ * @module background
+ * @description Pure helpers for the background: the gradient fill (a two-stop linear or
+ * radial gradient shown beneath the image) and the image crop/pan/zoom geometry.
+ * The gradient-axis math is shared with the overlay (`gradientVector` in
+ * overlay.js); the crop reuses `coverDimensions` from images.js.
+ */
 
 import { coverDimensions } from './images'
 

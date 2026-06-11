@@ -1,6 +1,9 @@
-// Font helpers: the built-in picker list plus pure utilities for loading and
-// embedding Google Fonts. The network and DOM work lives in the component; this
-// module only builds URLs and parses/builds CSS, which is what we unit-test.
+/**
+ * @module fonts
+ * @description Font helpers: the built-in picker list plus pure utilities for loading and
+ * embedding Google Fonts. The network and DOM work lives in the component; this
+ * module only builds URLs and parses/builds CSS, which is what we unit-test.
+ */
 
 // Always-available families offered in the picker.
 export const BUILTIN_FONTS = [

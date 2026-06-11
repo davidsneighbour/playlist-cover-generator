@@ -1,6 +1,9 @@
-// Pure helpers for accessibility announcements. The component owns the ARIA
-// live region and calls these to build the message it speaks, so the wording is
-// in one tested place.
+/**
+ * @module a11y
+ * @description Pure helpers for accessibility announcements. The component owns the ARIA
+ * live region and calls these to build the message it speaks, so the wording is
+ * in one tested place.
+ */
 
 // Human noun for a layer kind, used in announcements and labels.
 export function layerNoun(kind) {

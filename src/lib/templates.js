@@ -1,16 +1,19 @@
-// Predefined layouts.
-//
-// Every template defines a layout (text layers, grid, snap, optional overlay)
-// plus canvas/export dimensions and field bindings for the programmatic API.
-// Text layers carry no `id`; a fresh one is assigned when the template is
-// applied (see `instantiateTemplate`). Canvas dimensions default to 600×600
-// for existing templates so they render unchanged.
+/**
+ * @module templates
+ * @description Predefined image layouts. Every template defines text layers,
+ * grid settings, canvas dimensions, and optional field bindings for the
+ * programmatic API. Text layers carry no `id`; a fresh one is assigned on apply.
+ */
 
 const SANS = 'sans-serif'
 const SERIF = 'serif'
 
-// Every text layer must define these keys so the editor's controls have a value
-// to bind to. Kept in one place so tests and new templates stay in sync.
+/**
+ * All required keys for a text layer object.
+ * Every entry in `template.layout.texts` must define every key in this list
+ * so the editor's controls always have a value to bind to.
+ * @type {string[]}
+ */
 export const TEXT_KEYS = [
   'content',
   'x',
@@ -50,6 +53,11 @@ function text(overrides) {
   }
 }
 
+/**
+ * All available templates. Each entry defines canvas dimensions, text layers,
+ * grid settings, and optional named-input field bindings.
+ * @type {Array<Object>}
+ */
 export const TEMPLATES = [
   {
     id: 'blank',
@@ -315,15 +323,25 @@ export const TEMPLATES = [
   },
 ]
 
-// Look up a template by id.
+/**
+ * Look up a template by id.
+ * @param {string} id - Template id (e.g. `'social-post'`).
+ * @returns {Object|undefined} The matching template, or `undefined` if not found.
+ */
 export function getTemplate(id) {
   return TEMPLATES.find(t => t.id === id)
 }
 
-// Build editor state from a template. The background image is kept (templates
-// only define text and layout). Text layers get fresh ids from `makeId`. Canvas
-// and export dimensions are applied when the template defines them. The overlay
-// is applied when the template layout defines it.
+/**
+ * Build editor state from a template. The background image is kept (templates
+ * only define text and layout). Text layers get fresh ids from `makeId`. Canvas
+ * and export dimensions are applied when the template defines them. The overlay
+ * is applied when the template layout defines it.
+ * @param {Object} template - A template object from {@link TEMPLATES}.
+ * @param {Object} currentState - Current editor state to merge into.
+ * @param {function(): *} makeId - Factory that returns a fresh unique id.
+ * @returns {Object} New state object with the template layout applied.
+ */
 export function instantiateTemplate(template, currentState, makeId) {
   const layout = template.layout
   const patch = {

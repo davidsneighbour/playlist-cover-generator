@@ -1,4 +1,8 @@
-// Pure helpers for text-layer presentation.
+/**
+ * @module text
+ * @description Pure helpers for text-layer presentation: stroke attributes, drop-shadow
+ * SVG filter params, multi-line splitting, and line-height calculation.
+ */
 
 // Default line-height (as a multiple of the font size) for multi-line text.
 export const DEFAULT_LINE_HEIGHT = 1.2

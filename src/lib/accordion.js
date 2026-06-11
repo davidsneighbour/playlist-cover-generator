@@ -1,9 +1,9 @@
-// Pure state logic for an accordion where at most one *unpinned* card is open at
-// a time, and pinned cards stay open regardless (exempt from auto-collapse).
-//
-// state = { openId: string | null, pinned: string[] }
-//   openId  -- the single open card that is NOT pinned (the accordion slot)
-//   pinned  -- cards kept open by their pin checkbox
+/**
+ * @module accordion
+ * @description Pure state logic for an accordion where at most one unpinned card is open at
+ * a time, and pinned cards stay open regardless (exempt from auto-collapse).
+ * State shape: `{ openId: string|null, pinned: string[] }`.
+ */
 
 export function isOpen(state, id) {
   return state.openId === id || state.pinned.includes(id)

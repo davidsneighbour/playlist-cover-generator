@@ -1,7 +1,10 @@
-// Pure helpers for auto-saving the editor state to localStorage. The component
-// owns the actual read/write and debouncing; this module only builds and parses
-// the stored payload, which is what we unit-test. The key is versioned so a
-// future, incompatible state shape can be ignored rather than crash a restore.
+/**
+ * @module storage
+ * @description Pure helpers for auto-saving the editor state to localStorage. The component
+ * owns the actual read/write and debouncing; this module only builds and parses
+ * the stored payload, which is what we unit-test. The key is versioned so a
+ * future, incompatible state shape can be ignored rather than crash a restore.
+ */
 
 export const STORAGE_KEY = 'posterboy-image-generator:v1'
 

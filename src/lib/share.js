@@ -1,8 +1,11 @@
-// Pure helpers for shareable edit links: encode the editor state into a
-// URL-safe token and read it back. The background image data URL is dropped
-// (like JSON export) so the link stays within practical URL length limits; the
-// recipient loads the layout over their own image. The component handles the
-// actual clipboard and location work.
+/**
+ * @module share
+ * @description Pure helpers for shareable edit links: encode the editor state into a
+ * URL-safe token and read it back. The background image data URL is dropped
+ * (like JSON export) so the link stays within practical URL length limits; the
+ * recipient loads the layout over their own image. The component handles the
+ * actual clipboard and location work.
+ */
 
 // Query-style param name used inside the URL hash (e.g. `#s=...`).
 export const SHARE_PARAM = 's'

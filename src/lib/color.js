@@ -1,6 +1,9 @@
-// Pure color helpers for choosing a readable default text color against the
-// current background. Sampling the background (drawing to a canvas) happens in
-// the component; the math here is pure and tested.
+/**
+ * @module color
+ * @description Pure color helpers for choosing a readable default text color against the
+ * current background. Sampling the background (drawing to a canvas) happens in
+ * the component; the math here is pure and tested.
+ */
 
 const DARK = '#111827'
 const LIGHT = '#ffffff'

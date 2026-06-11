@@ -1,5 +1,8 @@
-// Pure API for building editor state from a template and named inputs.
-// Browser- and Node.js-safe: no DOM, no React.
+/**
+ * @module templateApi
+ * @description Pure API for building editor state from a template and named inputs.
+ * Browser- and Node.js-safe: no DOM, no React.
+ */
 
 import { getTemplate, instantiateTemplate } from './templates'
 import { DEFAULT_BACKGROUND_TRANSFORM, DEFAULT_BACKGROUND_GRADIENT } from './background'
@@ -34,9 +37,34 @@ const BASE_STATE = {
  * named inputs. The returned state is independent of any React component and
  * safe to serialize or pass as `initialState`.
  *
- * inputs may include:
- *   backgroundImageData  — data URL applied as the background image
- *   [fieldName]          — string mapped to a text layer via template.fields
+ * @param {string|Object} templateOrId - Template id string or a template object
+ *   from the {@link TEMPLATES} registry.
+ * @param {Object} [inputs={}] - Named inputs to bind to the template's fields.
+ * @param {string} [inputs.backgroundImageData] - Data URL for the background image.
+ * @param {string} [inputs.*] - Any field name declared in `template.fields`
+ *   maps to the corresponding text layer's `content`.
+ * @returns {Object} A complete editor state object with `canvasWidth`,
+ *   `canvasHeight`, `exportWidth`, `exportHeight`, `texts`, `overlay`, etc.
+ *   Safe to pass as `initialState` to `ImageGenerator` or to feed into
+ *   `generateFromTemplate`.
+ * @throws {Error} If `templateOrId` is a string that does not match any
+ *   registered template id.
+ *
+ * @example
+ * // By template id
+ * const state = buildStateFromTemplate('social-post', {
+ *   backgroundImageData: 'data:image/jpeg;base64,...',
+ *   label: 'MUSIC',
+ *   title: 'Summer Playlist 2025',
+ * })
+ * // state.canvasWidth === 1080, state.canvasHeight === 566
+ * // state.texts[0].content === 'MUSIC'
+ *
+ * @example
+ * // By template object
+ * import { getTemplate } from 'posterboy-image-generator'
+ * const tpl = getTemplate('title-artist')
+ * const state = buildStateFromTemplate(tpl, { title: 'My Album' })
  */
 export function buildStateFromTemplate(templateOrId, inputs = {}) {
   const template = typeof templateOrId === 'string' ? getTemplate(templateOrId) : templateOrId
