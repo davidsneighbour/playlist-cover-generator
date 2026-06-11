@@ -7,7 +7,7 @@ import { snapValue } from '../lib/grid'
 // snapped, clamped canvas coordinates. getAnchor() reads the element's position
 // at drag start; onMove(nx, ny) receives the new position; onStart() runs once
 // on press (used to select).
-export function useSvgDrag({ getAnchor, onMove, onStart, snapToGrid, gridSpacing, canvasSize, bounds }) {
+export function useSvgDrag({ getAnchor, onMove, onStart, snapToGrid, gridSpacing, canvasWidth, canvasHeight, canvasSize, bounds }) {
   const dragging = useRef(false)
   const start = useRef({ mx: 0, my: 0, ax: 0, ay: 0 })
 
@@ -34,10 +34,12 @@ export function useSvgDrag({ getAnchor, onMove, onStart, snapToGrid, gridSpacing
       let ny = start.current.ay + (m.y - start.current.my)
       nx = snapValue(nx, gridSpacing, snapToGrid)
       ny = snapValue(ny, gridSpacing, snapToGrid)
+      const cw = canvasWidth ?? canvasSize ?? 600
+      const ch = canvasHeight ?? canvasSize ?? 600
       const minX = bounds ? bounds.minX : 0
       const minY = bounds ? bounds.minY : 0
-      const maxX = bounds ? bounds.maxX : canvasSize
-      const maxY = bounds ? bounds.maxY : canvasSize
+      const maxX = bounds ? bounds.maxX : cw
+      const maxY = bounds ? bounds.maxY : ch
       nx = Math.max(minX, Math.min(maxX, nx))
       ny = Math.max(minY, Math.min(maxY, ny))
       onMove(nx, ny)
@@ -49,5 +51,5 @@ export function useSvgDrag({ getAnchor, onMove, onStart, snapToGrid, gridSpacing
     }
     window.addEventListener('mousemove', onMouseMove)
     window.addEventListener('mouseup', onMouseUp)
-  }, [getAnchor, onMove, onStart, snapToGrid, gridSpacing, canvasSize, bounds])
+  }, [getAnchor, onMove, onStart, snapToGrid, gridSpacing, canvasWidth, canvasHeight, canvasSize, bounds])
 }

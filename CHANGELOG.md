@@ -4,7 +4,26 @@ All notable changes to this project are documented here. The format is based on 
 
 ## Unreleased
 
+## 0.2.0 - 2026-06-11
+
+Package renamed from `playlist-cover-generator` to `posterboy-image-generator`. The primary component export is now `ImageGenerator` (`CoverGenerator` is kept as a deprecated alias).
+
 ### Added
+
+* Arbitrary canvas dimensions per template: `canvasWidth`/`canvasHeight` in state and per-template fields replace the fixed 600×600 coordinate space. The SVG `viewBox` is now `0 0 canvasWidth canvasHeight`; existing 600×600 content is unaffected.
+* Separate `exportWidth`/`exportHeight` in state replace the single `exportSize` field (migration is automatic).
+* Two social media templates: `social-post` (1080×566) and `social-square` (1080×1080), each with a background image field, a label, a title, and a dark-gradient overlay for text legibility.
+* Template schema extended: every template now carries `category`, `description`, `canvasWidth`, `canvasHeight`, `exportWidth`, `exportHeight`, and `fields[]` (named input bindings).
+* Category filter row in the Templates panel ("All", "Music", "Social") to narrow the template list.
+* Applying a template now also sets canvas and export dimensions when the template defines them.
+* `buildStateFromTemplate(templateOrId, inputs)`: pure function, safe in Node.js, returns a complete editor state from a template and named inputs.
+* `generateFromTemplate(templateOrId, inputs)` (browser): renders SVGCanvas via `react-dom/server`, strips editor chrome, and rasterizes to a PNG Blob with the Canvas 2D API.
+* `generateFromTemplate(templateOrId, inputs)` (Node.js): same as above but rasterizes via `@resvg/resvg-js` (optional peer dep). Exported from `posterboy-image-generator/node`.
+* `SVGCanvas` extracted to `src/components/SVGCanvas.jsx` for reuse by both the editor and headless generation.
+* `TEMPLATES` and `getTemplate` exported from the package entry so consumers can inspect the template registry.
+* `TEMPLATE-AUTHORING.md` template schema reference and programmatic API guide.
+
+### Changed
 
 * Six more cover layout templates (Top & bottom, Quote, Bold stack, Podcast, Festival, Corner label).
 * A custom square export size, beyond the 600/1000/3000 presets.

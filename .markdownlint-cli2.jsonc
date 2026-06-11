@@ -142,7 +142,14 @@
         "JavaScript",
         "Code",
         "Copilot",
-        "License"
+        "License",
+        "Node.js",
+        "PNG",
+        "SVG",
+        "JSON",
+        "ESM",
+        "CJS",
+        "ZIP"
       ]
     }
   },

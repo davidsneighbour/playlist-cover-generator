@@ -45,29 +45,29 @@ describe('DEFAULT_BACKGROUND_TRANSFORM', () => {
 
 describe('backgroundCrop', () => {
   it('fills the canvas exactly for a square image at zoom 1', () => {
-    expect(backgroundCrop(1000, 1000, 600, DEFAULT_BACKGROUND_TRANSFORM)).toEqual({ x: 0, y: 0, width: 600, height: 600 })
+    expect(backgroundCrop(1000, 1000, 600, 600, DEFAULT_BACKGROUND_TRANSFORM)).toEqual({ x: 0, y: 0, width: 600, height: 600 })
   })
 
   it('covers and centers a wide image (overflow split evenly)', () => {
     // 1200x600 cover at canvas 600 -> 1200x600; centered x = (600-1200)/2 = -300
-    expect(backgroundCrop(1200, 600, 600, { zoom: 1, panX: 0.5, panY: 0.5 })).toEqual({ x: -300, y: 0, width: 1200, height: 600 })
+    expect(backgroundCrop(1200, 600, 600, 600, { zoom: 1, panX: 0.5, panY: 0.5 })).toEqual({ x: -300, y: 0, width: 1200, height: 600 })
   })
 
   it('pans within the overflow (0 = left edge, 1 = right edge)', () => {
-    expect(backgroundCrop(1200, 600, 600, { panX: 0 }).x).toBe(0)
-    expect(backgroundCrop(1200, 600, 600, { panX: 1 }).x).toBe(-600)
+    expect(backgroundCrop(1200, 600, 600, 600, { panX: 0 }).x).toBe(0)
+    expect(backgroundCrop(1200, 600, 600, 600, { panX: 1 }).x).toBe(-600)
   })
 
   it('zooms about the cover size', () => {
-    expect(backgroundCrop(600, 600, 600, { zoom: 2, panX: 0.5, panY: 0.5 })).toEqual({ x: -300, y: -300, width: 1200, height: 1200 })
+    expect(backgroundCrop(600, 600, 600, 600, { zoom: 2, panX: 0.5, panY: 0.5 })).toEqual({ x: -300, y: -300, width: 1200, height: 1200 })
   })
 
   it('clamps zoom below 1 up to 1 (no gaps)', () => {
-    expect(backgroundCrop(600, 600, 600, { zoom: 0.5 })).toMatchObject({ width: 600, height: 600 })
+    expect(backgroundCrop(600, 600, 600, 600, { zoom: 0.5 })).toMatchObject({ width: 600, height: 600 })
   })
 
   it('clamps pan outside 0..1', () => {
-    expect(backgroundCrop(1200, 600, 600, { panX: -5 }).x).toBe(0)
-    expect(backgroundCrop(1200, 600, 600, { panX: 5 }).x).toBe(-600)
+    expect(backgroundCrop(1200, 600, 600, 600, { panX: -5 }).x).toBe(0)
+    expect(backgroundCrop(1200, 600, 600, 600, { panX: 5 }).x).toBe(-600)
   })
 })

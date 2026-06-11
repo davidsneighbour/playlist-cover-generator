@@ -1,4 +1,4 @@
-// Type definitions for playlist-cover-generator
+// Type definitions for posterboy-image-generator
 // The state object is the contract for JSON import/export and the `initialState` prop.
 
 import type { ComponentType } from 'react'
@@ -45,6 +45,9 @@ export interface TextLayer {
   stroke: string
   strokeWidth: number
   shadow: TextShadow | null
+  lineHeight?: number
+  hidden?: boolean
+  locked?: boolean
 }
 
 export interface ImageLayer {
@@ -60,11 +63,13 @@ export interface ImageLayer {
   naturalWidth: number | null
   naturalHeight: number | null
   lockAspect: boolean
+  hidden?: boolean
+  locked?: boolean
 }
 
 export interface ShapeLayer {
   id: string
-  type: 'rect' | 'circle'
+  type: 'rect' | 'circle' | 'triangle'
   x: number
   y: number
   width: number
@@ -73,6 +78,9 @@ export interface ShapeLayer {
   stroke: string
   strokeWidth: number
   opacity: number
+  radius?: number
+  hidden?: boolean
+  locked?: boolean
 }
 
 export interface Overlay {
@@ -92,6 +100,25 @@ export interface Grid {
   majorEvery: number
 }
 
+export interface TemplateField {
+  name: string
+  type: 'text' | 'image'
+  textLayerIndex?: number
+}
+
+export interface Template {
+  id: string
+  name: string
+  category?: string
+  description?: string
+  canvasWidth?: number
+  canvasHeight?: number
+  exportWidth?: number
+  exportHeight?: number
+  fields?: TemplateField[]
+  layout: Record<string, unknown>
+}
+
 export interface CoverState {
   backgroundImage: string | null
   backgroundImageData: string | null
@@ -107,10 +134,20 @@ export interface CoverState {
   grid: Grid
   snapToGrid: boolean
   fonts: string[]
-  exportSize: number
+  canvasWidth: number
+  canvasHeight: number
+  exportWidth: number
+  exportHeight: number
+  /** @deprecated Use exportWidth/exportHeight */
+  exportSize?: number
 }
 
-export interface CoverGeneratorProps {
+export interface TemplateInputs {
+  backgroundImageData?: string
+  [fieldName: string]: string | undefined
+}
+
+export interface ImageGeneratorProps {
   /** Partial state to seed the editor. Merged over defaults. */
   initialState?: Partial<CoverState>
   /** Called with the full state object on every change. */
@@ -123,4 +160,34 @@ export interface CoverGeneratorProps {
   autoSave?: boolean
 }
 
-export const CoverGenerator: ComponentType<CoverGeneratorProps>
+/** @deprecated Use ImageGeneratorProps */
+export type CoverGeneratorProps = ImageGeneratorProps
+
+export const ImageGenerator: ComponentType<ImageGeneratorProps>
+/** @deprecated Use ImageGenerator */
+export const CoverGenerator: ComponentType<ImageGeneratorProps>
+
+export const TEMPLATES: Template[]
+export function getTemplate(id: string): Template | undefined
+
+/**
+ * Build a complete editor state from a template id (or template object) and
+ * named inputs. Pure function; safe for use in Node.js.
+ */
+export function buildStateFromTemplate(
+  templateOrId: string | Template,
+  inputs?: TemplateInputs
+): CoverState
+
+/**
+ * Generate a PNG Blob from a template and inputs. Browser-only.
+ */
+export function generateFromTemplate(
+  templateOrId: string | Template,
+  inputs?: TemplateInputs
+): Promise<Blob>
+
+/**
+ * Render editor state to a clean SVG string. Browser-only.
+ */
+export function renderStateToSvgString(state: CoverState): string

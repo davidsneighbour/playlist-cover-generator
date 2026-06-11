@@ -1,24 +1,22 @@
-import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo, memo } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { reorder, bringToFront, sendToBack, displayIndexToArrayIndex, duplicateById } from '../lib/layers'
 import { TEMPLATES, getTemplate, instantiateTemplate } from '../lib/templates'
-import { textStrokeAttrs, textShadowFilter, textLines, lineHeightEm } from '../lib/text'
 import { BUILTIN_FONTS, googleFontCssUrl, buildFontFaceRule, addFont, googleFontsListUrl, filterFontNames, fontVariantKey, variantFontFace, pickVariantFile } from '../lib/fonts'
-import { BLEND_MODES, createImageLayer, clampOpacity, centeredPosition, coverDimensions, scaleDimensions, dimensionPercent, aspectHeight, aspectWidth, offCanvasBounds, resizeFromCorner } from '../lib/images'
-import { createShape, ellipseGeometry, trianglePoints, cornerRadius } from '../lib/shapes'
-import { DEFAULT_OVERLAY, OVERLAY_TYPES, gradientVector } from '../lib/overlay'
+import { BLEND_MODES, createImageLayer, clampOpacity, centeredPosition, coverDimensions, scaleDimensions, dimensionPercent, aspectHeight, aspectWidth } from '../lib/images'
+import { createShape } from '../lib/shapes'
+import { DEFAULT_OVERLAY, OVERLAY_TYPES } from '../lib/overlay'
 import { DEFAULT_BACKGROUND_GRADIENT, BACKGROUND_GRADIENT_TYPES, DEFAULT_BACKGROUND_TRANSFORM, backgroundCrop } from '../lib/background'
-import { DEFAULT_FILTERS, isFilterActive, brightnessContrastTransfer } from '../lib/filters'
-import { CANVAS_PRESETS, DEFAULT_EXPORT_SIZE, exportScale, clampExportSize } from '../lib/canvas'
+import { DEFAULT_FILTERS, isFilterActive } from '../lib/filters'
+import { CANVAS_PRESETS, DEFAULT_EXPORT_WIDTH, DEFAULT_EXPORT_HEIGHT, exportScale, clampExportSize } from '../lib/canvas'
 import { nudgeDelta, isDeleteKey, isEditableTarget } from '../lib/shortcuts'
 import { stripExportArtifacts } from '../lib/export'
 import { mergeInitialState } from '../lib/state'
 import { snapValue } from '../lib/grid'
 import { useHistoryState } from '../hooks/useHistoryState'
-import { useSvgDrag } from '../hooks/useSvgDrag'
 import { STORAGE_KEY, serializeState, serializeStateWithoutImage, parseStoredState } from '../lib/storage'
 import { SHARE_PARAM, encodeShareState, decodeShareState, readShareToken } from '../lib/share'
 import { buildZip } from '../lib/zip'
-import { actionAnnouncement, describeLayer, layerNoun } from '../lib/a11y'
+import { actionAnnouncement, layerNoun } from '../lib/a11y'
 import { buildLayerList } from '../lib/layerList'
 import { averageRgb, pickContrastColor } from '../lib/color'
 import { isOpen as isCardOpen, toggleOpen, togglePin, openCard } from '../lib/accordion'
@@ -29,12 +27,12 @@ import {
   FileImage, FileCode, Save, FolderOpen, Link, Package, CircleHelp,
   Type, Blend, Image as ImageIcon, Eye, EyeOff, Lock, LockOpen, Loader2, Check,
 } from 'lucide-react'
-import { CANVAS_SIZE, RULER, DUP_OFFSET } from '../lib/constants'
-import { GridOverlay } from './GridOverlay'
+import { DEFAULT_CANVAS_WIDTH, DEFAULT_CANVAS_HEIGHT, RULER, DUP_OFFSET } from '../lib/constants'
 import { TopRuler, LeftRuler } from './Rulers'
 import { NumberInput } from './NumberInput'
 import { HelpDialog } from './HelpDialog'
 import { ContextMenu } from './ContextMenu'
+import { SVGCanvas } from './SVGCanvas'
 
 // Optional Google Fonts API key for the font-search typeahead. Read from the
 // Vite env by default; a host embedding the component can pass its own.
@@ -59,7 +57,10 @@ const DEFAULT_STATE = {
   },
   snapToGrid: true,
   fonts: [],
-  exportSize: DEFAULT_EXPORT_SIZE,
+  canvasWidth: DEFAULT_CANVAS_WIDTH,
+  canvasHeight: DEFAULT_CANVAS_HEIGHT,
+  exportWidth: DEFAULT_EXPORT_WIDTH,
+  exportHeight: DEFAULT_EXPORT_HEIGHT,
 }
 
 let nextId = 1
@@ -87,456 +88,6 @@ function loadImageFile(file) {
     reader.onerror = () => reject(new Error('read failed'))
     reader.readAsDataURL(file)
   })
-}
-
-const TextElement = memo(function TextElement({ text, selected, locked, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize }) {
-  const handleMouseDown = useSvgDrag({
-    getAnchor: () => ({ x: text.x, y: text.y }),
-    onMove: (nx, ny) => onDrag(text.id, nx, ny),
-    onStart: () => onSelect(text.id),
-    snapToGrid, gridSpacing, canvasSize,
-  })
-
-  const shadow = textShadowFilter(text)
-
-  return (
-    <text
-      x={text.x}
-      y={text.y}
-      fontFamily={text.fontFamily}
-      fontSize={text.fontSize}
-      fill={text.color}
-      {...textStrokeAttrs(text)}
-      filter={shadow ? `url(#${shadow.id})` : undefined}
-      fontWeight={text.bold ? 'bold' : 'normal'}
-      fontStyle={text.italic ? 'italic' : 'normal'}
-      textAnchor={text.anchor || 'start'}
-      dominantBaseline="auto"
-      style={{ cursor: locked ? 'default' : 'move', userSelect: 'none', pointerEvents: locked ? 'none' : undefined }}
-      onMouseDown={locked ? undefined : handleMouseDown}
-      data-text-id={text.id}
-      tabIndex={locked ? -1 : 0}
-      role="button"
-      aria-label={describeLayer('text', text)}
-      aria-pressed={selected}
-      onKeyDown={(e) => { if (!locked && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onSelect(text.id) } }}
-    >
-      {textLines(text).map((line, i) => (
-        <tspan key={i} x={text.x} dy={i === 0 ? 0 : `${lineHeightEm(text)}em`}>
-          {line || '\u200b'}
-        </tspan>
-      ))}
-      {selected && (
-        <title>Selected: drag to move</title>
-      )}
-    </text>
-  )
-})
-
-const ImageElement = memo(function ImageElement({ image, selected, locked, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize }) {
-  const handleMouseDown = useSvgDrag({
-    getAnchor: () => ({ x: image.x, y: image.y }),
-    onMove: (nx, ny) => onDrag(image.id, nx, ny),
-    onStart: () => onSelect(image.id),
-    snapToGrid, gridSpacing, canvasSize,
-    bounds: offCanvasBounds(image.width, image.height, canvasSize),
-  })
-
-  if (!image.data) return null
-
-  return (
-    <image
-      href={image.data}
-      x={image.x}
-      y={image.y}
-      width={image.width}
-      height={image.height}
-      opacity={image.opacity}
-      preserveAspectRatio="none"
-      style={{ cursor: locked ? 'default' : 'move', pointerEvents: locked ? 'none' : undefined, mixBlendMode: image.blendMode !== 'normal' ? image.blendMode : undefined }}
-      onMouseDown={locked ? undefined : handleMouseDown}
-      data-image-id={image.id}
-      tabIndex={locked ? -1 : 0}
-      role="button"
-      aria-label={describeLayer('image', image)}
-      aria-pressed={selected}
-      onKeyDown={(e) => { if (!locked && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onSelect(image.id) } }}
-    />
-  )
-})
-
-// Corner handles for resizing the selected image. The opposite corner stays
-// fixed; holding Shift locks the aspect ratio. Tagged via the wrapping group so
-// exports strip them.
-function ResizeHandles({ box, ratio, onResize }) {
-  const SIZE = 12
-  const corners = [
-    { key: 'tl', x: box.x, y: box.y, fx: box.x + box.width, fy: box.y + box.height, cursor: 'nwse-resize' },
-    { key: 'tr', x: box.x + box.width, y: box.y, fx: box.x, fy: box.y + box.height, cursor: 'nesw-resize' },
-    { key: 'bl', x: box.x, y: box.y + box.height, fx: box.x + box.width, fy: box.y, cursor: 'nesw-resize' },
-    { key: 'br', x: box.x + box.width, y: box.y + box.height, fx: box.x, fy: box.y, cursor: 'nwse-resize' },
-  ]
-  const startResize = (e, corner) => {
-    e.preventDefault()
-    e.stopPropagation()
-    const svg = e.currentTarget.closest('svg')
-    const toSvg = (clientX, clientY) => {
-      const p = svg.createSVGPoint()
-      p.x = clientX
-      p.y = clientY
-      return p.matrixTransform(svg.getScreenCTM().inverse())
-    }
-    const onMove = (ev) => {
-      const m = toSvg(ev.clientX, ev.clientY)
-      onResize(resizeFromCorner(corner.fx, corner.fy, m.x, m.y, { ratio, lockAspect: ev.shiftKey }))
-    }
-    const onUp = () => {
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
-    }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
-  }
-  return corners.map(c => (
-    <rect
-      key={c.key}
-      x={c.x - SIZE / 2}
-      y={c.y - SIZE / 2}
-      width={SIZE}
-      height={SIZE}
-      fill="#ffffff"
-      stroke="#3b82f6"
-      strokeWidth={1.5}
-      style={{ cursor: c.cursor }}
-      onMouseDown={e => startResize(e, c)}
-    />
-  ))
-}
-
-const ShapeElement = memo(function ShapeElement({ shape, selected, locked, onSelect, onDrag, snapToGrid, gridSpacing, canvasSize }) {
-  const handleMouseDown = useSvgDrag({
-    getAnchor: () => ({ x: shape.x, y: shape.y }),
-    onMove: (nx, ny) => onDrag(shape.id, nx, ny),
-    onStart: () => onSelect(shape.id),
-    snapToGrid, gridSpacing, canvasSize,
-    bounds: offCanvasBounds(shape.width, shape.height, canvasSize),
-  })
-
-  const common = {
-    fill: shape.fill,
-    stroke: shape.strokeWidth > 0 ? shape.stroke : 'none',
-    strokeWidth: shape.strokeWidth,
-    opacity: shape.opacity,
-    style: { cursor: locked ? 'default' : 'move', pointerEvents: locked ? 'none' : undefined },
-    onMouseDown: locked ? undefined : handleMouseDown,
-    'data-shape-id': shape.id,
-    tabIndex: locked ? -1 : 0,
-    role: 'button',
-    'aria-label': describeLayer('shape', shape),
-    'aria-pressed': selected,
-    onKeyDown: (e) => { if (!locked && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onSelect(shape.id) } },
-  }
-
-  if (shape.type === 'circle') {
-    const g = ellipseGeometry(shape)
-    return <ellipse cx={g.cx} cy={g.cy} rx={g.rx} ry={g.ry} {...common} />
-  }
-  if (shape.type === 'triangle') {
-    return <polygon points={trianglePoints(shape)} {...common} />
-  }
-  const r = cornerRadius(shape)
-  return <rect x={shape.x} y={shape.y} width={shape.width} height={shape.height} rx={r || undefined} ry={r || undefined} {...common} />
-})
-
-// Two-stop gradient that fills the canvas beneath the background image, so it
-// shows through when no image is loaded (an opaque image covers it). Reuses the
-// same gradient-axis math as the overlay. pointer-events stay off.
-const GradientBackground = memo(function GradientBackground({ gradient, size }) {
-  if (!gradient || !gradient.enabled) return null
-  const id = 'background-gradient'
-  const stops = (
-    <>
-      <stop offset="0%" stopColor={gradient.color} />
-      <stop offset="100%" stopColor={gradient.color2} />
-    </>
-  )
-  const v = gradientVector(gradient.angle)
-  return (
-    <>
-      <defs>
-        {gradient.type === 'radial' ? (
-          <radialGradient id={id} cx="50%" cy="50%" r="50%">{stops}</radialGradient>
-        ) : (
-          <linearGradient id={id} x1={v.x1} y1={v.y1} x2={v.x2} y2={v.y2}>{stops}</linearGradient>
-        )}
-      </defs>
-      <rect
-        x={0} y={0} width={size} height={size}
-        fill={`url(#${id})`}
-        style={{ pointerEvents: 'none' }}
-        data-layer="background-gradient"
-      />
-    </>
-  )
-})
-
-// Full-canvas color overlay painted over the background (under every other
-// layer) to improve text legibility. Solid is a single color; linear/radial are
-// two-stop gradients whose stops carry their own alpha. The blend mode applies
-// to the overlay rect, so e.g. "multiply" darkens only the background beneath.
-// pointer-events stay off so clicks fall through to the canvas for deselection.
-const ColorOverlay = memo(function ColorOverlay({ overlay, size }) {
-  if (!overlay || !overlay.enabled) return null
-  const blend = overlay.blendMode && overlay.blendMode !== 'normal' ? overlay.blendMode : undefined
-
-  if (overlay.type === 'solid') {
-    return (
-      <rect
-        x={0} y={0} width={size} height={size}
-        fill={overlay.color}
-        opacity={clampOpacity(overlay.opacity)}
-        style={{ mixBlendMode: blend, pointerEvents: 'none' }}
-        data-layer="overlay"
-      />
-    )
-  }
-
-  const gradId = 'overlay-gradient'
-  const stops = (
-    <>
-      <stop offset="0%" stopColor={overlay.color} stopOpacity={clampOpacity(overlay.opacity)} />
-      <stop offset="100%" stopColor={overlay.color2} stopOpacity={clampOpacity(overlay.opacity2)} />
-    </>
-  )
-  const v = gradientVector(overlay.angle)
-  return (
-    <>
-      <defs>
-        {overlay.type === 'radial' ? (
-          <radialGradient id={gradId} cx="50%" cy="50%" r="50%">{stops}</radialGradient>
-        ) : (
-          <linearGradient id={gradId} x1={v.x1} y1={v.y1} x2={v.x2} y2={v.y2}>{stops}</linearGradient>
-        )}
-      </defs>
-      <rect
-        x={0} y={0} width={size} height={size}
-        fill={`url(#${gradId})`}
-        style={{ mixBlendMode: blend, pointerEvents: 'none' }}
-        data-layer="overlay"
-      />
-    </>
-  )
-})
-
-function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, onSelectText, onSelectImage, onSelectShape, onDragText, onDragImage, onDragShape, onResizeImage, onContextMenuLayer, displaySize }) {
-  const svgRef = useRef(null)
-  const [textBox, setTextBox] = useState(null)
-
-  // Measure the selected text's real bounds (accounts for anchor, font, and
-  // weight) instead of approximating, so the outline lines up exactly. Runs in
-  // SVG user space, so it is independent of the on-screen scale.
-  useLayoutEffect(() => {
-    if (!selectedTextId || !svgRef.current) { setTextBox(null); return }
-    const node = svgRef.current.querySelector(`[data-text-id="${selectedTextId}"]`)
-    if (!node) { setTextBox(null); return }
-    const b = node.getBBox()
-    setTextBox({ x: b.x, y: b.y, width: b.width, height: b.height })
-  }, [selectedTextId, state.texts])
-
-  const bgFilters = state.backgroundFilters || DEFAULT_FILTERS
-  const bgFilterActive = isFilterActive(bgFilters)
-  const bgFilterRef = bgFilterActive ? 'url(#bg-filter)' : undefined
-  const bgTransfer = brightnessContrastTransfer(bgFilters.brightness, bgFilters.contrast)
-
-  return (
-    <svg
-      ref={svgRef}
-      xmlns="http://www.w3.org/2000/svg"
-      width={displaySize}
-      height={displaySize}
-      viewBox={`0 0 ${CANVAS_SIZE} ${CANVAS_SIZE}`}
-      style={{ display: 'block', background: '#ffffff' }}
-      role="group"
-      aria-label="Cover canvas"
-      onClick={(e) => {
-        if (e.target.tagName === 'svg') {
-          onSelectText(null)
-          onSelectImage(null)
-          onSelectShape(null)
-        }
-      }}
-      onContextMenu={(e) => {
-        const el = e.target.closest && e.target.closest('[data-text-id],[data-image-id],[data-shape-id]')
-        if (!el) return
-        e.preventDefault()
-        const d = el.dataset
-        if (d.textId !== undefined) onContextMenuLayer('text', Number(d.textId), e.clientX, e.clientY)
-        else if (d.imageId !== undefined) onContextMenuLayer('image', Number(d.imageId), e.clientX, e.clientY)
-        else if (d.shapeId !== undefined) onContextMenuLayer('shape', Number(d.shapeId), e.clientX, e.clientY)
-      }}
-    >
-      <defs>
-        <clipPath id="canvas-clip">
-          <rect x={0} y={0} width={CANVAS_SIZE} height={CANVAS_SIZE} />
-        </clipPath>
-        {bgFilterActive && (
-          <filter id="bg-filter" colorInterpolationFilters="sRGB">
-            <feColorMatrix type="saturate" values={bgFilters.saturate} />
-            <feComponentTransfer>
-              <feFuncR type="linear" slope={bgTransfer.slope} intercept={bgTransfer.intercept} />
-              <feFuncG type="linear" slope={bgTransfer.slope} intercept={bgTransfer.intercept} />
-              <feFuncB type="linear" slope={bgTransfer.slope} intercept={bgTransfer.intercept} />
-            </feComponentTransfer>
-            {bgFilters.blur > 0 && <feGaussianBlur stdDeviation={bgFilters.blur} />}
-          </filter>
-        )}
-        {state.texts.map(t => {
-          const s = textShadowFilter(t)
-          if (!s) return null
-          return (
-            <filter key={s.id} id={s.id} x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx={s.dx} dy={s.dy} stdDeviation={s.stdDeviation} floodColor={s.color} floodOpacity="1" />
-            </filter>
-          )
-        })}
-      </defs>
-
-      <GradientBackground gradient={state.backgroundGradient} size={CANVAS_SIZE} />
-
-      {state.backgroundImageData && (() => {
-        const nW = state.backgroundNaturalWidth
-        const nH = state.backgroundNaturalHeight
-        // Fall back to slice when the natural size is unknown (e.g. an image
-        // supplied via initialState rather than the uploader).
-        if (!nW || !nH) {
-          return (
-            <image
-              href={state.backgroundImageData}
-              x={0} y={0} width={CANVAS_SIZE} height={CANVAS_SIZE}
-              preserveAspectRatio="xMidYMid slice"
-              clipPath="url(#canvas-clip)"
-              filter={bgFilterRef}
-              data-layer="background"
-            />
-          )
-        }
-        const c = backgroundCrop(nW, nH, CANVAS_SIZE, state.backgroundTransform || undefined)
-        return (
-          <image
-            href={state.backgroundImageData}
-            x={c.x} y={c.y} width={c.width} height={c.height}
-            preserveAspectRatio="none"
-            clipPath="url(#canvas-clip)"
-            filter={bgFilterRef}
-            data-layer="background"
-          />
-        )
-      })()}
-
-      <ColorOverlay overlay={state.overlay} size={CANVAS_SIZE} />
-
-      {(state.images || []).filter(image => !image.hidden).map((image) => (
-        <ImageElement
-          key={image.id}
-          image={image}
-          selected={image.id === selectedImageId}
-          locked={!!image.locked}
-          onSelect={onSelectImage}
-          onDrag={onDragImage}
-          snapToGrid={state.snapToGrid}
-          gridSpacing={state.grid.spacing}
-          canvasSize={CANVAS_SIZE}
-        />
-      ))}
-
-      {(state.shapes || []).filter(shape => !shape.hidden).map((shape) => (
-        <ShapeElement
-          key={shape.id}
-          shape={shape}
-          selected={shape.id === selectedShapeId}
-          locked={!!shape.locked}
-          onSelect={onSelectShape}
-          onDrag={onDragShape}
-          snapToGrid={state.snapToGrid}
-          gridSpacing={state.grid.spacing}
-          canvasSize={CANVAS_SIZE}
-        />
-      ))}
-
-      <GridOverlay grid={state.grid} size={CANVAS_SIZE} />
-
-      {state.texts.filter(text => !text.hidden).map((text) => (
-        <TextElement
-          key={text.id}
-          text={text}
-          selected={text.id === selectedTextId}
-          locked={!!text.locked}
-          onSelect={onSelectText}
-          onDrag={onDragText}
-          snapToGrid={state.snapToGrid}
-          gridSpacing={state.grid.spacing}
-          canvasSize={CANVAS_SIZE}
-        />
-      ))}
-
-      {selectedImageId && (state.images || []).find(i => i.id === selectedImageId && !i.hidden) && (() => {
-        const img = state.images.find(i => i.id === selectedImageId)
-        const ratio = img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : img.width / img.height
-        return (
-          <g data-layer="selection">
-            <rect
-              x={img.x}
-              y={img.y}
-              width={img.width}
-              height={img.height}
-              fill="none"
-              stroke="#3b82f6"
-              strokeWidth={1.5}
-              strokeDasharray="4 2"
-              style={{ pointerEvents: 'none' }}
-            />
-            {!img.locked && <ResizeHandles box={img} ratio={ratio} onResize={(patch) => onResizeImage(img.id, patch)} />}
-          </g>
-        )
-      })()}
-
-      {selectedShapeId && (state.shapes || []).find(s => s.id === selectedShapeId && !s.hidden) && (() => {
-        const shape = state.shapes.find(s => s.id === selectedShapeId)
-        return (
-          <rect
-            data-layer="selection"
-            x={shape.x}
-            y={shape.y}
-            width={shape.width}
-            height={shape.height}
-            fill="none"
-            stroke="#3b82f6"
-            strokeWidth={1.5}
-            strokeDasharray="4 2"
-            style={{ pointerEvents: 'none' }}
-          />
-        )
-      })()}
-
-      {textBox && selectedTextId && state.texts.some(t => t.id === selectedTextId && !t.hidden) && (() => {
-        const pad = 4
-        return (
-          <rect
-            data-layer="selection"
-            x={textBox.x - pad}
-            y={textBox.y - pad}
-            width={textBox.width + pad * 2}
-            height={textBox.height + pad * 2}
-            fill="none"
-            stroke="#3b82f6"
-            strokeWidth={1.5}
-            strokeDasharray="4 2"
-            style={{ pointerEvents: 'none' }}
-          />
-        )
-      })()}
-    </svg>
-  )
 }
 
 // Help overlay: app info, version, keyboard shortcuts, and mouse tips. Opened
@@ -620,7 +171,8 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const [selectedTextId, setSelectedTextId] = useState(null)
   const [selectedImageId, setSelectedImageId] = useState(null)
   const [selectedShapeId, setSelectedShapeId] = useState(null)
-  const [displaySize, setDisplaySize] = useState(CANVAS_SIZE)
+  const [displayWidth, setDisplayWidth] = useState(DEFAULT_CANVAS_WIDTH)
+  const [displayHeight, setDisplayHeight] = useState(DEFAULT_CANVAS_HEIGHT)
   const [showRulers, setShowRulers] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [contextMenu, setContextMenu] = useState(null)
@@ -631,6 +183,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const [live, setLive] = useState({ msg: '', n: 0 })
   const [dragOverArrayIndex, setDragOverArrayIndex] = useState(null)
   const [selectedTemplate, setSelectedTemplate] = useState('')
+  const [filterCategory, setFilterCategory] = useState('all')
   const [customFontInput, setCustomFontInput] = useState('')
   const containerRef = useRef(null)
   const canvasColRef = useRef(null)
@@ -705,12 +258,19 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     announce(`${layerNoun(entry.kind)} ${entry.locked ? 'unlocked' : 'locked'}`)
   }, [setLayerFlag, announce])
 
-  // Fit the canvas to the column, leaving room for the rulers when shown. We
-  // observe the column (its width comes from the page layout, not its children)
-  // so sizing the canvas can never feed back into the measurement. Re-runs on
-  // ruler toggle so the canvas reclaims or yields the ruler strip immediately.
+  // Fit the canvas to the column, preserving the template's aspect ratio and
+  // leaving room for the rulers when shown. Re-runs when the ruler toggle or the
+  // canvas dimensions change so it recalculates immediately.
   useEffect(() => {
-    const measure = (w) => setDisplaySize(Math.max(0, Math.min(CANVAS_SIZE, w - (showRulers ? RULER : 0))))
+    const cw = state.canvasWidth || DEFAULT_CANVAS_WIDTH
+    const ch = state.canvasHeight || DEFAULT_CANVAS_HEIGHT
+    const measure = (colW) => {
+      const available = Math.max(0, colW - (showRulers ? RULER : 0))
+      const dw = Math.min(cw, available)
+      const dh = Math.round(dw * ch / cw)
+      setDisplayWidth(dw)
+      setDisplayHeight(dh)
+    }
     const obs = new ResizeObserver(entries => {
       for (const entry of entries) measure(entry.contentRect.width)
     })
@@ -720,7 +280,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
       measure(el.getBoundingClientRect().width)
     }
     return () => obs.disconnect()
-  }, [showRulers])
+  }, [showRulers, state.canvasWidth, state.canvasHeight])
 
   // Notify the host of state changes, skipping the initial mount.
   const mounted = useRef(false)
@@ -867,8 +427,8 @@ export default function CoverGenerator({ initialState, onStateChange, className 
       texts: [...prev.texts, {
         id,
         content: 'New text',
-        x: snapValue(CANVAS_SIZE / 2, prev.grid.spacing, prev.snapToGrid),
-        y: snapValue(CANVAS_SIZE / 2, prev.grid.spacing, prev.snapToGrid),
+        x: snapValue((prev.canvasWidth || DEFAULT_CANVAS_WIDTH) / 2, prev.grid.spacing, prev.snapToGrid),
+        y: snapValue((prev.canvasHeight || DEFAULT_CANVAS_HEIGHT) / 2, prev.grid.spacing, prev.snapToGrid),
         fontSize: 48,
         fontFamily: 'sans-serif',
         color: pickContrastColor(bgColorRef.current),
@@ -999,12 +559,16 @@ export default function CoverGenerator({ initialState, onStateChange, className 
       const probe = new Image()
       probe.onload = () => {
         const id = nextId++
-        const { width, height } = coverDimensions(probe.naturalWidth, probe.naturalHeight, CANVAS_SIZE)
-        const { x, y } = centeredPosition(CANVAS_SIZE, width, height)
-        update(prev => ({
-          ...prev,
-          images: [...(prev.images || []), createImageLayer(id, { name: file.name, data, width, height, x, y, naturalWidth: probe.naturalWidth, naturalHeight: probe.naturalHeight })],
-        }))
+        update(prev => {
+          const cw = prev.canvasWidth || DEFAULT_CANVAS_WIDTH
+          const ch = prev.canvasHeight || DEFAULT_CANVAS_HEIGHT
+          const { width, height } = coverDimensions(probe.naturalWidth, probe.naturalHeight, cw, ch)
+          const { x, y } = centeredPosition(cw, ch, width, height)
+          return {
+            ...prev,
+            images: [...(prev.images || []), createImageLayer(id, { name: file.name, data, width, height, x, y, naturalWidth: probe.naturalWidth, naturalHeight: probe.naturalHeight })],
+          }
+        })
         selectImage(id)
         setScrollTo('props-image')
         announce(actionAnnouncement('add', 'image'))
@@ -1229,21 +793,23 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   }, [state.texts, state.fonts, loadFontCatalog])
 
   // Rasterize a prepared SVG clone (grid/selection stripped, fonts embedded,
-  // width/height set) to a PNG Blob at the chosen export size. Shared by the
-  // single PNG export and batch export.
+  // width/height set) to a PNG Blob at the chosen export dimensions. Shared by
+  // the single PNG export and batch export.
   const svgCloneToPngBlob = useCallback((clone) => {
-    const size = clampExportSize(state.exportSize)
+    const ew = clampExportSize(state.exportWidth)
+    const eh = clampExportSize(state.exportHeight)
+    const cw = state.canvasWidth || DEFAULT_CANVAS_WIDTH
+    const ch = state.canvasHeight || DEFAULT_CANVAS_HEIGHT
     const svgStr = new XMLSerializer().serializeToString(clone)
     const url = URL.createObjectURL(new Blob([svgStr], { type: 'image/svg+xml' }))
     return new Promise((resolve, reject) => {
       const img = new Image()
       img.onload = () => {
         const canvas = document.createElement('canvas')
-        canvas.width = size
-        canvas.height = size
+        canvas.width = ew
+        canvas.height = eh
         const ctx = canvas.getContext('2d')
-        const scale = exportScale(size, CANVAS_SIZE)
-        ctx.scale(scale, scale)
+        ctx.scale(exportScale(ew, cw), exportScale(eh, ch))
         ctx.drawImage(img, 0, 0)
         URL.revokeObjectURL(url)
         canvas.toBlob(b => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/png')
@@ -1251,7 +817,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
       img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('image load failed')) }
       img.src = url
     })
-  }, [state.exportSize])
+  }, [state.exportWidth, state.exportHeight, state.canvasWidth, state.canvasHeight])
 
   // Export PNG
   const exportPNG = useCallback(async () => {
@@ -1259,8 +825,8 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     if (!svgEl) return
     const clone = svgEl.cloneNode(true)
     stripExportArtifacts(clone)
-    clone.setAttribute('width', CANVAS_SIZE)
-    clone.setAttribute('height', CANVAS_SIZE)
+    clone.setAttribute('width', state.canvasWidth || DEFAULT_CANVAS_WIDTH)
+    clone.setAttribute('height', state.canvasHeight || DEFAULT_CANVAS_HEIGHT)
     await embedFontsInClone(clone)
     const blob = await svgCloneToPngBlob(clone)
     const a = document.createElement('a')
@@ -1284,10 +850,12 @@ export default function CoverGenerator({ initialState, onStateChange, className 
       for (let i = 0; i < list.length; i++) {
         let loaded
         try { loaded = await loadImageFile(list[i]) } catch { continue }
+        const bcw = state.canvasWidth || DEFAULT_CANVAS_WIDTH
+        const bch = state.canvasHeight || DEFAULT_CANVAS_HEIGHT
         const clone = svgEl.cloneNode(true)
         stripExportArtifacts(clone)
-        clone.setAttribute('width', CANVAS_SIZE)
-        clone.setAttribute('height', CANVAS_SIZE)
+        clone.setAttribute('width', bcw)
+        clone.setAttribute('height', bch)
         let bg = clone.querySelector('[data-layer="background"]')
         if (!bg) {
           bg = document.createElementNS('http://www.w3.org/2000/svg', 'image')
@@ -1298,7 +866,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
           const ref = gradient ? gradient.nextSibling : (defs ? defs.nextSibling : clone.firstChild)
           clone.insertBefore(bg, ref)
         }
-        const crop = backgroundCrop(loaded.naturalWidth, loaded.naturalHeight, CANVAS_SIZE, state.backgroundTransform || undefined)
+        const crop = backgroundCrop(loaded.naturalWidth, loaded.naturalHeight, bcw, bch, state.backgroundTransform || undefined)
         bg.setAttribute('href', loaded.data)
         bg.setAttributeNS('http://www.w3.org/1999/xlink', 'href', loaded.data)
         bg.setAttribute('x', crop.x)
@@ -1335,9 +903,8 @@ export default function CoverGenerator({ initialState, onStateChange, className 
       el.style.cursor = ''
       el.style.userSelect = ''
     })
-    const size = clampExportSize(state.exportSize)
-    clone.setAttribute('width', size)
-    clone.setAttribute('height', size)
+    clone.setAttribute('width', clampExportSize(state.exportWidth))
+    clone.setAttribute('height', clampExportSize(state.exportHeight))
     await embedFontsInClone(clone)
 
     const serializer = new XMLSerializer()
@@ -1347,7 +914,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     a.href = URL.createObjectURL(blob)
     a.download = 'cover.svg'
     a.click()
-  }, [embedFontsInClone, state.exportSize])
+  }, [embedFontsInClone, state.exportWidth, state.exportHeight])
 
   // Build a shareable edit link (state encoded in the URL hash, image excluded)
   // and copy it to the clipboard, falling back to a prompt if that is blocked.
@@ -1403,7 +970,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const bgGradient = state.backgroundGradient || DEFAULT_BACKGROUND_GRADIENT
   const bgTransform = state.backgroundTransform || DEFAULT_BACKGROUND_TRANSFORM
   const bgFilters = state.backgroundFilters || DEFAULT_FILTERS
-  const exportSize = clampExportSize(state.exportSize)
+  const exportWidth = clampExportSize(state.exportWidth)
+  const exportHeight = clampExportSize(state.exportHeight)
+  const canvasW = state.canvasWidth || DEFAULT_CANVAS_WIDTH
+  const canvasH = state.canvasHeight || DEFAULT_CANVAS_HEIGHT
   const layerList = buildLayerList(state, { selectedTextId, selectedImageId, selectedShapeId })
 
   // Actions for the right-click menu, resolved to the handlers for its layer kind.
@@ -1430,19 +1000,21 @@ export default function CoverGenerator({ initialState, onStateChange, className 
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {live.msg + (live.n % 2 ? ' ' : '')}
       </div>
-      {/* Canvas — square, stays visible on the left while the controls scroll */}
+      {/* Canvas — adapts to the template's aspect ratio, stays on the left while controls scroll */}
       <div ref={canvasColRef} className="w-full lg:w-[600px] lg:shrink-0 lg:sticky lg:top-6 lg:self-start flex flex-col items-center gap-3">
         <div
           className={showRulers ? 'inline-grid' : 'w-full max-w-[600px]'}
           style={showRulers ? { gridTemplateColumns: `${RULER}px auto`, gridTemplateRows: `${RULER}px auto` } : undefined}
         >
           {showRulers && <div className="bg-gray-50" aria-hidden="true" />}
-          {showRulers && <TopRuler displaySize={displaySize} />}
-          {showRulers && <LeftRuler displaySize={displaySize} />}
+          {showRulers && <TopRuler displayWidth={displayWidth} canvasWidth={canvasW} />}
+          {showRulers && <LeftRuler displayHeight={displayHeight} canvasHeight={canvasH} />}
           <div
             ref={containerRef}
-            className={`aspect-square rounded-lg overflow-hidden shadow-md border border-gray-200 ${showRulers ? '' : 'w-full'}`}
-            style={showRulers ? { width: displaySize, height: displaySize } : undefined}
+            className={`rounded-lg overflow-hidden shadow-md border border-gray-200 ${showRulers ? '' : 'w-full'}`}
+            style={showRulers
+              ? { width: displayWidth, height: displayHeight }
+              : { aspectRatio: `${canvasW} / ${canvasH}` }}
           >
             <SVGCanvas
               state={state}
@@ -1457,12 +1029,13 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               onDragShape={handleDragShape}
               onResizeImage={handleResizeImage}
               onContextMenuLayer={openContextMenu}
-              displaySize={displaySize}
+              displayWidth={displayWidth}
+              displayHeight={displayHeight}
             />
           </div>
         </div>
         <div className="flex items-center justify-between gap-2">
-          <p className="text-xs text-gray-400">Exports at {exportSize}×{exportSize}px · click a layer to select · drag to move · Ctrl+Z to undo</p>
+          <p className="text-xs text-gray-400">Exports at {exportWidth}×{exportHeight}px · click a layer to select · drag to move · Ctrl+Z to undo</p>
           {autoSave && (
             <span className="inline-flex items-center gap-1 text-xs text-gray-400 shrink-0" aria-live="polite">
               {saveStatus === 'pending'
@@ -1814,8 +1387,8 @@ export default function CoverGenerator({ initialState, onStateChange, className 
             )}
 
             <div className="grid grid-cols-2 gap-2 mt-2">
-              <NumberInput label="X position" value={selectedText.x} min={0} max={CANVAS_SIZE} onChange={v => updateText(selectedText.id, { x: v }, `x-${selectedText.id}`)} />
-              <NumberInput label="Y position" value={selectedText.y} min={0} max={CANVAS_SIZE} onChange={v => updateText(selectedText.id, { y: v }, `y-${selectedText.id}`)} />
+              <NumberInput label="X position" value={selectedText.x} min={0} max={canvasW} onChange={v => updateText(selectedText.id, { x: v }, `x-${selectedText.id}`)} />
+              <NumberInput label="Y position" value={selectedText.y} min={0} max={canvasH} onChange={v => updateText(selectedText.id, { y: v }, `y-${selectedText.id}`)} />
             </div>
           </CollapsibleCard>
         )}
@@ -1906,8 +1479,8 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               <NumberInput label="Height" value={selectedImage.height} min={1} max={2000} onChange={setHeight} />
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <NumberInput label="X position" value={selectedImage.x} min={-CANVAS_SIZE} max={CANVAS_SIZE} onChange={v => updateImage(selectedImage.id, { x: v }, `img-x-${selectedImage.id}`)} />
-              <NumberInput label="Y position" value={selectedImage.y} min={-CANVAS_SIZE} max={CANVAS_SIZE} onChange={v => updateImage(selectedImage.id, { y: v }, `img-y-${selectedImage.id}`)} />
+              <NumberInput label="X position" value={selectedImage.x} min={-canvasW} max={canvasW} onChange={v => updateImage(selectedImage.id, { x: v }, `img-x-${selectedImage.id}`)} />
+              <NumberInput label="Y position" value={selectedImage.y} min={-canvasH} max={canvasH} onChange={v => updateImage(selectedImage.id, { y: v }, `img-y-${selectedImage.id}`)} />
             </div>
             <button className="w-full btn-secondary text-sm" onClick={() => deleteImage(selectedImage.id)}><Trash2 className="h-4 w-4" />Delete image</button>
           </CollapsibleCard>
@@ -1973,15 +1546,15 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <NumberInput label="Width" value={selectedShape.width} min={1} max={CANVAS_SIZE} onChange={v => updateShape(selectedShape.id, { width: v }, `shape-w-${selectedShape.id}`)} />
-              <NumberInput label="Height" value={selectedShape.height} min={1} max={CANVAS_SIZE} onChange={v => updateShape(selectedShape.id, { height: v }, `shape-h-${selectedShape.id}`)} />
+              <NumberInput label="Width" value={selectedShape.width} min={1} max={canvasW} onChange={v => updateShape(selectedShape.id, { width: v }, `shape-w-${selectedShape.id}`)} />
+              <NumberInput label="Height" value={selectedShape.height} min={1} max={canvasH} onChange={v => updateShape(selectedShape.id, { height: v }, `shape-h-${selectedShape.id}`)} />
             </div>
             {selectedShape.type === 'rect' && (
               <NumberInput label="Corner radius" value={selectedShape.radius ?? 0} min={0} max={Math.floor(Math.min(selectedShape.width, selectedShape.height) / 2)} onChange={v => updateShape(selectedShape.id, { radius: v }, `shape-radius-${selectedShape.id}`)} hint="0 = sharp" />
             )}
             <div className="grid grid-cols-2 gap-2">
-              <NumberInput label="X position" value={selectedShape.x} min={0} max={CANVAS_SIZE} onChange={v => updateShape(selectedShape.id, { x: v }, `shape-x-${selectedShape.id}`)} />
-              <NumberInput label="Y position" value={selectedShape.y} min={0} max={CANVAS_SIZE} onChange={v => updateShape(selectedShape.id, { y: v }, `shape-y-${selectedShape.id}`)} />
+              <NumberInput label="X position" value={selectedShape.x} min={0} max={canvasW} onChange={v => updateShape(selectedShape.id, { x: v }, `shape-x-${selectedShape.id}`)} />
+              <NumberInput label="Y position" value={selectedShape.y} min={0} max={canvasH} onChange={v => updateShape(selectedShape.id, { y: v }, `shape-y-${selectedShape.id}`)} />
             </div>
             <button className="w-full btn-secondary text-sm" onClick={() => deleteShape(selectedShape.id)}><Trash2 className="h-4 w-4" />Delete shape</button>
           </CollapsibleCard>
@@ -1989,23 +1562,47 @@ export default function CoverGenerator({ initialState, onStateChange, className 
 
         {/* Template */}
         <CollapsibleCard id="template" title="Template">
-          <select
-            className="input w-full"
-            value={selectedTemplate}
-            aria-label="Template"
-            onChange={e => setSelectedTemplate(e.target.value)}
-          >
-            <option value="">Select a template…</option>
-            {TEMPLATES.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
-          <button
-            className="w-full btn-secondary text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-            disabled={!selectedTemplate}
-            onClick={() => handleApplyTemplate(selectedTemplate)}
-          >
-            <LayoutTemplate className="h-4 w-4" />Apply template
-          </button>
-          <p className="text-[11px] text-gray-400 leading-tight">Replaces text layers and grid; keeps your image. Undo with Ctrl+Z.</p>
+          {(() => {
+            const cats = ['all', ...new Set(TEMPLATES.map(t => t.category).filter(Boolean))]
+            const filtered = filterCategory === 'all' ? TEMPLATES : TEMPLATES.filter(t => t.category === filterCategory)
+            return (
+              <>
+                <div className="flex gap-1 flex-wrap">
+                  {cats.map(cat => (
+                    <button
+                      key={cat}
+                      aria-label={`Filter templates: ${cat}`}
+                      aria-pressed={filterCategory === cat}
+                      onClick={() => {
+                        setFilterCategory(cat)
+                        setSelectedTemplate('')
+                      }}
+                      className={`text-xs px-2 py-0.5 rounded capitalize ${filterCategory === cat ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+                <select
+                  className="input w-full"
+                  value={selectedTemplate}
+                  aria-label="Template"
+                  onChange={e => setSelectedTemplate(e.target.value)}
+                >
+                  <option value="">Select a template…</option>
+                  {filtered.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+                <button
+                  className="w-full btn-secondary text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled={!selectedTemplate}
+                  onClick={() => handleApplyTemplate(selectedTemplate)}
+                >
+                  <LayoutTemplate className="h-4 w-4" />Apply template
+                </button>
+                <p className="text-[11px] text-gray-400 leading-tight">Replaces text layers, grid, and canvas size; keeps your image. Undo with Ctrl+Z.</p>
+              </>
+            )
+          })()}
         </CollapsibleCard>
 
         {/* History */}
@@ -2107,33 +1704,55 @@ export default function CoverGenerator({ initialState, onStateChange, className 
         {/* Export / Import */}
         <CollapsibleCard id="export" title="Export & Import">
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Export size</label>
-            <select
-              className="input w-full"
-              value={customSizeMode || !CANVAS_PRESETS.some(p => p.size === exportSize) ? 'custom' : exportSize}
-              aria-label="Export size"
-              onChange={e => {
-                if (e.target.value === 'custom') { setCustomSizeMode(true); return }
-                setCustomSizeMode(false)
-                update({ exportSize: clampExportSize(Number(e.target.value)) })
-              }}
-            >
-              {CANVAS_PRESETS.map(p => <option key={p.id} value={p.size}>{p.label}</option>)}
-              <option value="custom">Custom…</option>
-            </select>
-            {(customSizeMode || !CANVAS_PRESETS.some(p => p.size === exportSize)) && (
-              <div className="mt-2">
+            {canvasW === canvasH ? (
+              <>
+                <label className="block text-xs text-gray-500 mb-1">Export size</label>
+                <select
+                  className="input w-full"
+                  value={customSizeMode || !CANVAS_PRESETS.some(p => p.size === exportWidth) ? 'custom' : exportWidth}
+                  aria-label="Export size"
+                  onChange={e => {
+                    if (e.target.value === 'custom') { setCustomSizeMode(true); return }
+                    setCustomSizeMode(false)
+                    const s = clampExportSize(Number(e.target.value))
+                    update({ exportWidth: s, exportHeight: s })
+                  }}
+                >
+                  {CANVAS_PRESETS.map(p => <option key={p.id} value={p.size}>{p.label}</option>)}
+                  <option value="custom">Custom…</option>
+                </select>
+                {(customSizeMode || !CANVAS_PRESETS.some(p => p.size === exportWidth)) && (
+                  <div className="mt-2">
+                    <NumberInput
+                      label="Custom size (px)"
+                      value={state.exportWidth}
+                      min={16}
+                      max={8000}
+                      onChange={v => update({ exportWidth: v, exportHeight: v }, 'export-size')}
+                      hint="16–8000, square"
+                    />
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="flex gap-2">
                 <NumberInput
-                  label="Custom size (px)"
-                  value={state.exportSize}
+                  label="Export width (px)"
+                  value={state.exportWidth}
                   min={16}
                   max={8000}
-                  onChange={v => update({ exportSize: v }, 'export-size')}
-                  hint="16–8000, square"
+                  onChange={v => update({ exportWidth: v }, 'export-width')}
+                />
+                <NumberInput
+                  label="Export height (px)"
+                  value={state.exportHeight}
+                  min={16}
+                  max={8000}
+                  onChange={v => update({ exportHeight: v }, 'export-height')}
                 />
               </div>
             )}
-            <p className="text-[11px] text-gray-400 leading-tight mt-1">Sets the PNG pixel size and the SVG width/height. The editing canvas is always square.</p>
+            <p className="text-[11px] text-gray-400 leading-tight mt-1">Sets the PNG pixel dimensions and the SVG width/height.</p>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <button className="btn-secondary text-sm" onClick={exportPNG}><FileImage className="h-4 w-4" />Export PNG</button>

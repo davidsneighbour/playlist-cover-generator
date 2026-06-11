@@ -1,1 +1,5 @@
+export { default as ImageGenerator } from './components/CoverGenerator'
 export { default as CoverGenerator } from './components/CoverGenerator'
+export { buildStateFromTemplate } from './lib/templateApi'
+export { generateFromTemplate, renderStateToSvgString } from './lib/generate'
+export { TEMPLATES, getTemplate } from './lib/templates'

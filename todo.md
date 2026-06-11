@@ -7,3 +7,7 @@ There are no open items. The actual public `npm publish` (and bumping the versio
 ## Out of scope (non-goals)
 
 * **Server-backed cloud save** — the share link encodes the layout in the URL hash (`#s=...`), so sharing is client-only and needs no backend. A real cloud save would require a server and auth, which this embeddable, dependency-light component deliberately does not include. Documented in [AGENTS.md](AGENTS.md).
+
+# Ideas
+
+*

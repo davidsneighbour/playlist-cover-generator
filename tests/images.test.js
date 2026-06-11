@@ -79,11 +79,15 @@ describe('fitDimensions', () => {
 
 describe('centeredPosition', () => {
   it('centers a box on the canvas', () => {
-    expect(centeredPosition(600, 200, 100)).toEqual({ x: 200, y: 250 })
+    expect(centeredPosition(600, 600, 200, 100)).toEqual({ x: 200, y: 250 })
   })
 
   it('returns negative offsets for a box larger than the canvas', () => {
-    expect(centeredPosition(600, 1200, 600)).toEqual({ x: -300, y: 0 })
+    expect(centeredPosition(600, 600, 1200, 600)).toEqual({ x: -300, y: 0 })
+  })
+
+  it('centers on a non-square canvas', () => {
+    expect(centeredPosition(1080, 566, 200, 100)).toEqual({ x: 440, y: 233 })
   })
 })
 
@@ -103,6 +107,11 @@ describe('coverDimensions', () => {
 
   it('falls back to the canvas size when dimensions are unknown', () => {
     expect(coverDimensions(0, 0, 600)).toEqual({ width: 600, height: 600 })
+  })
+
+  it('covers a non-square canvas (wide image, tall canvas)', () => {
+    // 1920x1080 image, 566x1080 canvas → must fill height: scale = 1080/1080 = 1
+    expect(coverDimensions(1920, 1080, 566, 1080)).toEqual({ width: 1920, height: 1080 })
   })
 })
 
@@ -140,7 +149,7 @@ describe('aspectHeight / aspectWidth', () => {
 
 describe('offCanvasBounds', () => {
   it('lets a box go off any edge but keeps a margin on-canvas', () => {
-    expect(offCanvasBounds(200, 100, 600, 24)).toEqual({
+    expect(offCanvasBounds(200, 100, 600, 600, 24)).toEqual({
       minX: -176,
       minY: -76,
       maxX: 576,

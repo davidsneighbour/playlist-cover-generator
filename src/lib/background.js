@@ -41,15 +41,15 @@ function roundCoord(n) {
 // canvas at the given zoom and pan. zoom is clamped to >= 1 and pan to 0..1, so
 // the image always covers the frame with no gaps. Use with
 // preserveAspectRatio="none" since the returned width/height already keep the
-// image's aspect ratio.
-export function backgroundCrop(naturalWidth, naturalHeight, canvasSize, { zoom = 1, panX = 0.5, panY = 0.5 } = {}) {
-  const base = coverDimensions(naturalWidth, naturalHeight, canvasSize)
+// image's aspect ratio. Pass separate canvasWidth and canvasHeight for non-square.
+export function backgroundCrop(naturalWidth, naturalHeight, canvasWidth, canvasHeight, { zoom = 1, panX = 0.5, panY = 0.5 } = {}) {
+  const base = coverDimensions(naturalWidth, naturalHeight, canvasWidth, canvasHeight)
   const z = Math.max(1, Number(zoom) || 1)
   const width = Math.round(base.width * z)
   const height = Math.round(base.height * z)
   return {
-    x: roundCoord((canvasSize - width) * clamp01(panX)),
-    y: roundCoord((canvasSize - height) * clamp01(panY)),
+    x: roundCoord((canvasWidth - width) * clamp01(panX)),
+    y: roundCoord((canvasHeight - height) * clamp01(panY)),
     width,
     height,
   }

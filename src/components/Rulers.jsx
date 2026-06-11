@@ -1,16 +1,16 @@
 import { rulerTicks } from '../lib/rulers'
-import { CANVAS_SIZE, RULER } from '../lib/constants'
+import { RULER } from '../lib/constants'
 
-// Rulers along the top and left of the canvas, showing canvas-unit coordinates
-// (0..CANVAS_SIZE). They are plain chrome rendered outside the exported SVG, so
-// they never appear in PNG or SVG output. Tick values come from the pure
-// `rulerTicks`; pixel positions scale with the live `displaySize`.
-function RulerMarks({ displaySize, axis }) {
-  const ticks = rulerTicks(CANVAS_SIZE)
+// Rulers along the top and left of the canvas, showing canvas-unit coordinates.
+// They are plain chrome rendered outside the exported SVG, so they never appear
+// in PNG or SVG output. Tick values come from the pure `rulerTicks`; pixel
+// positions scale with the live display size.
+function RulerMarks({ displaySize, canvasSize, axis }) {
+  const ticks = rulerTicks(canvasSize)
   return ticks.map(({ value, major }) => {
-    const px = (value / CANVAS_SIZE) * displaySize
+    const px = (value / canvasSize) * displaySize
     const len = major ? 8 : 5
-    const showLabel = major && value !== 0 && value !== CANVAS_SIZE
+    const showLabel = major && value !== 0 && value !== canvasSize
     if (axis === 'top') {
       return (
         <g key={value}>
@@ -28,20 +28,20 @@ function RulerMarks({ displaySize, axis }) {
   })
 }
 
-export function TopRuler({ displaySize }) {
+export function TopRuler({ displayWidth, canvasWidth }) {
   return (
-    <svg width={displaySize} height={RULER} className="block bg-gray-50" aria-hidden="true">
-      <line x1={0} y1={RULER - 0.5} x2={displaySize} y2={RULER - 0.5} stroke="#e5e7eb" strokeWidth={1} />
-      <RulerMarks displaySize={displaySize} axis="top" />
+    <svg width={displayWidth} height={RULER} className="block bg-gray-50" aria-hidden="true">
+      <line x1={0} y1={RULER - 0.5} x2={displayWidth} y2={RULER - 0.5} stroke="#e5e7eb" strokeWidth={1} />
+      <RulerMarks displaySize={displayWidth} canvasSize={canvasWidth} axis="top" />
     </svg>
   )
 }
 
-export function LeftRuler({ displaySize }) {
+export function LeftRuler({ displayHeight, canvasHeight }) {
   return (
-    <svg width={RULER} height={displaySize} className="block bg-gray-50" aria-hidden="true">
-      <line x1={RULER - 0.5} y1={0} x2={RULER - 0.5} y2={displaySize} stroke="#e5e7eb" strokeWidth={1} />
-      <RulerMarks displaySize={displaySize} axis="left" />
+    <svg width={RULER} height={displayHeight} className="block bg-gray-50" aria-hidden="true">
+      <line x1={RULER - 0.5} y1={0} x2={RULER - 0.5} y2={displayHeight} stroke="#e5e7eb" strokeWidth={1} />
+      <RulerMarks displaySize={displayHeight} canvasSize={canvasHeight} axis="left" />
     </svg>
   )
 }

@@ -62,20 +62,21 @@ export function fitDimensions(naturalWidth, naturalHeight, maxSide) {
   }
 }
 
-// Top-left position that centers a box of the given size on a square canvas.
+// Top-left position that centers a box on a (possibly non-square) canvas.
 // May be negative when the box is larger than the canvas (a "cover" image).
-export function centeredPosition(canvasSize, width, height) {
+export function centeredPosition(canvasWidth, canvasHeight, width, height) {
   return {
-    x: Math.round((canvasSize - width) / 2),
-    y: Math.round((canvasSize - height) / 2),
+    x: Math.round((canvasWidth - width) / 2),
+    y: Math.round((canvasHeight - height) / 2),
   }
 }
 
-// Scale natural dimensions so the image *covers* the square canvas: the shorter
-// side fills it and the longer side overflows (the inverse of fitDimensions).
-export function coverDimensions(naturalWidth, naturalHeight, canvasSize) {
-  if (!naturalWidth || !naturalHeight) return { width: canvasSize, height: canvasSize }
-  const scale = canvasSize / Math.min(naturalWidth, naturalHeight)
+// Scale natural dimensions so the image *covers* the canvas: both sides of the
+// canvas are filled, with the image overflowing on the longer axis. For square
+// canvases pass only canvasWidth; for non-square pass both dimensions.
+export function coverDimensions(naturalWidth, naturalHeight, canvasWidth, canvasHeight = canvasWidth) {
+  if (!naturalWidth || !naturalHeight) return { width: canvasWidth, height: canvasHeight }
+  const scale = Math.max(canvasWidth / naturalWidth, canvasHeight / naturalHeight)
   return {
     width: Math.round(naturalWidth * scale),
     height: Math.round(naturalHeight * scale),
@@ -112,13 +113,13 @@ export function aspectWidth(height, naturalWidth, naturalHeight) {
 export const OFFCANVAS_MARGIN = 24
 
 // Drag bounds for a box layer's top-left corner: it may go off any edge as long
-// as `margin` pixels remain on the canvas.
-export function offCanvasBounds(width, height, canvasSize, margin = OFFCANVAS_MARGIN) {
+// as `margin` pixels remain on the canvas. Pass canvasHeight for non-square canvases.
+export function offCanvasBounds(width, height, canvasWidth, canvasHeight = canvasWidth, margin = OFFCANVAS_MARGIN) {
   return {
     minX: margin - width,
     minY: margin - height,
-    maxX: canvasSize - margin,
-    maxY: canvasSize - margin,
+    maxX: canvasWidth - margin,
+    maxY: canvasHeight - margin,
   }
 }
 

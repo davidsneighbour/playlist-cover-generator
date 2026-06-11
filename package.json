@@ -1,27 +1,36 @@
 {
-  "name": "playlist-cover-generator",
-  "version": "0.1.0",
+  "name": "posterboy-image-generator",
+  "version": "0.2.0",
   "type": "module",
-  "description": "Embeddable React component for generating square playlist cover art with a clean, exportable SVG canvas.",
+  "description": "Embeddable React component for generating images from templates — album covers, social media posts, banners — with a clean, exportable SVG canvas.",
   "license": "MIT",
   "keywords": [
     "react",
     "svg",
-    "playlist",
-    "cover",
+    "image-generator",
+    "template",
     "album-art",
+    "social-media",
+    "cover",
     "editor",
-    "image-editor"
+    "image-editor",
+    "posterboy"
   ],
-  "main": "./dist/playlist-cover-generator.cjs",
-  "module": "./dist/playlist-cover-generator.js",
+  "main": "./dist/posterboy-image-generator.cjs",
+  "module": "./dist/posterboy-image-generator.js",
   "types": "./index.d.ts",
   "exports": {
     ".": {
       "types": "./index.d.ts",
-      "import": "./dist/playlist-cover-generator.js",
-      "require": "./dist/playlist-cover-generator.cjs"
+      "import": "./dist/posterboy-image-generator.js",
+      "require": "./dist/posterboy-image-generator.cjs"
+    },
+    "./node": {
+      "import": "./dist/generate.node.js"
     }
+  },
+  "optionalDependencies": {
+    "@resvg/resvg-js": "^2.6.0"
   },
   "files": [
     "dist",
