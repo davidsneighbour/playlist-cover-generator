@@ -28,6 +28,7 @@ export const TEXT_KEYS = [
   'strokeWidth',
   'shadow',
   'lineHeight',
+  'opacity',
 ]
 
 const DEFAULT_GRID = { enabled: false, spacing: 20, majorEvery: 5 }
@@ -49,6 +50,7 @@ function text(overrides) {
     strokeWidth: 0,
     shadow: null,
     lineHeight: 1.2,
+    opacity: 1,
     ...overrides,
   }
 }
@@ -90,8 +92,8 @@ export const TEMPLATES = [
     ],
     layout: {
       texts: [
-        { content: 'Playlist Title', x: 300, y: 300, fontSize: 56, fontFamily: SANS, color: '#ffffff', bold: true, italic: false, anchor: 'middle', stroke: '#000000', strokeWidth: 2, shadow: { color: '#000000', blur: 4, dx: 0, dy: 2 }, lineHeight: 1.2 },
-        { content: 'Artist or Curator', x: 300, y: 356, fontSize: 26, fontFamily: SANS, color: '#ffffff', bold: false, italic: false, anchor: 'middle', stroke: '#000000', strokeWidth: 0, shadow: null, lineHeight: 1.2 },
+        text({ content: 'Playlist Title', x: 300, y: 300, fontSize: 56, color: '#ffffff', bold: true, strokeWidth: 2, shadow: { color: '#000000', blur: 4, dx: 0, dy: 2 } }),
+        text({ content: 'Artist or Curator', x: 300, y: 356, fontSize: 26, color: '#ffffff' }),
       ],
       grid: { ...DEFAULT_GRID },
       snapToGrid: true,
@@ -109,7 +111,7 @@ export const TEMPLATES = [
     fields: [],
     layout: {
       texts: [
-        { content: 'minimal', x: 300, y: 320, fontSize: 44, fontFamily: SERIF, color: '#111827', bold: false, italic: true, anchor: 'middle', stroke: '#000000', strokeWidth: 0, shadow: null, lineHeight: 1.2 },
+        text({ content: 'minimal', x: 300, y: 320, fontSize: 44, fontFamily: SERIF, color: '#111827', italic: true }),
       ],
       grid: { ...DEFAULT_GRID },
       snapToGrid: true,
@@ -127,8 +129,8 @@ export const TEMPLATES = [
     fields: [],
     layout: {
       texts: [
-        { content: 'VOL. 01', x: 40, y: 80, fontSize: 28, fontFamily: SANS, color: '#ffffff', bold: true, italic: false, anchor: 'start', stroke: '#000000', strokeWidth: 0, shadow: null, lineHeight: 1.2 },
-        { content: 'Mixtape', x: 40, y: 560, fontSize: 72, fontFamily: SANS, color: '#ffffff', bold: true, italic: false, anchor: 'start', stroke: '#000000', strokeWidth: 3, shadow: null, lineHeight: 1.2 },
+        text({ content: 'VOL. 01', x: 40, y: 80, fontSize: 28, color: '#ffffff', bold: true, anchor: 'start' }),
+        text({ content: 'Mixtape', x: 40, y: 560, fontSize: 72, color: '#ffffff', bold: true, anchor: 'start', strokeWidth: 3 }),
       ],
       grid: { enabled: true, spacing: 40, majorEvery: 4 },
       snapToGrid: true,
@@ -271,8 +273,8 @@ export const TEMPLATES = [
     ],
     layout: {
       texts: [
-        { content: 'LABEL TEXT', x: 48, y: 490, fontSize: 20, fontFamily: SANS, color: '#ffffff', bold: false, italic: false, anchor: 'start', stroke: '#000000', strokeWidth: 0, shadow: null, lineHeight: 1.2 },
-        { content: 'Post Title', x: 48, y: 534, fontSize: 36, fontFamily: SANS, color: '#ffffff', bold: true, italic: false, anchor: 'start', stroke: '#000000', strokeWidth: 0, shadow: { color: '#000000', blur: 8, dx: 0, dy: 2 }, lineHeight: 1.2 },
+        text({ content: 'LABEL TEXT', x: 48, y: 490, fontSize: 20, color: '#ffffff', anchor: 'start' }),
+        text({ content: 'Post Title', x: 48, y: 534, fontSize: 36, color: '#ffffff', bold: true, anchor: 'start', shadow: { color: '#000000', blur: 8, dx: 0, dy: 2 } }),
       ],
       overlay: {
         enabled: true,
@@ -304,8 +306,8 @@ export const TEMPLATES = [
     ],
     layout: {
       texts: [
-        { content: 'LABEL TEXT', x: 48, y: 940, fontSize: 24, fontFamily: SANS, color: '#ffffff', bold: false, italic: false, anchor: 'start', stroke: '#000000', strokeWidth: 0, shadow: null, lineHeight: 1.2 },
-        { content: 'Post Title', x: 48, y: 994, fontSize: 44, fontFamily: SANS, color: '#ffffff', bold: true, italic: false, anchor: 'start', stroke: '#000000', strokeWidth: 0, shadow: { color: '#000000', blur: 8, dx: 0, dy: 2 }, lineHeight: 1.2 },
+        text({ content: 'LABEL TEXT', x: 48, y: 940, fontSize: 24, color: '#ffffff', anchor: 'start' }),
+        text({ content: 'Post Title', x: 48, y: 994, fontSize: 44, color: '#ffffff', bold: true, anchor: 'start', shadow: { color: '#000000', blur: 8, dx: 0, dy: 2 } }),
       ],
       overlay: {
         enabled: true,

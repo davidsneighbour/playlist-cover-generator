@@ -27,6 +27,7 @@ const TextElement = memo(function TextElement({ text, selected, locked, onSelect
       fontFamily={text.fontFamily}
       fontSize={text.fontSize}
       fill={text.color}
+      opacity={text.opacity ?? 1}
       {...textStrokeAttrs(text)}
       filter={shadow ? `url(#${shadow.id})` : undefined}
       fontWeight={text.bold ? 'bold' : 'normal'}

@@ -439,6 +439,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
         strokeWidth: 0,
         shadow: null,
         lineHeight: 1.2,
+        opacity: 1,
       }]
     }))
     selectText(id)
@@ -1389,6 +1390,11 @@ export default function CoverGenerator({ initialState, onStateChange, className 
             <div className="grid grid-cols-2 gap-2 mt-2">
               <NumberInput label="X position" value={selectedText.x} min={0} max={canvasW} onChange={v => updateText(selectedText.id, { x: v }, `x-${selectedText.id}`)} />
               <NumberInput label="Y position" value={selectedText.y} min={0} max={canvasH} onChange={v => updateText(selectedText.id, { y: v }, `y-${selectedText.id}`)} />
+            </div>
+
+            <div className="mt-2">
+              <label className="block text-xs text-gray-500 mb-1">Opacity ({Math.round((selectedText.opacity ?? 1) * 100)}%)</label>
+              <input type="range" aria-label="Text opacity" className="w-full accent-blue-500 mt-1.5" min={0} max={100} value={Math.round((selectedText.opacity ?? 1) * 100)} onChange={e => updateText(selectedText.id, { opacity: clampOpacity(Number(e.target.value) / 100) }, `text-opacity-${selectedText.id}`)} />
             </div>
           </CollapsibleCard>
         )}
