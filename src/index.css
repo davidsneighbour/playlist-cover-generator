@@ -33,4 +33,16 @@
   .input {
     @apply bg-white border border-gray-200 rounded-md px-2 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-shadow;
   }
+
+  /* Icon-only action button (layer rows, lock/visibility toggles).
+     p-1.5 gives a 26px hit area on desktop (fine for mouse).
+     On touch devices (pointer: coarse) padding grows to 34px — passes
+     WCAG 2.5.8 (24px minimum) and approaches the 44px comfort target. */
+  .btn-icon {
+    @apply inline-flex items-center justify-center rounded p-1.5 transition-colors;
+
+    @media (pointer: coarse) {
+      padding: 0.625rem; /* ~10px each side → 14 + 20 = 34px hit area */
+    }
+  }
 }

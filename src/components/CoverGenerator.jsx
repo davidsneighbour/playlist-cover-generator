@@ -126,7 +126,7 @@ function LayerRow({ entry, onSelect, onToggleVisibility, onToggleLock }) {
             aria-pressed={entry.locked}
             title={entry.locked ? 'Unlock layer' : 'Lock layer'}
             aria-label={entry.locked ? 'Unlock layer' : 'Lock layer'}
-            className="shrink-0 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 cursor-pointer"
+            className="shrink-0 btn-icon text-gray-400 hover:bg-gray-100 hover:text-gray-600 cursor-pointer"
           >
             {entry.locked ? <Lock className="h-3.5 w-3.5" /> : <LockOpen className="h-3.5 w-3.5" />}
           </button>
@@ -136,7 +136,7 @@ function LayerRow({ entry, onSelect, onToggleVisibility, onToggleLock }) {
             aria-pressed={!entry.hidden}
             title={entry.hidden ? 'Show layer' : 'Hide layer'}
             aria-label={entry.hidden ? 'Show layer' : 'Hide layer'}
-            className="shrink-0 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 cursor-pointer"
+            className="shrink-0 btn-icon text-gray-400 hover:bg-gray-100 hover:text-gray-600 cursor-pointer"
           >
             {entry.hidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
           </button>
@@ -1246,10 +1246,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                   >
                     {t.content || '(empty)'}
                   </button>
-                  <button className="text-gray-400 hover:text-gray-700 inline-flex items-center px-1" title="Duplicate" aria-label="Duplicate text layer" onClick={(e) => { e.stopPropagation(); duplicateText(t.id) }}><Copy className="h-3.5 w-3.5" /></button>
-                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 inline-flex items-center px-1" title="Bring to front" aria-label="Bring text layer to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleBringToFront(t.id) }}><BringToFront className="h-3.5 w-3.5" /></button>
-                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 inline-flex items-center px-1" title="Send to back" aria-label="Send text layer to back" disabled={isBottom} onClick={(e) => { e.stopPropagation(); handleSendToBack(t.id) }}><SendToBack className="h-3.5 w-3.5" /></button>
-                  <button className="text-gray-400 hover:text-red-500 inline-flex items-center px-1" title="Delete" aria-label="Delete text layer" onClick={(e) => { e.stopPropagation(); deleteText(t.id) }}><Trash2 className="h-3.5 w-3.5" /></button>
+                  <button className="btn-icon text-gray-400 hover:text-gray-700" title="Duplicate" aria-label="Duplicate text layer" onClick={(e) => { e.stopPropagation(); duplicateText(t.id) }}><Copy className="h-3.5 w-3.5" /></button>
+                  <button className="btn-icon text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400" title="Bring to front" aria-label="Bring text layer to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleBringToFront(t.id) }}><BringToFront className="h-3.5 w-3.5" /></button>
+                  <button className="btn-icon text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400" title="Send to back" aria-label="Send text layer to back" disabled={isBottom} onClick={(e) => { e.stopPropagation(); handleSendToBack(t.id) }}><SendToBack className="h-3.5 w-3.5" /></button>
+                  <button className="btn-icon text-gray-400 hover:text-red-500" title="Delete" aria-label="Delete text layer" onClick={(e) => { e.stopPropagation(); deleteText(t.id) }}><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>
               </div>
             )
@@ -1423,10 +1423,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                   >
                     {img.name || 'image'}
                   </button>
-                  <button className="text-gray-400 hover:text-gray-700 inline-flex items-center px-1" title="Duplicate" aria-label="Duplicate image layer" onClick={(e) => { e.stopPropagation(); duplicateImage(img.id) }}><Copy className="h-3.5 w-3.5" /></button>
-                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 inline-flex items-center px-1" title="Bring to front" aria-label="Bring image layer to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleImageToFront(img.id) }}><BringToFront className="h-3.5 w-3.5" /></button>
-                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 inline-flex items-center px-1" title="Send to back" aria-label="Send image layer to back" disabled={isBottom} onClick={(e) => { e.stopPropagation(); handleImageToBack(img.id) }}><SendToBack className="h-3.5 w-3.5" /></button>
-                  <button className="text-gray-400 hover:text-red-500 inline-flex items-center px-1" title="Delete" aria-label="Delete image layer" onClick={(e) => { e.stopPropagation(); deleteImage(img.id) }}><Trash2 className="h-3.5 w-3.5" /></button>
+                  <button className="btn-icon text-gray-400 hover:text-gray-700" title="Duplicate" aria-label="Duplicate image layer" onClick={(e) => { e.stopPropagation(); duplicateImage(img.id) }}><Copy className="h-3.5 w-3.5" /></button>
+                  <button className="btn-icon text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400" title="Bring to front" aria-label="Bring image layer to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleImageToFront(img.id) }}><BringToFront className="h-3.5 w-3.5" /></button>
+                  <button className="btn-icon text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400" title="Send to back" aria-label="Send image layer to back" disabled={isBottom} onClick={(e) => { e.stopPropagation(); handleImageToBack(img.id) }}><SendToBack className="h-3.5 w-3.5" /></button>
+                  <button className="btn-icon text-gray-400 hover:text-red-500" title="Delete" aria-label="Delete image layer" onClick={(e) => { e.stopPropagation(); deleteImage(img.id) }}><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>
               </div>
             )
@@ -1521,10 +1521,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                   >
                     {shape.type}
                   </button>
-                  <button className="text-gray-400 hover:text-gray-700 inline-flex items-center px-1" title="Duplicate" aria-label="Duplicate shape" onClick={(e) => { e.stopPropagation(); duplicateShape(shape.id) }}><Copy className="h-3.5 w-3.5" /></button>
-                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 inline-flex items-center px-1" title="Bring to front" aria-label="Bring shape to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleShapeToFront(shape.id) }}><BringToFront className="h-3.5 w-3.5" /></button>
-                  <button className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400 inline-flex items-center px-1" title="Send to back" aria-label="Send shape to back" disabled={isBottom} onClick={(e) => { e.stopPropagation(); handleShapeToBack(shape.id) }}><SendToBack className="h-3.5 w-3.5" /></button>
-                  <button className="text-gray-400 hover:text-red-500 inline-flex items-center px-1" title="Delete" aria-label="Delete shape" onClick={(e) => { e.stopPropagation(); deleteShape(shape.id) }}><Trash2 className="h-3.5 w-3.5" /></button>
+                  <button className="btn-icon text-gray-400 hover:text-gray-700" title="Duplicate" aria-label="Duplicate shape" onClick={(e) => { e.stopPropagation(); duplicateShape(shape.id) }}><Copy className="h-3.5 w-3.5" /></button>
+                  <button className="btn-icon text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400" title="Bring to front" aria-label="Bring shape to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleShapeToFront(shape.id) }}><BringToFront className="h-3.5 w-3.5" /></button>
+                  <button className="btn-icon text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400" title="Send to back" aria-label="Send shape to back" disabled={isBottom} onClick={(e) => { e.stopPropagation(); handleShapeToBack(shape.id) }}><SendToBack className="h-3.5 w-3.5" /></button>
+                  <button className="btn-icon text-gray-400 hover:text-red-500" title="Delete" aria-label="Delete shape" onClick={(e) => { e.stopPropagation(); deleteShape(shape.id) }}><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>
               </div>
             )
