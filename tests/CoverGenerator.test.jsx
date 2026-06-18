@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeAll, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import axe from 'axe-core'
 import CoverGenerator from '../src/components/CoverGenerator'
 
 // jsdom lacks these; the editor observes its container and scrolls newly added
@@ -70,5 +71,33 @@ describe('CoverGenerator', () => {
     expect(field).not.toBeNull()
     fireEvent.keyDown(field, { key: 'z', ctrlKey: true })
     expect(textCount(container)).toBe(1)
+  })
+})
+
+// Helper: format axe violations into a readable failure message.
+function formatViolations(violations) {
+  return violations
+    .map(v => `[${v.id}] ${v.description}\n  ${v.nodes.map(n => n.html).join('\n  ')}`)
+    .join('\n\n')
+}
+
+// Helper: run axe on a container, throwing with a clear message on violations.
+async function assertNoAxeViolations(container, options) {
+  const results = await axe.run(container, options)
+  if (results.violations.length > 0) {
+    throw new Error(`axe violations:\n\n${formatViolations(results.violations)}`)
+  }
+}
+
+describe('Accessibility (axe)', () => {
+  it('has no axe violations in the default (empty) state', async () => {
+    const { container } = render(<CoverGenerator autoSave={false} />)
+    await assertNoAxeViolations(container)
+  })
+
+  it('has no axe violations with a text layer selected', async () => {
+    const { container } = render(<CoverGenerator autoSave={false} />)
+    addText()
+    await assertNoAxeViolations(container)
   })
 })
