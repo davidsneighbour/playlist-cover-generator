@@ -20,12 +20,14 @@ export function buildLayerList(state, selection = {}) {
   const texts = state.texts || []
   for (let i = texts.length - 1; i >= 0; i--) {
     const t = texts[i]
+    const autoLabel = t.content && t.content.trim() ? t.content : '(empty text)'
     entries.push({
       key: `text-${t.id}`,
       kind: 'text',
       id: t.id,
       icon: 'type',
-      label: t.content && t.content.trim() ? t.content : '(empty text)',
+      name: t.name || '',
+      label: t.name || autoLabel,
       selected: t.id === selectedTextId,
       muted: !!t.hidden,
       hidden: !!t.hidden,
@@ -37,12 +39,14 @@ export function buildLayerList(state, selection = {}) {
   const shapes = state.shapes || []
   for (let i = shapes.length - 1; i >= 0; i--) {
     const s = shapes[i]
+    const autoLabel = s.type === 'circle' ? 'Circle' : s.type === 'triangle' ? 'Triangle' : 'Rectangle'
     entries.push({
       key: `shape-${s.id}`,
       kind: 'shape',
       id: s.id,
       icon: s.type === 'circle' ? 'circle' : s.type === 'triangle' ? 'triangle' : 'square',
-      label: s.type === 'circle' ? 'Circle' : s.type === 'triangle' ? 'Triangle' : 'Rectangle',
+      name: s.name || '',
+      label: s.name || autoLabel,
       selected: s.id === selectedShapeId,
       muted: !!s.hidden,
       hidden: !!s.hidden,
@@ -59,6 +63,7 @@ export function buildLayerList(state, selection = {}) {
       kind: 'image',
       id: img.id,
       icon: 'image',
+      name: img.name || '',
       label: img.name || 'Image',
       selected: img.id === selectedImageId,
       muted: !!img.hidden,

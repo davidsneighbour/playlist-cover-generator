@@ -15,6 +15,7 @@ const SERIF = 'serif'
  * @type {string[]}
  */
 export const TEXT_KEYS = [
+  'name',
   'content',
   'x',
   'y',
@@ -37,6 +38,7 @@ const DEFAULT_GRID = { enabled: false, spacing: 20, majorEvery: 5 }
 // TEXT_KEYS without repeating the full object. Pass only what differs.
 function text(overrides) {
   return {
+    name: '',
     content: 'Text',
     x: 300,
     y: 300,

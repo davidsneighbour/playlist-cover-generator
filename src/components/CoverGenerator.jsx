@@ -100,25 +100,65 @@ const LAYER_ICONS = { type: Type, square: Square, circle: Circle, triangle: Tria
 // One row in the Layers overview panel. Clicking it jumps to that layer's
 // controls (selecting it, or opening the background/overlay card). Selection is
 // reflected like the per-type lists; singletons that are off/empty are muted.
-function LayerRow({ entry, onSelect, onToggleVisibility, onToggleLock }) {
+function LayerRow({ entry, onSelect, onToggleVisibility, onToggleLock, onRename }) {
   const Icon = LAYER_ICONS[entry.icon]
-  // Real layers (text/image/shape) carry an id and can be hidden or locked; the
-  // overlay/background singletons have their own enable controls elsewhere.
-  const togglable = entry.id != null
+  // Real layers (text/image/shape) carry an id; singletons (overlay/background) do not.
+  const toggleable = entry.id != null
+  const [editing, setEditing] = useState(false)
+  const [editValue, setEditValue] = useState('')
+  const inputRef = useRef(null)
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus()
+  }, [editing])
+
+  const startEdit = (e) => {
+    e.stopPropagation()
+    setEditValue(entry.name || '')
+    setEditing(true)
+  }
+
+  const commitEdit = () => {
+    setEditing(false)
+    const trimmed = editValue.trim()
+    if (trimmed !== (entry.name || '')) onRename(entry, trimmed)
+  }
+
+  const cancelEdit = () => setEditing(false)
+
   return (
     <div
       className={`flex w-full items-center gap-1.5 rounded border px-2 py-1.5 text-sm transition-colors ${entry.selected ? 'border-blue-400 bg-blue-50 text-gray-900' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'}`}
     >
-      <button
-        type="button"
-        onClick={() => onSelect(entry)}
-        aria-pressed={entry.selected}
-        className="flex flex-1 items-center gap-2 text-left cursor-pointer min-w-0"
-      >
-        {Icon && <Icon className={`h-3.5 w-3.5 shrink-0 ${entry.muted ? 'text-gray-300' : 'text-gray-400'}`} aria-hidden="true" />}
-        <span className={`truncate flex-1 ${entry.muted ? 'text-gray-400 italic' : ''}`}>{entry.label}</span>
-      </button>
-      {togglable && (
+      {editing ? (
+        <input
+          ref={inputRef}
+          type="text"
+          className="flex-1 min-w-0 bg-transparent border-b border-blue-400 outline-none text-sm py-0 px-0"
+          value={editValue}
+          placeholder={entry.label}
+          aria-label="Layer name"
+          onChange={e => setEditValue(e.target.value)}
+          onBlur={commitEdit}
+          onKeyDown={e => {
+            if (e.key === 'Enter') { e.preventDefault(); commitEdit() }
+            if (e.key === 'Escape') { e.preventDefault(); cancelEdit() }
+          }}
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={() => onSelect(entry)}
+          onDoubleClick={toggleable ? startEdit : undefined}
+          aria-pressed={entry.selected}
+          title={toggleable ? 'Click to select · double-click to rename' : undefined}
+          className="flex flex-1 items-center gap-2 text-left cursor-pointer min-w-0"
+        >
+          {Icon && <Icon className={`h-3.5 w-3.5 shrink-0 ${entry.muted ? 'text-gray-300' : 'text-gray-400'}`} aria-hidden="true" />}
+          <span className={`truncate flex-1 ${entry.muted ? 'text-gray-400 italic' : ''}`}>{entry.label}</span>
+        </button>
+      )}
+      {toggleable && !editing && (
         <>
           <button
             type="button"
@@ -257,6 +297,12 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     setLayerFlag(entry, 'locked', !entry.locked)
     announce(`${layerNoun(entry.kind)} ${entry.locked ? 'unlocked' : 'locked'}`)
   }, [setLayerFlag, announce])
+
+  const renameLayer = useCallback((entry, name) => {
+    const key = layerArrayKey(entry.kind)
+    if (!key) return
+    update(prev => ({ ...prev, [key]: (prev[key] || []).map(l => l.id === entry.id ? { ...l, name } : l) }))
+  }, [update])
 
   // Fit the canvas to the column, preserving the template's aspect ratio and
   // leaving room for the rulers when shown. Re-runs when the ruler toggle or the
@@ -426,6 +472,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
       ...prev,
       texts: [...prev.texts, {
         id,
+        name: '',
         content: 'New text',
         x: snapValue((prev.canvasWidth || DEFAULT_CANVAS_WIDTH) / 2, prev.grid.spacing, prev.snapToGrid),
         y: snapValue((prev.canvasHeight || DEFAULT_CANVAS_HEIGHT) / 2, prev.grid.spacing, prev.snapToGrid),
@@ -1061,7 +1108,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
         {/* Layers — overview of everything on the canvas; click an entry to open its controls */}
         <CollapsibleCard id="layers" title="Layers">
           {layerList.map(entry => (
-            <LayerRow key={entry.key} entry={entry} onSelect={goToLayer} onToggleVisibility={toggleLayerVisibility} onToggleLock={toggleLayerLock} />
+            <LayerRow key={entry.key} entry={entry} onSelect={goToLayer} onToggleVisibility={toggleLayerVisibility} onToggleLock={toggleLayerLock} onRename={renameLayer} />
           ))}
           <p className="text-[11px] text-gray-400 leading-tight">Click a layer to open its controls. Listed front to back.</p>
         </CollapsibleCard>
@@ -1244,7 +1291,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                     aria-pressed={selected}
                     onClick={(e) => { e.stopPropagation(); selectText(selected ? null : t.id) }}
                   >
-                    {t.content || '(empty)'}
+                    {t.name || t.content || '(empty)'}
                   </button>
                   <button className="btn-icon text-gray-400 hover:text-gray-700" title="Duplicate" aria-label="Duplicate text layer" onClick={(e) => { e.stopPropagation(); duplicateText(t.id) }}><Copy className="h-3.5 w-3.5" /></button>
                   <button className="btn-icon text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400" title="Bring to front" aria-label="Bring text layer to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleBringToFront(t.id) }}><BringToFront className="h-3.5 w-3.5" /></button>
@@ -1519,7 +1566,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                     aria-pressed={selected}
                     onClick={(e) => { e.stopPropagation(); selectShape(selected ? null : shape.id) }}
                   >
-                    {shape.type}
+                    {shape.name || shape.type}
                   </button>
                   <button className="btn-icon text-gray-400 hover:text-gray-700" title="Duplicate" aria-label="Duplicate shape" onClick={(e) => { e.stopPropagation(); duplicateShape(shape.id) }}><Copy className="h-3.5 w-3.5" /></button>
                   <button className="btn-icon text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:hover:text-gray-400" title="Bring to front" aria-label="Bring shape to front" disabled={isTop} onClick={(e) => { e.stopPropagation(); handleShapeToFront(shape.id) }}><BringToFront className="h-3.5 w-3.5" /></button>

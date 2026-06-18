@@ -9,6 +9,7 @@
 export const SHAPE_TYPES = ['rect', 'circle', 'triangle']
 
 export const DEFAULT_SHAPE = {
+  name: '',
   x: 220,
   y: 220,
   width: 160,
