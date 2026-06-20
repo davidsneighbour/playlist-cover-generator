@@ -270,6 +270,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const batchFileInputRef = useRef(null)
   const dragIndexRef = useRef(null)
   const bgColorRef = useRef({ r: 255, g: 255, b: 255 })
+  const lastInputWasKeyboard = useRef(false)
 
   // Accordion: one unpinned control card open at a time; pinned cards stay open.
   const [accordion, setAccordion] = useState({ openId: 'layers', pinned: [] })
@@ -292,11 +293,32 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   }, [selectText, selectImage, selectShape])
   const closeContextMenu = useCallback(() => setContextMenu(null), [])
 
-  // After adding a layer, scroll its freshly shown properties card into view.
+  // Track whether the last user input was keyboard so focus can be moved into
+  // a programmatically opened accordion card without disturbing pointer users.
+  useEffect(() => {
+    const onKey = () => { lastInputWasKeyboard.current = true }
+    const onPointer = () => { lastInputWasKeyboard.current = false }
+    document.addEventListener('keydown', onKey, true)
+    document.addEventListener('pointerdown', onPointer, true)
+    return () => {
+      document.removeEventListener('keydown', onKey, true)
+      document.removeEventListener('pointerdown', onPointer, true)
+    }
+  }, [])
+
+  // After opening a properties card, scroll it into view and — when triggered
+  // by keyboard — move focus to its first interactive control.
   const [scrollTo, setScrollTo] = useState(null)
   useEffect(() => {
     if (!scrollTo) return
-    document.getElementById(scrollTo)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    const el = document.getElementById(scrollTo)
+    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    if (lastInputWasKeyboard.current) {
+      const first = el?.querySelector(
+        '[role="region"] :is(button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"]))'
+      )
+      first?.focus({ preventScroll: true })
+    }
     setScrollTo(null)
   }, [scrollTo])
 
