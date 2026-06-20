@@ -1,15 +1,15 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { reorder, bringToFront, sendToBack, displayIndexToArrayIndex, duplicateById } from '../lib/layers'
 import { TEMPLATES, getTemplate, instantiateTemplate } from '../lib/templates'
-import { BUILTIN_FONTS, googleFontCssUrl, buildFontFaceRule, addFont, googleFontsListUrl, filterFontNames, fontVariantKey, variantFontFace, pickVariantFile } from '../lib/fonts'
+import { BUILTIN_FONTS, googleFontCssUrl, addFont, googleFontsListUrl, filterFontNames } from '../lib/fonts'
 import { BLEND_MODES, createImageLayer, clampOpacity, centeredPosition, coverDimensions, scaleDimensions, dimensionPercent, aspectHeight, aspectWidth } from '../lib/images'
 import { createShape } from '../lib/shapes'
 import { DEFAULT_OVERLAY, OVERLAY_TYPES } from '../lib/overlay'
 import { DEFAULT_BACKGROUND_GRADIENT, BACKGROUND_GRADIENT_TYPES, DEFAULT_BACKGROUND_TRANSFORM, backgroundCrop } from '../lib/background'
 import { DEFAULT_FILTERS, isFilterActive } from '../lib/filters'
-import { CANVAS_PRESETS, DEFAULT_EXPORT_WIDTH, DEFAULT_EXPORT_HEIGHT, exportScale, clampExportSize } from '../lib/canvas'
+import { CANVAS_PRESETS, DEFAULT_EXPORT_WIDTH, DEFAULT_EXPORT_HEIGHT, clampExportSize } from '../lib/canvas'
 import { nudgeDelta, isDeleteKey, isEditableTarget } from '../lib/shortcuts'
-import { stripExportArtifacts } from '../lib/export'
+import { prepareCloneForExport, clearInteractionStyles, embedFontsInClone, svgCloneToPngBlob } from '../lib/export'
 import { mergeInitialState } from '../lib/state'
 import { snapValue } from '../lib/grid'
 import { useHistoryState } from '../hooks/useHistoryState'
@@ -70,14 +70,6 @@ const DEFAULT_STATE = {
 }
 
 let nextId = 1
-
-// Base64-encode an ArrayBuffer (for inlining font files as data URIs).
-function bufferToBase64(buffer) {
-  const bytes = new Uint8Array(buffer)
-  let binary = ''
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
-  return btoa(binary)
-}
 
 // Read an image File into a data URL plus its natural dimensions (for batch
 // export, which swaps each uploaded image into the current layout).
@@ -903,87 +895,20 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     return () => window.removeEventListener('keydown', onKey)
   }, [helpOpen, contextMenu, selectedTextId, selectedImageId, selectedShapeId, selectText, deleteText, deleteImage, deleteShape, nudgeSelected, state.grid.spacing, state.texts, state.images, state.shapes])
 
-  // Inline the custom fonts actually used by text layers as base64 @font-face
-  // rules in the cloned SVG, so PNG and SVG exports render and stay portable.
-  // Font files come from the Developer API catalog (gstatic URLs are CORS-
-  // enabled, unlike the CSS endpoint). Only the weights/styles in use are
-  // embedded. Fetch failures are swallowed so export still succeeds.
-  const embedFontsInClone = useCallback(async (clone) => {
-    const used = new Set(state.texts.map(t => t.fontFamily))
-    const families = (state.fonts || []).filter(f => used.has(f))
-    if (families.length === 0) return
-    const catalog = await loadFontCatalog()
-    const byFamily = new Map(catalog.map(item => [item.family, item]))
-    const rules = []
-    for (const family of families) {
-      const item = byFamily.get(family)
-      if (!item || !item.files) continue
-      const variants = new Set(
-        state.texts.filter(t => t.fontFamily === family).map(t => fontVariantKey(t.bold, t.italic))
-      )
-      for (const variant of variants) {
-        const fileUrl = pickVariantFile(item.files, variant)
-        if (!fileUrl) continue
-        try {
-          const res = await fetch(fileUrl.replace(/^http:/, 'https:'))
-          if (!res.ok) continue
-          const dataUri = `data:font/ttf;base64,${bufferToBase64(await res.arrayBuffer())}`
-          const { weight, style } = variantFontFace(variant)
-          rules.push(buildFontFaceRule(family, { url: dataUri, weight, style, format: 'truetype' }))
-        } catch {
-          // Could not fetch this face; export proceeds with a fallback.
-        }
-      }
-    }
-    if (rules.length === 0) return
-    const style = document.createElementNS('http://www.w3.org/2000/svg', 'style')
-    style.setAttribute('data-embedded-fonts', '')
-    style.textContent = rules.join('\n')
-    clone.insertBefore(style, clone.firstChild)
-  }, [state.texts, state.fonts, loadFontCatalog])
-
-  // Rasterize a prepared SVG clone (grid/selection stripped, fonts embedded,
-  // width/height set) to a PNG Blob at the chosen export dimensions. Shared by
-  // the single PNG export and batch export.
-  const svgCloneToPngBlob = useCallback((clone) => {
-    const ew = clampExportSize(state.exportWidth)
-    const eh = clampExportSize(state.exportHeight)
-    const cw = state.canvasWidth || DEFAULT_CANVAS_WIDTH
-    const ch = state.canvasHeight || DEFAULT_CANVAS_HEIGHT
-    const svgStr = new XMLSerializer().serializeToString(clone)
-    const url = URL.createObjectURL(new Blob([svgStr], { type: 'image/svg+xml' }))
-    return new Promise((resolve, reject) => {
-      const img = new Image()
-      img.onload = () => {
-        const canvas = document.createElement('canvas')
-        canvas.width = ew
-        canvas.height = eh
-        const ctx = canvas.getContext('2d')
-        ctx.scale(exportScale(ew, cw), exportScale(eh, ch))
-        ctx.drawImage(img, 0, 0)
-        URL.revokeObjectURL(url)
-        canvas.toBlob(b => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/png')
-      }
-      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('image load failed')) }
-      img.src = url
-    })
-  }, [state.exportWidth, state.exportHeight, state.canvasWidth, state.canvasHeight])
-
   // Export PNG
   const exportPNG = useCallback(async () => {
     const svgEl = containerRef.current?.querySelector('svg')
     if (!svgEl) return
-    const clone = svgEl.cloneNode(true)
-    stripExportArtifacts(clone)
-    clone.setAttribute('width', state.canvasWidth || DEFAULT_CANVAS_WIDTH)
-    clone.setAttribute('height', state.canvasHeight || DEFAULT_CANVAS_HEIGHT)
-    await embedFontsInClone(clone)
-    const blob = await svgCloneToPngBlob(clone)
+    const ew = clampExportSize(state.exportWidth)
+    const eh = clampExportSize(state.exportHeight)
+    const clone = prepareCloneForExport(svgEl, ew, eh)
+    await embedFontsInClone(clone, state.texts, state.fonts, loadFontCatalog)
+    const blob = await svgCloneToPngBlob(clone, ew, eh, state.canvasWidth || DEFAULT_CANVAS_WIDTH, state.canvasHeight || DEFAULT_CANVAS_HEIGHT)
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
     a.download = 'cover.png'
     a.click()
-  }, [embedFontsInClone, svgCloneToPngBlob])
+  }, [state.exportWidth, state.exportHeight, state.texts, state.fonts, loadFontCatalog, state.canvasWidth, state.canvasHeight])
 
   // Batch export: apply the current layout to several uploaded images and
   // download them as a ZIP. Each image is swapped into a clone of the live SVG
@@ -994,18 +919,17 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     const svgEl = containerRef.current?.querySelector('svg')
     if (list.length === 0 || !svgEl) return
     setBatchBusy(true)
+    const ew = clampExportSize(state.exportWidth)
+    const eh = clampExportSize(state.exportHeight)
+    const bcw = state.canvasWidth || DEFAULT_CANVAS_WIDTH
+    const bch = state.canvasHeight || DEFAULT_CANVAS_HEIGHT
     try {
       const filterActive = isFilterActive(state.backgroundFilters)
       const entries = []
       for (let i = 0; i < list.length; i++) {
         let loaded
         try { loaded = await loadImageFile(list[i]) } catch { continue }
-        const bcw = state.canvasWidth || DEFAULT_CANVAS_WIDTH
-        const bch = state.canvasHeight || DEFAULT_CANVAS_HEIGHT
-        const clone = svgEl.cloneNode(true)
-        stripExportArtifacts(clone)
-        clone.setAttribute('width', bcw)
-        clone.setAttribute('height', bch)
+        const clone = prepareCloneForExport(svgEl, bcw, bch)
         let bg = clone.querySelector('[data-layer="background"]')
         if (!bg) {
           bg = document.createElementNS('http://www.w3.org/2000/svg', 'image')
@@ -1025,9 +949,9 @@ export default function CoverGenerator({ initialState, onStateChange, className 
         bg.setAttribute('height', crop.height)
         bg.setAttribute('preserveAspectRatio', 'none')
         if (filterActive) bg.setAttribute('filter', 'url(#bg-filter)')
-        await embedFontsInClone(clone)
+        await embedFontsInClone(clone, state.texts, state.fonts, loadFontCatalog)
         let blob
-        try { blob = await svgCloneToPngBlob(clone) } catch { continue }
+        try { blob = await svgCloneToPngBlob(clone, ew, eh, bcw, bch) } catch { continue }
         const buf = new Uint8Array(await blob.arrayBuffer())
         const base = (list[i].name || `image-${i + 1}`).replace(/\.[^.]+$/, '')
         entries.push({ name: `${String(i + 1).padStart(2, '0')}-${base}.png`, data: buf })
@@ -1041,30 +965,23 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     } finally {
       setBatchBusy(false)
     }
-  }, [state.backgroundFilters, state.backgroundTransform, embedFontsInClone, svgCloneToPngBlob])
+  }, [state.exportWidth, state.exportHeight, state.canvasWidth, state.canvasHeight, state.backgroundFilters, state.backgroundTransform, state.texts, state.fonts, loadFontCatalog])
 
   // Export SVG
   const exportSVG = useCallback(async () => {
     const svgEl = containerRef.current?.querySelector('svg')
     if (!svgEl) return
-    const clone = svgEl.cloneNode(true)
-    stripExportArtifacts(clone)
-    clone.querySelectorAll('[data-text-id]').forEach(el => {
-      el.style.cursor = ''
-      el.style.userSelect = ''
-    })
-    clone.setAttribute('width', clampExportSize(state.exportWidth))
-    clone.setAttribute('height', clampExportSize(state.exportHeight))
-    await embedFontsInClone(clone)
-
-    const serializer = new XMLSerializer()
-    const svgStr = serializer.serializeToString(clone)
-    const blob = new Blob([svgStr], { type: 'image/svg+xml' })
+    const ew = clampExportSize(state.exportWidth)
+    const eh = clampExportSize(state.exportHeight)
+    const clone = prepareCloneForExport(svgEl, ew, eh)
+    clearInteractionStyles(clone)
+    await embedFontsInClone(clone, state.texts, state.fonts, loadFontCatalog)
+    const blob = new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
     a.download = 'cover.svg'
     a.click()
-  }, [embedFontsInClone, state.exportWidth, state.exportHeight])
+  }, [state.exportWidth, state.exportHeight, state.texts, state.fonts, loadFontCatalog])
 
   // Build a shareable edit link (state encoded in the URL hash, image excluded)
   // and copy it to the clipboard, falling back to a prompt if that is blocked.
