@@ -258,7 +258,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const [layerDropTarget, setLayerDropTarget] = useState(null) // { key, before } | null
   const [shareCopied, setShareCopied] = useState(false)
   const [customSizeMode, setCustomSizeMode] = useState(false)
-  const [saveStatus, setSaveStatus] = useState('saved') // 'saved' | 'pending'
+  const [saveStatus, setSaveStatus] = useState('idle') // 'idle' | 'pending' | 'saved'
   const [batchBusy, setBatchBusy] = useState(false)
   const [live, setLive] = useState({ msg: '', n: 0 })
   const [dragOverArrayIndex, setDragOverArrayIndex] = useState(null)
@@ -455,6 +455,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     // Skip the first run — the mounted state is already persisted.
     if (!didMountSave.current) { didMountSave.current = true; return }
     setSaveStatus('pending')
+    let hideId
     const id = setTimeout(() => {
       try { localStorage.setItem(STORAGE_KEY, serializeStateWithoutImage(state)) } catch { /* quota */ }
       if (typeof indexedDB !== 'undefined') {
@@ -464,8 +465,9 @@ export default function CoverGenerator({ initialState, onStateChange, className 
         idbOp.catch(() => {}) // fire and forget; degrade gracefully on failure
       }
       setSaveStatus('saved')
+      hideId = setTimeout(() => setSaveStatus('idle'), 2000)
     }, 500)
-    return () => clearTimeout(id)
+    return () => { clearTimeout(id); clearTimeout(hideId) }
   }, [state, autoSave])
 
   // On mount, load the background image from IndexedDB and merge it into the
@@ -1185,11 +1187,18 @@ export default function CoverGenerator({ initialState, onStateChange, className 
         </div>
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs text-gray-400">Exports at {exportWidth}×{exportHeight}px · click a layer to select · drag to move · Ctrl+Z to undo</p>
-          {autoSave && (
-            <span className="inline-flex items-center gap-1 text-xs text-gray-400 shrink-0" aria-live="polite">
+          {autoSave && saveStatus !== 'idle' && (
+            <span
+              className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border shrink-0 transition-colors ${
+                saveStatus === 'pending'
+                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                  : 'bg-green-50 text-green-700 border-green-200'
+              }`}
+              aria-live="polite"
+            >
               {saveStatus === 'pending'
-                ? <><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />Saving…</>
-                : <><Check className="h-3.5 w-3.5 text-green-600" aria-hidden="true" />Saved</>}
+                ? <><Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />Saving…</>
+                : <><Check className="h-3 w-3" aria-hidden="true" />Saved</>}
             </span>
           )}
         </div>
