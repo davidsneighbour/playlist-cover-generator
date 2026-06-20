@@ -54,6 +54,11 @@ export function useHistoryState(initial) {
     })
   }, [])
 
+  const reset = useCallback((newState) => {
+    lastKey.current = null
+    setHistory({ past: [], present: newState, future: [] })
+  }, [])
+
   return {
     state: history.present,
     canUndo: history.past.length > 0,
@@ -61,5 +66,6 @@ export function useHistoryState(initial) {
     commit,
     undo,
     redo,
+    reset,
   }
 }

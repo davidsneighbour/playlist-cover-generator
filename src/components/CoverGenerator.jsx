@@ -26,12 +26,13 @@ import {
   Undo2, Redo2, LayoutTemplate, Plus, Search, Upload, Trash2, RotateCcw,
   Square, Circle, Triangle, GripVertical, Copy, BringToFront, SendToBack,
   FileImage, FileCode, Save, FolderOpen, Link, Package, CircleHelp,
-  Type, Blend, Image as ImageIcon, Eye, EyeOff, Lock, LockOpen, Loader2, Check, AlertTriangle,
+  Type, Blend, Image as ImageIcon, Eye, EyeOff, Lock, LockOpen, Loader2, Check, AlertTriangle, FilePlus,
 } from 'lucide-react'
 import { DEFAULT_CANVAS_WIDTH, DEFAULT_CANVAS_HEIGHT, RULER, DUP_OFFSET } from '../lib/constants'
 import { TopRuler, LeftRuler } from './Rulers'
 import { NumberInput } from './NumberInput'
 import { HelpDialog } from './HelpDialog'
+import { ConfirmDialog } from './ConfirmDialog'
 import { ContextMenu } from './ContextMenu'
 import { SVGCanvas } from './SVGCanvas'
 
@@ -204,7 +205,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     () => (typeof window !== 'undefined' ? decodeShareState(readShareToken(window.location.hash)) : null),
     [], // read once at mount; decodeShareState/readShareToken are stable module imports
   )
-  const { state, canUndo, canRedo, commit, undo, redo } = useHistoryState(
+  const { state, canUndo, canRedo, commit, undo, redo, reset } = useHistoryState(
     mergeInitialState(DEFAULT_STATE, restored, sharedFromUrl, initialState),
   )
   const update = commit
@@ -213,6 +214,16 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const announce = useCallback((msg) => setLive(l => ({ msg, n: l.n + 1 })), [])
   const doUndo = useCallback(() => { undo(); announce('Undo') }, [undo, announce])
   const doRedo = useCallback(() => { redo(); announce('Redo') }, [redo, announce])
+  const handleNewProject = useCallback(() => {
+    reset(DEFAULT_STATE)
+    if (autoSave && typeof localStorage !== 'undefined') localStorage.removeItem(STORAGE_KEY)
+    setSelectedTextId(null)
+    setSelectedImageId(null)
+    setSelectedShapeId(null)
+    setQuotaWarning(false)
+    setCustomSizeMode(false)
+    announce('New project')
+  }, [reset, autoSave, announce])
   const [selectedTextId, setSelectedTextId] = useState(null)
   const [selectedImageId, setSelectedImageId] = useState(null)
   const [selectedShapeId, setSelectedShapeId] = useState(null)
@@ -220,6 +231,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const [displayHeight, setDisplayHeight] = useState(DEFAULT_CANVAS_HEIGHT)
   const [showRulers, setShowRulers] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
+  const [newProjectOpen, setNewProjectOpen] = useState(false)
   const [contextMenu, setContextMenu] = useState(null)
   const [shareCopied, setShareCopied] = useState(false)
   const [customSizeMode, setCustomSizeMode] = useState(false)
@@ -1056,6 +1068,15 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   return (
     <div className={`flex flex-col lg:flex-row gap-6 p-4 lg:p-6 min-h-screen bg-gray-50 lg:items-start ${className}`}>
       <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <ConfirmDialog
+        open={newProjectOpen}
+        onClose={() => setNewProjectOpen(false)}
+        onConfirm={handleNewProject}
+        title="Start a new project?"
+        message="This will clear the canvas, all layers, and the background image. This cannot be undone."
+        confirmLabel="New project"
+        danger
+      />
       {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} actions={ctxActions} onClose={closeContextMenu} />}
       {/* Screen-reader announcements for layer and history changes */}
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
@@ -1850,6 +1871,13 @@ export default function CoverGenerator({ initialState, onStateChange, className 
             <Package className="h-4 w-4" />{batchBusy ? 'Exporting…' : 'Batch export (ZIP)'}
           </button>
           <p className="text-[11px] text-gray-400 leading-tight">Applies the current layout (text, shapes, crop, filters) to several images and downloads a ZIP of PNGs.</p>
+          <hr className="border-gray-100" />
+          <button
+            className="w-full btn-secondary text-sm text-red-600 hover:text-red-700 hover:border-red-200 hover:bg-red-50"
+            onClick={() => setNewProjectOpen(true)}
+          >
+            <FilePlus className="h-4 w-4" />New project
+          </button>
         </CollapsibleCard>
       </div>
       </AccordionContext.Provider>
