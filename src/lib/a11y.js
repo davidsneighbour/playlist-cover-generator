@@ -27,6 +27,6 @@ export function actionAnnouncement(action, kind) {
 export function describeLayer(kind, layer = {}) {
   if (kind === 'text') return `Text layer: ${layer.content || 'empty'}`
   if (kind === 'image') return `Image layer: ${layer.name || 'image'}`
-  if (kind === 'shape') return `${layer.type === 'circle' ? 'Circle' : layer.type === 'triangle' ? 'Triangle' : 'Rectangle'} shape`
+  if (kind === 'shape') return `${layer.type === 'circle' ? 'Circle' : layer.type === 'triangle' ? 'Triangle' : layer.type === 'line' ? 'Line' : 'Rectangle'} shape`
   return layerNoun(kind)
 }

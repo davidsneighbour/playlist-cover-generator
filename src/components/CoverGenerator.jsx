@@ -26,7 +26,7 @@ import {
   Undo2, Redo2, LayoutTemplate, Plus, Search, Upload, Trash2, RotateCcw,
   Square, Circle, Triangle, GripVertical, Copy, BringToFront, SendToBack,
   FileImage, FileCode, Save, FolderOpen, Link, Package, CircleHelp,
-  Type, Blend, Image as ImageIcon, Eye, EyeOff, Lock, LockOpen, Loader2, Check, AlertTriangle, FilePlus,
+  Type, Blend, Image as ImageIcon, Eye, EyeOff, Lock, LockOpen, Loader2, Check, AlertTriangle, FilePlus, Minus,
 } from 'lucide-react'
 import { DEFAULT_CANVAS_WIDTH, DEFAULT_CANVAS_HEIGHT, RULER, DUP_OFFSET } from '../lib/constants'
 import { TopRuler, LeftRuler } from './Rulers'
@@ -101,7 +101,7 @@ function loadImageFile(file) {
 // click outside the panel (both via Headless UI Dialog's onClose), and on the X.
 // Icon glyphs for the Layers overview rows, keyed by the entry's `icon` string
 // from buildLayerList (kept out of the lib so it stays DOM-free and testable).
-const LAYER_ICONS = { type: Type, square: Square, circle: Circle, triangle: Triangle, image: ImageIcon, blend: Blend }
+const LAYER_ICONS = { type: Type, square: Square, circle: Circle, triangle: Triangle, minus: Minus, image: ImageIcon, blend: Blend }
 
 // One row in the Layers overview panel. Clicking it jumps to that layer's
 // controls (selecting it, or opening the background/overlay card). Selection is
@@ -741,6 +741,13 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     }), `shape-drag-${id}`)
   }, [update])
 
+  const handleResizeShape = useCallback((id, patch) => {
+    update(prev => ({
+      ...prev,
+      shapes: (prev.shapes || []).map(s => s.id === id ? { ...s, ...patch } : s),
+    }), `shape-resize-${id}`)
+  }, [update])
+
   const handleShapeToFront = useCallback((id) => {
     update(prev => {
       const next = bringToFront(prev.shapes || [], id)
@@ -1110,6 +1117,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               onDragImage={handleDragImage}
               onDragShape={handleDragShape}
               onResizeImage={handleResizeImage}
+              onResizeShape={handleResizeShape}
               onContextMenuLayer={openContextMenu}
               displayWidth={displayWidth}
               displayHeight={displayHeight}
@@ -1588,10 +1596,11 @@ export default function CoverGenerator({ initialState, onStateChange, className 
 
         {/* Shapes */}
         <CollapsibleCard id="shapes" title="Shapes">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <button className="btn-primary text-sm" onClick={() => addShape('rect')}><Square className="h-4 w-4" />Rectangle</button>
             <button className="btn-primary text-sm" onClick={() => addShape('circle')}><Circle className="h-4 w-4" />Circle</button>
             <button className="btn-primary text-sm" onClick={() => addShape('triangle')}><Triangle className="h-4 w-4" />Triangle</button>
+            <button className="btn-primary text-sm" onClick={() => addShape('line')}><Minus className="h-4 w-4" />Line</button>
           </div>
           {(state.shapes || []).length === 0 && <p className="text-xs text-gray-400 text-center py-1">No shapes yet</p>}
           {[...(state.shapes || [])].reverse().map((shape) => {
@@ -1605,7 +1614,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
                 onClick={() => selectShape(selected ? null : shape.id)}
               >
                 <div className="flex items-center gap-1">
-                  <span className="inline-block w-3 h-3 border border-gray-300" style={{ background: shape.fill, borderRadius: shape.type === 'circle' ? '9999px' : '2px' }} aria-hidden="true" />
+                  {shape.type === 'line'
+                    ? <span className="inline-block w-4 h-0 border-t-2 shrink-0" style={{ borderColor: shape.stroke }} aria-hidden="true" />
+                    : <span className="inline-block w-3 h-3 border border-gray-300 shrink-0" style={{ background: shape.fill, borderRadius: shape.type === 'circle' ? '9999px' : '2px' }} aria-hidden="true" />
+                  }
                   <button
                     type="button"
                     className="truncate flex-1 text-left text-gray-700 capitalize bg-transparent border-0 p-0 cursor-pointer"
@@ -1627,16 +1639,23 @@ export default function CoverGenerator({ initialState, onStateChange, className 
         {/* Selected Shape Properties */}
         {selectedShape && (
           <CollapsibleCard id="props-shape" title="Shape Properties">
-            <div className="grid grid-cols-2 gap-2">
+            {selectedShape.type === 'line' ? (
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Fill</label>
-                <input type="color" aria-label="Shape fill color" className="w-full h-8 rounded border border-gray-200 cursor-pointer" value={selectedShape.fill} onChange={e => updateShape(selectedShape.id, { fill: e.target.value }, `shape-fill-${selectedShape.id}`)} />
+                <label className="block text-xs text-gray-500 mb-1">Stroke color</label>
+                <input type="color" aria-label="Line stroke color" className="w-full h-8 rounded border border-gray-200 cursor-pointer" value={selectedShape.stroke} onChange={e => updateShape(selectedShape.id, { stroke: e.target.value }, `shape-stroke-${selectedShape.id}`)} />
               </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Stroke</label>
-                <input type="color" aria-label="Shape stroke color" className="w-full h-8 rounded border border-gray-200 cursor-pointer" value={selectedShape.stroke} onChange={e => updateShape(selectedShape.id, { stroke: e.target.value }, `shape-stroke-${selectedShape.id}`)} />
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Fill</label>
+                  <input type="color" aria-label="Shape fill color" className="w-full h-8 rounded border border-gray-200 cursor-pointer" value={selectedShape.fill} onChange={e => updateShape(selectedShape.id, { fill: e.target.value }, `shape-fill-${selectedShape.id}`)} />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Stroke</label>
+                  <input type="color" aria-label="Shape stroke color" className="w-full h-8 rounded border border-gray-200 cursor-pointer" value={selectedShape.stroke} onChange={e => updateShape(selectedShape.id, { stroke: e.target.value }, `shape-stroke-${selectedShape.id}`)} />
+                </div>
               </div>
-            </div>
+            )}
             <div className="grid grid-cols-2 gap-2">
               <NumberInput label="Stroke width" value={selectedShape.strokeWidth} min={0} max={40} onChange={v => updateShape(selectedShape.id, { strokeWidth: v }, `shape-sw-${selectedShape.id}`)} hint="0 = off" />
               <div>

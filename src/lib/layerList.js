@@ -39,12 +39,12 @@ export function buildLayerList(state, selection = {}) {
   const shapes = state.shapes || []
   for (let i = shapes.length - 1; i >= 0; i--) {
     const s = shapes[i]
-    const autoLabel = s.type === 'circle' ? 'Circle' : s.type === 'triangle' ? 'Triangle' : 'Rectangle'
+    const autoLabel = s.type === 'circle' ? 'Circle' : s.type === 'triangle' ? 'Triangle' : s.type === 'line' ? 'Line' : 'Rectangle'
     entries.push({
       key: `shape-${s.id}`,
       kind: 'shape',
       id: s.id,
-      icon: s.type === 'circle' ? 'circle' : s.type === 'triangle' ? 'triangle' : 'square',
+      icon: s.type === 'circle' ? 'circle' : s.type === 'triangle' ? 'triangle' : s.type === 'line' ? 'minus' : 'square',
       name: s.name || '',
       label: s.name || autoLabel,
       selected: s.id === selectedShapeId,

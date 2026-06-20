@@ -6,7 +6,7 @@
  * array whose order is paint order.
  */
 
-export const SHAPE_TYPES = ['rect', 'circle', 'triangle']
+export const SHAPE_TYPES = ['rect', 'circle', 'triangle', 'line']
 
 export const DEFAULT_SHAPE = {
   name: '',
@@ -26,8 +26,10 @@ export function isShapeType(type) {
 }
 
 // Build a shape with defaults. An unknown type falls back to 'rect'.
+// Lines override strokeWidth and height so they are visible and horizontal by default.
 export function createShape(id, type, overrides = {}) {
-  return { id, type: isShapeType(type) ? type : 'rect', ...DEFAULT_SHAPE, ...overrides }
+  const lineDefaults = type === 'line' ? { strokeWidth: 4, height: 0 } : {}
+  return { id, type: isShapeType(type) ? type : 'rect', ...DEFAULT_SHAPE, ...lineDefaults, ...overrides }
 }
 
 // Convert a shape's bounding box into the cx/cy/rx/ry an <ellipse> needs, so a
@@ -49,6 +51,13 @@ export function trianglePoints(shape) {
   const bl = `${x},${y + height}`
   const br = `${x + width},${y + height}`
   return `${apex} ${bl} ${br}`
+}
+
+// Line endpoints from the bounding box: start at (x, y), end at (x+width, y+height).
+// Storing a line as a bounding box lets it share the drag and z-order model with
+// other shapes. A horizontal line has height=0; a diagonal has non-zero width and height.
+export function lineEndpoints(shape) {
+  return { x1: shape.x, y1: shape.y, x2: shape.x + shape.width, y2: shape.y + shape.height }
 }
 
 // Corner radius for a rectangle, clamped so it never exceeds half the smaller

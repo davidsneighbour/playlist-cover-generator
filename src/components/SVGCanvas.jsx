@@ -1,7 +1,7 @@
 import { useState, useRef, useLayoutEffect, memo } from 'react'
 import { textStrokeAttrs, textShadowFilter, textLines, lineHeightEm } from '../lib/text'
 import { offCanvasBounds, resizeFromCorner, clampOpacity } from '../lib/images'
-import { ellipseGeometry, trianglePoints, cornerRadius } from '../lib/shapes'
+import { ellipseGeometry, trianglePoints, cornerRadius, lineEndpoints } from '../lib/shapes'
 import { gradientVector } from '../lib/overlay'
 import { backgroundCrop } from '../lib/background'
 import { DEFAULT_FILTERS, isFilterActive, brightnessContrastTransfer } from '../lib/filters'
@@ -135,20 +135,59 @@ function ResizeHandles({ box, ratio, onResize }) {
   ))
 }
 
+// Endpoint handles for resizing a selected line. Dragging the start handle keeps
+// the end fixed; dragging the end handle keeps the start fixed.
+function LineResizeHandles({ shape, onResize }) {
+  const ep = lineEndpoints(shape)
+  const R = 6
+
+  const startDrag = (e, isStart) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const svg = e.currentTarget.closest('svg')
+    const toSvg = (cx, cy) => {
+      const p = svg.createSVGPoint()
+      p.x = cx; p.y = cy
+      return p.matrixTransform(svg.getScreenCTM().inverse())
+    }
+    const onMove = (ev) => {
+      const m = toSvg(ev.clientX, ev.clientY)
+      if (isStart) {
+        const endX = shape.x + shape.width
+        const endY = shape.y + shape.height
+        onResize({ x: m.x, y: m.y, width: endX - m.x, height: endY - m.y })
+      } else {
+        onResize({ width: m.x - shape.x, height: m.y - shape.y })
+      }
+    }
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  return (
+    <>
+      <circle cx={ep.x1} cy={ep.y1} r={R} fill="#ffffff" stroke="#3b82f6" strokeWidth={1.5} style={{ cursor: 'move' }} onMouseDown={e => startDrag(e, true)} />
+      <circle cx={ep.x2} cy={ep.y2} r={R} fill="#ffffff" stroke="#3b82f6" strokeWidth={1.5} style={{ cursor: 'move' }} onMouseDown={e => startDrag(e, false)} />
+    </>
+  )
+}
+
 const ShapeElement = memo(function ShapeElement({ shape, selected, locked, onSelect, onDrag, snapToGrid, gridSpacing, canvasWidth, canvasHeight }) {
   const handleMouseDown = useSvgDrag({
     getAnchor: () => ({ x: shape.x, y: shape.y }),
     onMove: (nx, ny) => onDrag(shape.id, nx, ny),
     onStart: () => onSelect(shape.id),
     snapToGrid, gridSpacing, canvasWidth, canvasHeight,
-    bounds: offCanvasBounds(shape.width, shape.height, canvasWidth, canvasHeight),
+    // Lines share the drag model but skip the off-canvas margin bounds since
+    // their bounding box may have zero width or height.
+    bounds: shape.type === 'line' ? undefined : offCanvasBounds(shape.width, shape.height, canvasWidth, canvasHeight),
   })
 
-  const common = {
-    fill: shape.fill,
-    stroke: shape.strokeWidth > 0 ? shape.stroke : 'none',
-    strokeWidth: shape.strokeWidth,
-    opacity: shape.opacity,
+  const interaction = {
     style: { cursor: locked ? 'default' : 'move', pointerEvents: locked ? 'none' : undefined },
     onMouseDown: locked ? undefined : handleMouseDown,
     'data-shape-id': shape.id,
@@ -157,6 +196,29 @@ const ShapeElement = memo(function ShapeElement({ shape, selected, locked, onSel
     'aria-label': describeLayer('shape', shape),
     'aria-pressed': selected,
     onKeyDown: (e) => { if (!locked && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onSelect(shape.id) } },
+  }
+
+  if (shape.type === 'line') {
+    const ep = lineEndpoints(shape)
+    return (
+      <line
+        x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2}
+        stroke={shape.stroke}
+        strokeWidth={shape.strokeWidth || 2}
+        strokeLinecap="round"
+        fill="none"
+        opacity={shape.opacity}
+        {...interaction}
+      />
+    )
+  }
+
+  const common = {
+    fill: shape.fill,
+    stroke: shape.strokeWidth > 0 ? shape.stroke : 'none',
+    strokeWidth: shape.strokeWidth,
+    opacity: shape.opacity,
+    ...interaction,
   }
 
   if (shape.type === 'circle') {
@@ -252,7 +314,7 @@ const ColorOverlay = memo(function ColorOverlay({ overlay, canvasWidth, canvasHe
 
 // The SVG canvas. Accepts interactive props (selection ids, event handlers) for
 // use inside the editor; pass nulls/no-ops for headless rendering.
-export function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, onSelectText, onSelectImage, onSelectShape, onDragText, onDragImage, onDragShape, onResizeImage, onContextMenuLayer, displayWidth, displayHeight }) {
+export function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShapeId, onSelectText, onSelectImage, onSelectShape, onDragText, onDragImage, onDragShape, onResizeImage, onResizeShape, onContextMenuLayer, displayWidth, displayHeight }) {
   const svgRef = useRef(null)
   const [textBox, setTextBox] = useState(null)
 
@@ -432,6 +494,15 @@ export function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShap
 
       {selectedShapeId && (state.shapes || []).find(s => s.id === selectedShapeId && !s.hidden) && (() => {
         const shape = state.shapes.find(s => s.id === selectedShapeId)
+        if (shape.type === 'line') {
+          const ep = lineEndpoints(shape)
+          return (
+            <g data-layer="selection">
+              <line x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2} stroke="#3b82f6" strokeWidth={1.5} strokeDasharray="4 2" style={{ pointerEvents: 'none' }} />
+              {!shape.locked && <LineResizeHandles shape={shape} onResize={(patch) => onResizeShape?.(shape.id, patch)} />}
+            </g>
+          )
+        }
         return (
           <rect
             data-layer="selection"
