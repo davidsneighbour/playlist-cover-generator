@@ -274,6 +274,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const dragIndexRef = useRef(null)
   const bgColorRef = useRef({ r: 255, g: 255, b: 255 })
   const lastInputWasKeyboard = useRef(false)
+  const lastShapeFillRef = useRef(null) // tracks last-used fill for new shapes
 
   // Accordion: one unpinned control card open at a time; pinned cards stay open.
   const [accordion, setAccordion] = useState({ openId: 'layers', pinned: [] })
@@ -805,13 +806,15 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   // Shape primitives (rectangles, circles). Same box model and z-order as images.
   const addShape = useCallback((type) => {
     const id = nextId++
-    update(prev => ({ ...prev, shapes: [...(prev.shapes || []), createShape(id, type)] }))
+    const overrides = lastShapeFillRef.current && type !== 'line' ? { fill: lastShapeFillRef.current } : {}
+    update(prev => ({ ...prev, shapes: [...(prev.shapes || []), createShape(id, type, overrides)] }))
     selectShape(id)
     setScrollTo('props-shape')
     announce(actionAnnouncement('add', 'shape'))
   }, [update, selectShape, announce])
 
   const updateShape = useCallback((id, patch, coalesceKey) => {
+    if (patch.fill !== undefined) lastShapeFillRef.current = patch.fill
     update(prev => ({
       ...prev,
       shapes: (prev.shapes || []).map(s => s.id === id ? { ...s, ...patch } : s),
