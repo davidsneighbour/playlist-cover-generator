@@ -13,6 +13,7 @@ import { stripExportArtifacts } from '../lib/export'
 import { mergeInitialState } from '../lib/state'
 import { snapValue } from '../lib/grid'
 import { useHistoryState } from '../hooks/useHistoryState'
+import { useDebounce } from '../hooks/useDebounce'
 import { STORAGE_KEY, serializeState, serializeStateWithoutImage, parseStoredState } from '../lib/storage'
 import { SHARE_PARAM, encodeShareState, decodeShareState, readShareToken } from '../lib/share'
 import { buildZip } from '../lib/zip'
@@ -37,6 +38,10 @@ import { SVGCanvas } from './SVGCanvas'
 // Optional Google Fonts API key for the font-search typeahead. Read from the
 // Vite env by default; a host embedding the component can pass its own.
 const ENV_GOOGLE_FONTS_API_KEY = import.meta.env.VITE_GOOGLE_FONTS_API_KEY
+
+// Module-level catalog cache: one promise per API key, persists across mounts
+// so the Google Fonts API is called at most once per browser session.
+const _fontCatalogCache = new Map()
 
 const DEFAULT_STATE = {
   backgroundImage: null,
@@ -509,19 +514,21 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     setCustomFontInput('')
   }, [update])
 
-  // Fetch the Google Fonts catalog once (cached promise), shared by the
-  // typeahead and by export embedding. Each item carries its gstatic font-file
-  // URLs, which (unlike the CSS endpoint) are CORS-enabled and can be inlined.
-  const fontCatalogRef = useRef(null)
+  // Fetch the Google Fonts catalog once per session (module-level cache keyed
+  // by API key), shared by the typeahead and by export embedding. Each item
+  // carries its gstatic font-file URLs, which are CORS-enabled and inlinable.
   const loadFontCatalog = useCallback(() => {
     if (!googleFontsApiKey) return Promise.resolve([])
-    if (!fontCatalogRef.current) {
-      fontCatalogRef.current = fetch(googleFontsListUrl(googleFontsApiKey))
-        .then(r => (r.ok ? r.json() : Promise.reject(r.status)))
-        .then(json => json.items || [])
-        .catch(() => [])
+    if (!_fontCatalogCache.has(googleFontsApiKey)) {
+      _fontCatalogCache.set(
+        googleFontsApiKey,
+        fetch(googleFontsListUrl(googleFontsApiKey))
+          .then(r => (r.ok ? r.json() : Promise.reject(r.status)))
+          .then(json => json.items || [])
+          .catch(() => [])
+      )
     }
-    return fontCatalogRef.current
+    return _fontCatalogCache.get(googleFontsApiKey)
   }, [googleFontsApiKey])
 
   // Lazily populate the typeahead name list from the catalog. Failures (or no
@@ -532,11 +539,12 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     loadFontCatalog().then(items => setGoogleFonts(items.map(i => i.family)))
   }, [googleFonts, googleFontsApiKey, loadFontCatalog])
 
+  const debouncedFontInput = useDebounce(customFontInput, 150)
   const fontSuggestions = useMemo(() => {
     if (!googleFonts || googleFonts.length === 0) return []
     const have = new Set([...BUILTIN_FONTS, ...(state.fonts || [])])
-    return filterFontNames(googleFonts, customFontInput, 8).filter(n => !have.has(n))
-  }, [googleFonts, customFontInput, state.fonts])
+    return filterFontNames(googleFonts, debouncedFontInput, 8).filter(n => !have.has(n))
+  }, [googleFonts, debouncedFontInput, state.fonts])
 
   // Apply a predefined template. The current background image is kept; text and
   // grid are replaced. Goes through history, so it is a single undoable step.
