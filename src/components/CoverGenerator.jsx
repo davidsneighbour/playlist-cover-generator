@@ -106,7 +106,7 @@ const LAYER_ICONS = { type: Type, square: Square, circle: Circle, triangle: Tria
 // One row in the Layers overview panel. Clicking it jumps to that layer's
 // controls (selecting it, or opening the background/overlay card). Selection is
 // reflected like the per-type lists; singletons that are off/empty are muted.
-function LayerRow({ entry, onSelect, onToggleVisibility, onToggleLock, onRename }) {
+function LayerRow({ entry, onSelect, onToggleVisibility, onToggleLock, onRename, onDragStart, onDragEnd, onDragOver, onDrop, dropHighlight }) {
   const Icon = LAYER_ICONS[entry.icon]
   // Real layers (text/image/shape) carry an id; singletons (overlay/background) do not.
   const toggleable = entry.id != null
@@ -132,10 +132,33 @@ function LayerRow({ entry, onSelect, onToggleVisibility, onToggleLock, onRename 
 
   const cancelEdit = () => setEditing(false)
 
+  const draggable = toggleable && !editing
+
   return (
     <div
-      className={`flex w-full items-center gap-1.5 rounded border px-2 py-1.5 text-sm transition-colors ${entry.selected ? 'border-blue-400 bg-blue-50 text-gray-900' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'}`}
+      draggable={draggable}
+      onDragStart={draggable ? (e) => { e.dataTransfer.effectAllowed = 'move'; onDragStart?.(entry) } : undefined}
+      onDragEnd={draggable ? () => onDragEnd?.() : undefined}
+      onDragOver={toggleable ? (e) => {
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'move'
+        const rect = e.currentTarget.getBoundingClientRect()
+        onDragOver?.(entry, e.clientY < rect.top + rect.height / 2)
+      } : undefined}
+      onDrop={toggleable ? (e) => {
+        e.preventDefault()
+        const rect = e.currentTarget.getBoundingClientRect()
+        onDrop?.(entry, e.clientY < rect.top + rect.height / 2)
+      } : undefined}
+      className={`flex w-full items-center gap-1.5 rounded border px-2 py-1.5 text-sm transition-colors
+        ${entry.selected ? 'border-blue-400 bg-blue-50 text-gray-900' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'}
+        ${dropHighlight === 'above' ? 'border-t-2 border-t-blue-500' : ''}
+        ${dropHighlight === 'below' ? 'border-b-2 border-b-blue-500' : ''}`}
     >
+      {toggleable && !editing
+        ? <GripVertical className="h-3.5 w-3.5 shrink-0 text-gray-300 cursor-grab" aria-hidden="true" />
+        : <span className="w-3.5 shrink-0" aria-hidden="true" />
+      }
       {editing ? (
         <input
           ref={inputRef}
@@ -233,6 +256,8 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const [helpOpen, setHelpOpen] = useState(false)
   const [newProjectOpen, setNewProjectOpen] = useState(false)
   const [contextMenu, setContextMenu] = useState(null)
+  const layerDraggingRef = useRef(null) // { kind, id } while a layer row drag is in progress
+  const [layerDropTarget, setLayerDropTarget] = useState(null) // { key, before } | null
   const [shareCopied, setShareCopied] = useState(false)
   const [customSizeMode, setCustomSizeMode] = useState(false)
   const [saveStatus, setSaveStatus] = useState('saved') // 'saved' | 'pending'
@@ -298,6 +323,51 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   // Map a layer-list entry kind to its array key in state. Only text/image/shape
   // are stored as arrays of layers; returns null for the singletons.
   const layerArrayKey = (kind) => (kind === 'text' ? 'texts' : kind === 'image' ? 'images' : kind === 'shape' ? 'shapes' : null)
+
+  // Drag-to-reorder handlers for the unified Layers panel. Identity of the
+  // dragged layer lives in a ref (not state) to avoid stale closures in the
+  // dragover/drop callbacks which are called many times per second.
+  const handleLayerDragStart = useCallback((entry) => {
+    layerDraggingRef.current = { kind: entry.kind, id: entry.id }
+  }, [])
+
+  const handleLayerDragEnd = useCallback(() => {
+    layerDraggingRef.current = null
+    setLayerDropTarget(null)
+  }, [])
+
+  const handleLayerDragOver = useCallback((toEntry, before) => {
+    const from = layerDraggingRef.current
+    if (!from || from.kind !== toEntry.kind || from.id === toEntry.id) {
+      setLayerDropTarget(null)
+      return
+    }
+    setLayerDropTarget({ key: toEntry.key, before })
+  }, [])
+
+  const handleLayerDrop = useCallback((toEntry, before) => {
+    const from = layerDraggingRef.current
+    layerDraggingRef.current = null
+    setLayerDropTarget(null)
+    if (!from || from.kind !== toEntry.kind || from.id === toEntry.id) return
+
+    const arrKey = layerArrayKey(from.kind)
+    if (!arrKey) return
+
+    update(prev => {
+      const arr = prev[arrKey] || []
+      const fromArrIdx = arr.findIndex(l => l.id === from.id)
+      const toArrIdx = arr.findIndex(l => l.id === toEntry.id)
+      if (fromArrIdx < 0 || toArrIdx < 0) return prev
+      // Display is front-to-back = reverse of the paint-order array. Dropping
+      // 'before' a row in display means the item goes in front of that row in
+      // z-order (higher array index); 'after' means one step further back.
+      const targetArrIdx = before ? toArrIdx : Math.max(0, toArrIdx - 1)
+      const next = reorder(arr, fromArrIdx, targetArrIdx)
+      if (next === arr) return prev
+      return { ...prev, [arrKey]: next }
+    })
+  }, [update])
 
   // Toggle a per-layer boolean flag (hidden/locked) by id. One undo step each.
   const setLayerFlag = useCallback((entry, flag, value) => {
@@ -1162,7 +1232,19 @@ export default function CoverGenerator({ initialState, onStateChange, className 
         {/* Layers — overview of everything on the canvas; click an entry to open its controls */}
         <CollapsibleCard id="layers" title="Layers">
           {layerList.map(entry => (
-            <LayerRow key={entry.key} entry={entry} onSelect={goToLayer} onToggleVisibility={toggleLayerVisibility} onToggleLock={toggleLayerLock} onRename={renameLayer} />
+            <LayerRow
+              key={entry.key}
+              entry={entry}
+              onSelect={goToLayer}
+              onToggleVisibility={toggleLayerVisibility}
+              onToggleLock={toggleLayerLock}
+              onRename={renameLayer}
+              onDragStart={handleLayerDragStart}
+              onDragEnd={handleLayerDragEnd}
+              onDragOver={handleLayerDragOver}
+              onDrop={handleLayerDrop}
+              dropHighlight={layerDropTarget?.key === entry.key ? (layerDropTarget.before ? 'above' : 'below') : null}
+            />
           ))}
           <p className="text-[11px] text-gray-400 leading-tight">Click a layer to open its controls. Listed front to back.</p>
         </CollapsibleCard>
