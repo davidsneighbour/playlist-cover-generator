@@ -14,7 +14,7 @@ import { mergeInitialState } from '../lib/state'
 import { snapValue } from '../lib/grid'
 import { useHistoryState } from '../hooks/useHistoryState'
 import { useDebounce } from '../hooks/useDebounce'
-import { STORAGE_KEY, serializeStateWithoutImage, parseStoredState } from '../lib/storage'
+import { STORAGE_KEY, serializeStateWithoutImage, parseStoredState, serializeStateForExport, parseExportedState } from '../lib/storage'
 import { saveImageToIdb, loadImageFromIdb, deleteImageFromIdb } from '../lib/idb'
 import { SHARE_PARAM, encodeShareState, decodeShareState, readShareToken } from '../lib/share'
 import { buildZip } from '../lib/zip'
@@ -1085,8 +1085,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
 
   // Export JSON
   const exportJSON = useCallback(() => {
-    const { backgroundImageData, ...exportState } = state
-    const json = JSON.stringify(exportState, null, 2)
+    const json = serializeStateForExport(state)
     const blob = new Blob([json], { type: 'application/json' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
@@ -1100,17 +1099,14 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     if (!file) return
     const reader = new FileReader()
     reader.onload = (ev) => {
-      try {
-        const imported = JSON.parse(ev.target.result)
-        update(prev => ({
-          ...DEFAULT_STATE,
-          ...imported,
-          backgroundImageData: prev.backgroundImageData,
-        }))
-        setSelectedTextId(null)
-      } catch {
-        alert('Invalid JSON file')
-      }
+      const imported = parseExportedState(ev.target.result)
+      if (!imported) { alert('Invalid JSON file'); return }
+      update(prev => ({
+        ...DEFAULT_STATE,
+        ...imported,
+        backgroundImageData: prev.backgroundImageData,
+      }))
+      setSelectedTextId(null)
     }
     reader.readAsText(file)
     e.target.value = ''
