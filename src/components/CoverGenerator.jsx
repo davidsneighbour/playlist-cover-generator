@@ -25,7 +25,7 @@ import {
   Undo2, Redo2, LayoutTemplate, Plus, Search, Upload, Trash2, RotateCcw,
   Square, Circle, Triangle, GripVertical, Copy, BringToFront, SendToBack,
   FileImage, FileCode, Save, FolderOpen, Link, Package, CircleHelp,
-  Type, Blend, Image as ImageIcon, Eye, EyeOff, Lock, LockOpen, Loader2, Check,
+  Type, Blend, Image as ImageIcon, Eye, EyeOff, Lock, LockOpen, Loader2, Check, AlertTriangle,
 } from 'lucide-react'
 import { DEFAULT_CANVAS_WIDTH, DEFAULT_CANVAS_HEIGHT, RULER, DUP_OFFSET } from '../lib/constants'
 import { TopRuler, LeftRuler } from './Rulers'
@@ -219,6 +219,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const [shareCopied, setShareCopied] = useState(false)
   const [customSizeMode, setCustomSizeMode] = useState(false)
   const [saveStatus, setSaveStatus] = useState('saved') // 'saved' | 'pending'
+  const [quotaWarning, setQuotaWarning] = useState(false)
   const [batchBusy, setBatchBusy] = useState(false)
   const [live, setLive] = useState({ msg: '', n: 0 })
   const [dragOverArrayIndex, setDragOverArrayIndex] = useState(null)
@@ -351,9 +352,13 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     const id = setTimeout(() => {
       try {
         localStorage.setItem(STORAGE_KEY, serializeState(state))
+        setQuotaWarning(false)
       } catch {
         try {
           localStorage.setItem(STORAGE_KEY, serializeStateWithoutImage(state))
+          // Only warn when an image was actually dropped; if there is no
+          // background image the fallback path is a no-op from the user's view.
+          if (state.backgroundImageData) setQuotaWarning(true)
         } catch {
           // Storage unavailable or still over quota; skip this save.
         }
@@ -1082,6 +1087,18 @@ export default function CoverGenerator({ initialState, onStateChange, className 
             />
           </div>
         </div>
+        {quotaWarning && (
+          <div role="alert" className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" aria-hidden="true" />
+            <span>Background image is too large to save — it will not be restored on reload. Upload it again after reopening the app.</span>
+            <button
+              type="button"
+              className="ml-auto shrink-0 text-amber-600 hover:text-amber-800 cursor-pointer"
+              aria-label="Dismiss warning"
+              onClick={() => setQuotaWarning(false)}
+            >✕</button>
+          </div>
+        )}
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs text-gray-400">Exports at {exportWidth}×{exportHeight}px · click a layer to select · drag to move · Ctrl+Z to undo</p>
           {autoSave && (
