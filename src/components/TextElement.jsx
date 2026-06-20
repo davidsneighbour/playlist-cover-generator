@@ -27,6 +27,7 @@ export const TextElement = memo(function TextElement({ text, selected, locked, o
       fontStyle={text.italic ? 'italic' : 'normal'}
       textAnchor={text.anchor || 'start'}
       dominantBaseline="auto"
+      transform={text.rotation ? `rotate(${text.rotation} ${text.x} ${text.y})` : undefined}
       style={{ cursor: locked ? 'default' : 'move', userSelect: 'none', pointerEvents: locked ? 'none' : undefined }}
       onMouseDown={locked ? undefined : handleMouseDown}
       data-text-id={text.id}

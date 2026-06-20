@@ -1493,6 +1493,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               <NumberInput label="X position" value={selectedText.x} min={0} max={canvasW} onChange={v => updateText(selectedText.id, { x: v }, `x-${selectedText.id}`)} />
               <NumberInput label="Y position" value={selectedText.y} min={0} max={canvasH} onChange={v => updateText(selectedText.id, { y: v }, `y-${selectedText.id}`)} />
             </div>
+            <NumberInput label="Rotation (°)" value={selectedText.rotation ?? 0} min={-180} max={180} onChange={v => updateText(selectedText.id, { rotation: v }, `text-rotation-${selectedText.id}`)} hint="−180 to 180" />
 
             <div className="mt-2">
               <label className="block text-xs text-gray-500 mb-1">Opacity ({Math.round((selectedText.opacity ?? 1) * 100)}%)</label>
@@ -1590,6 +1591,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               <NumberInput label="X position" value={selectedImage.x} min={-canvasW} max={canvasW} onChange={v => updateImage(selectedImage.id, { x: v }, `img-x-${selectedImage.id}`)} />
               <NumberInput label="Y position" value={selectedImage.y} min={-canvasH} max={canvasH} onChange={v => updateImage(selectedImage.id, { y: v }, `img-y-${selectedImage.id}`)} />
             </div>
+            <NumberInput label="Rotation (°)" value={selectedImage.rotation ?? 0} min={-180} max={180} onChange={v => updateImage(selectedImage.id, { rotation: v }, `img-rotation-${selectedImage.id}`)} hint="−180 to 180" />
             <button className="w-full btn-secondary text-sm" onClick={() => deleteImage(selectedImage.id)}><Trash2 className="h-4 w-4" />Delete image</button>
           </CollapsibleCard>
           )
@@ -1675,6 +1677,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               <NumberInput label="X position" value={selectedShape.x} min={0} max={canvasW} onChange={v => updateShape(selectedShape.id, { x: v }, `shape-x-${selectedShape.id}`)} />
               <NumberInput label="Y position" value={selectedShape.y} min={0} max={canvasH} onChange={v => updateShape(selectedShape.id, { y: v }, `shape-y-${selectedShape.id}`)} />
             </div>
+            <NumberInput label="Rotation (°)" value={selectedShape.rotation ?? 0} min={-180} max={180} onChange={v => updateShape(selectedShape.id, { rotation: v }, `shape-rotation-${selectedShape.id}`)} hint="−180 to 180" />
             <button className="w-full btn-secondary text-sm" onClick={() => deleteShape(selectedShape.id)}><Trash2 className="h-4 w-4" />Delete shape</button>
           </CollapsibleCard>
         )}

@@ -26,6 +26,10 @@ export const ShapeElement = memo(function ShapeElement({ shape, selected, locked
     onKeyDown: (e) => { if (!locked && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onSelect(shape.id) } },
   }
 
+  const cx = shape.x + shape.width / 2
+  const cy = shape.y + shape.height / 2
+  const rotateTransform = shape.rotation ? `rotate(${shape.rotation} ${cx} ${cy})` : undefined
+
   if (shape.type === 'line') {
     const ep = lineEndpoints(shape)
     return (
@@ -36,6 +40,7 @@ export const ShapeElement = memo(function ShapeElement({ shape, selected, locked
         strokeLinecap="round"
         fill="none"
         opacity={shape.opacity}
+        transform={rotateTransform}
         {...interaction}
       />
     )
@@ -46,6 +51,7 @@ export const ShapeElement = memo(function ShapeElement({ shape, selected, locked
     stroke: shape.strokeWidth > 0 ? shape.stroke : 'none',
     strokeWidth: shape.strokeWidth,
     opacity: shape.opacity,
+    transform: rotateTransform,
     ...interaction,
   }
 

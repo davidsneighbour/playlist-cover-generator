@@ -30,6 +30,7 @@ export const TEXT_KEYS = [
   'shadow',
   'lineHeight',
   'opacity',
+  'rotation',
 ]
 
 const DEFAULT_GRID = { enabled: false, spacing: 20, majorEvery: 5 }
@@ -53,6 +54,7 @@ function text(overrides) {
     shadow: null,
     lineHeight: 1.2,
     opacity: 1,
+    rotation: 0,
     ...overrides,
   }
 }

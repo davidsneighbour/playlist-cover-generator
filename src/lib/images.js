@@ -36,6 +36,7 @@ export const DEFAULT_IMAGE_LAYER = {
   naturalWidth: null,
   naturalHeight: null,
   lockAspect: true,
+  rotation: 0,
 }
 
 // Build an image layer with defaults, allowing any field to be overridden.

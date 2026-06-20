@@ -19,6 +19,7 @@ export const DEFAULT_SHAPE = {
   strokeWidth: 0,
   opacity: 1,
   radius: 0, // corner radius for rectangles; ignored by other types
+  rotation: 0,
 }
 
 export function isShapeType(type) {

@@ -14,6 +14,9 @@ export const ImageElement = memo(function ImageElement({ image, selected, locked
 
   if (!image.data) return null
 
+  const cx = image.x + image.width / 2
+  const cy = image.y + image.height / 2
+
   return (
     <image
       href={image.data}
@@ -23,6 +26,7 @@ export const ImageElement = memo(function ImageElement({ image, selected, locked
       height={image.height}
       opacity={image.opacity}
       preserveAspectRatio="none"
+      transform={image.rotation ? `rotate(${image.rotation} ${cx} ${cy})` : undefined}
       style={{ cursor: locked ? 'default' : 'move', pointerEvents: locked ? 'none' : undefined, mixBlendMode: image.blendMode !== 'normal' ? image.blendMode : undefined }}
       onMouseDown={locked ? undefined : handleMouseDown}
       data-image-id={image.id}

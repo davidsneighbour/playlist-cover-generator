@@ -173,8 +173,10 @@ export function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShap
       {selectedImageId && (state.images || []).find(i => i.id === selectedImageId && !i.hidden) && (() => {
         const img = state.images.find(i => i.id === selectedImageId)
         const ratio = img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : img.width / img.height
+        const icx = img.x + img.width / 2
+        const icy = img.y + img.height / 2
         return (
-          <g data-layer="selection">
+          <g data-layer="selection" transform={img.rotation ? `rotate(${img.rotation} ${icx} ${icy})` : undefined}>
             <rect
               x={img.x}
               y={img.y}
@@ -186,53 +188,60 @@ export function SVGCanvas({ state, selectedTextId, selectedImageId, selectedShap
               strokeDasharray="4 2"
               style={{ pointerEvents: 'none' }}
             />
-            {!img.locked && <ResizeHandles box={img} ratio={ratio} onResize={(patch) => onResizeImage(img.id, patch)} />}
+            {!img.locked && !img.rotation && <ResizeHandles box={img} ratio={ratio} onResize={(patch) => onResizeImage(img.id, patch)} />}
           </g>
         )
       })()}
 
       {selectedShapeId && (state.shapes || []).find(s => s.id === selectedShapeId && !s.hidden) && (() => {
         const shape = state.shapes.find(s => s.id === selectedShapeId)
+        const scx = shape.x + shape.width / 2
+        const scy = shape.y + shape.height / 2
+        const shapeRotateTransform = shape.rotation ? `rotate(${shape.rotation} ${scx} ${scy})` : undefined
         if (shape.type === 'line') {
           const ep = lineEndpoints(shape)
           return (
-            <g data-layer="selection">
+            <g data-layer="selection" transform={shapeRotateTransform}>
               <line x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2} stroke="#3b82f6" strokeWidth={1.5} strokeDasharray="4 2" style={{ pointerEvents: 'none' }} />
-              {!shape.locked && <LineResizeHandles shape={shape} onResize={(patch) => onResizeShape?.(shape.id, patch)} />}
+              {!shape.locked && !shape.rotation && <LineResizeHandles shape={shape} onResize={(patch) => onResizeShape?.(shape.id, patch)} />}
             </g>
           )
         }
         return (
-          <rect
-            data-layer="selection"
-            x={shape.x}
-            y={shape.y}
-            width={shape.width}
-            height={shape.height}
-            fill="none"
-            stroke="#3b82f6"
-            strokeWidth={1.5}
-            strokeDasharray="4 2"
-            style={{ pointerEvents: 'none' }}
-          />
+          <g data-layer="selection" transform={shapeRotateTransform}>
+            <rect
+              x={shape.x}
+              y={shape.y}
+              width={shape.width}
+              height={shape.height}
+              fill="none"
+              stroke="#3b82f6"
+              strokeWidth={1.5}
+              strokeDasharray="4 2"
+              style={{ pointerEvents: 'none' }}
+            />
+          </g>
         )
       })()}
 
       {textBox && selectedTextId && state.texts.some(t => t.id === selectedTextId && !t.hidden) && (() => {
         const pad = 4
+        const selText = state.texts.find(t => t.id === selectedTextId)
+        const textRotateTransform = selText?.rotation ? `rotate(${selText.rotation} ${selText.x} ${selText.y})` : undefined
         return (
-          <rect
-            data-layer="selection"
-            x={textBox.x - pad}
-            y={textBox.y - pad}
-            width={textBox.width + pad * 2}
-            height={textBox.height + pad * 2}
-            fill="none"
-            stroke="#3b82f6"
-            strokeWidth={1.5}
-            strokeDasharray="4 2"
-            style={{ pointerEvents: 'none' }}
-          />
+          <g data-layer="selection" transform={textRotateTransform}>
+            <rect
+              x={textBox.x - pad}
+              y={textBox.y - pad}
+              width={textBox.width + pad * 2}
+              height={textBox.height + pad * 2}
+              fill="none"
+              stroke="#3b82f6"
+              strokeWidth={1.5}
+              strokeDasharray="4 2"
+              style={{ pointerEvents: 'none' }}
+            />
+          </g>
         )
       })()}
     </svg>
