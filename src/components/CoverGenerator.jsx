@@ -1942,7 +1942,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
           <input ref={jsonInputRef} type="file" accept=".json,application/json" className="hidden" onChange={handleJSONImport} />
           <button className="w-full btn-secondary text-sm" onClick={() => jsonInputRef.current?.click()}><FolderOpen className="h-4 w-4" />Load JSON state</button>
           <button className="w-full btn-secondary text-sm" onClick={copyShareLink}><Link className="h-4 w-4" />{shareCopied ? 'Link copied!' : 'Copy share link'}</button>
-          <p className="text-[11px] text-gray-400 leading-tight">The share link encodes the layout in the URL (the background image is not included).</p>
+          <p className="text-[11px] text-gray-400 leading-tight">The share link encodes text, shapes, and settings in the URL. The background image is <strong>not included</strong> — the recipient will need to upload their own.</p>
           <input ref={batchFileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { batchExport(e.target.files); e.target.value = '' }} />
           <button
             className="w-full btn-secondary text-sm disabled:opacity-40 disabled:cursor-not-allowed"
