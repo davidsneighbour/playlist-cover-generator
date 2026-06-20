@@ -1074,7 +1074,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   }, [contextMenu, duplicateText, duplicateImage, duplicateShape, handleBringToFront, handleImageToFront, handleShapeToFront, handleSendToBack, handleImageToBack, handleShapeToBack, deleteText, deleteImage, deleteShape])
 
   return (
-    <div className={`flex flex-col lg:flex-row gap-6 p-4 lg:p-6 min-h-screen bg-gray-50 lg:items-start ${className}`}>
+    <div className={`flex flex-col md:flex-row gap-6 p-4 md:p-6 min-h-screen bg-gray-50 md:items-start ${className}`}>
       <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
       <ConfirmDialog
         open={newProjectOpen}
@@ -1091,7 +1091,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
         {live.msg + (live.n % 2 ? ' ' : '')}
       </div>
       {/* Canvas — adapts to the template's aspect ratio, stays on the left while controls scroll */}
-      <div ref={canvasColRef} className="w-full lg:w-[600px] lg:shrink-0 lg:sticky lg:top-6 lg:self-start flex flex-col items-center gap-3">
+      <div ref={canvasColRef} className="w-full md:w-[45%] md:shrink-0 md:sticky md:top-6 md:self-start lg:w-125 flex flex-col items-center gap-3">
         <div
           className={showRulers ? 'inline-grid' : 'w-full max-w-[600px]'}
           style={showRulers ? { gridTemplateColumns: `${RULER}px auto`, gridTemplateRows: `${RULER}px auto` } : undefined}
@@ -1146,7 +1146,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
 
       {/* Controls */}
       <AccordionContext.Provider value={{ isOpen: (id) => isCardOpen(accordion, id), isPinned: (id) => accordion.pinned.includes(id), toggleOpen: accToggleOpen, togglePin: accTogglePin }}>
-      <div className="w-full lg:flex-1 lg:min-w-0 flex flex-col gap-3">
+      <div className="w-full md:flex-1 md:min-w-0 flex flex-col gap-3">
 
         {/* Layers — overview of everything on the canvas; click an entry to open its controls */}
         <CollapsibleCard id="layers" title="Layers">
