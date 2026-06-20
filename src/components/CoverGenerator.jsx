@@ -14,7 +14,8 @@ import { mergeInitialState } from '../lib/state'
 import { snapValue } from '../lib/grid'
 import { useHistoryState } from '../hooks/useHistoryState'
 import { useDebounce } from '../hooks/useDebounce'
-import { STORAGE_KEY, serializeState, serializeStateWithoutImage, parseStoredState } from '../lib/storage'
+import { STORAGE_KEY, serializeStateWithoutImage, parseStoredState } from '../lib/storage'
+import { saveImageToIdb, loadImageFromIdb, deleteImageFromIdb } from '../lib/idb'
 import { SHARE_PARAM, encodeShareState, decodeShareState, readShareToken } from '../lib/share'
 import { buildZip } from '../lib/zip'
 import { actionAnnouncement, layerNoun } from '../lib/a11y'
@@ -26,7 +27,7 @@ import {
   Undo2, Redo2, LayoutTemplate, Plus, Search, Upload, Trash2, RotateCcw,
   Square, Circle, Triangle, GripVertical, Copy, BringToFront, SendToBack,
   FileImage, FileCode, Save, FolderOpen, Link, Package, CircleHelp,
-  Type, Blend, Image as ImageIcon, Eye, EyeOff, Lock, LockOpen, Loader2, Check, AlertTriangle, FilePlus, Minus,
+  Type, Blend, Image as ImageIcon, Eye, EyeOff, Lock, LockOpen, Loader2, Check, FilePlus, Minus,
 } from 'lucide-react'
 import { DEFAULT_CANVAS_WIDTH, DEFAULT_CANVAS_HEIGHT, RULER, DUP_OFFSET } from '../lib/constants'
 import { TopRuler, LeftRuler } from './Rulers'
@@ -39,6 +40,8 @@ import { SVGCanvas } from './SVGCanvas'
 // Optional Google Fonts API key for the font-search typeahead. Read from the
 // Vite env by default; a host embedding the component can pass its own.
 const ENV_GOOGLE_FONTS_API_KEY = import.meta.env.VITE_GOOGLE_FONTS_API_KEY
+// IndexedDB key for persisting the background image separately from localStorage.
+const IDB_IMAGE_KEY = `${STORAGE_KEY}-image`
 
 // Module-level catalog cache: one promise per API key, persists across mounts
 // so the Google Fonts API is called at most once per browser session.
@@ -232,10 +235,10 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const handleNewProject = useCallback(() => {
     reset(DEFAULT_STATE)
     if (autoSave && typeof localStorage !== 'undefined') localStorage.removeItem(STORAGE_KEY)
+    if (autoSave && typeof indexedDB !== 'undefined') deleteImageFromIdb(IDB_IMAGE_KEY).catch(() => {})
     setSelectedTextId(null)
     setSelectedImageId(null)
     setSelectedShapeId(null)
-    setQuotaWarning(false)
     setCustomSizeMode(false)
     announce('New project')
   }, [reset, autoSave, announce])
@@ -253,7 +256,6 @@ export default function CoverGenerator({ initialState, onStateChange, className 
   const [shareCopied, setShareCopied] = useState(false)
   const [customSizeMode, setCustomSizeMode] = useState(false)
   const [saveStatus, setSaveStatus] = useState('saved') // 'saved' | 'pending'
-  const [quotaWarning, setQuotaWarning] = useState(false)
   const [batchBusy, setBatchBusy] = useState(false)
   const [live, setLive] = useState({ msg: '', n: 0 })
   const [dragOverArrayIndex, setDragOverArrayIndex] = useState(null)
@@ -418,34 +420,46 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     onStateChange?.(state)
   }, [state, onStateChange])
 
-  // Auto-save the session to localStorage, debounced so frequent edits (drags,
-  // typing) do not write on every change. Falls back to saving without the
-  // (large) background image if the full payload exceeds the storage quota.
+  // Auto-save the session: layout (without image) to localStorage, background
+  // image to IndexedDB. Keeping the large data URL out of localStorage avoids
+  // quota issues entirely. Both writes are best-effort.
   const didMountSave = useRef(false)
   useEffect(() => {
     if (!autoSave || typeof localStorage === 'undefined') return
-    // The mounted state is already what was restored/persisted, so don't flash
-    // "Saving…" on first render — only mark pending once the user edits.
+    // Skip the first run — the mounted state is already persisted.
     if (!didMountSave.current) { didMountSave.current = true; return }
     setSaveStatus('pending')
     const id = setTimeout(() => {
-      try {
-        localStorage.setItem(STORAGE_KEY, serializeState(state))
-        setQuotaWarning(false)
-      } catch {
-        try {
-          localStorage.setItem(STORAGE_KEY, serializeStateWithoutImage(state))
-          // Only warn when an image was actually dropped; if there is no
-          // background image the fallback path is a no-op from the user's view.
-          if (state.backgroundImageData) setQuotaWarning(true)
-        } catch {
-          // Storage unavailable or still over quota; skip this save.
-        }
+      try { localStorage.setItem(STORAGE_KEY, serializeStateWithoutImage(state)) } catch { /* quota */ }
+      if (typeof indexedDB !== 'undefined') {
+        const idbOp = state.backgroundImageData
+          ? saveImageToIdb(IDB_IMAGE_KEY, state.backgroundImageData)
+          : deleteImageFromIdb(IDB_IMAGE_KEY)
+        idbOp.catch(() => {}) // fire and forget; degrade gracefully on failure
       }
       setSaveStatus('saved')
     }, 500)
     return () => clearTimeout(id)
   }, [state, autoSave])
+
+  // On mount, load the background image from IndexedDB and merge it into the
+  // restored state without creating a history entry. Skipped when an explicit
+  // initialState or a share link is used (they provide their own content) and
+  // when IndexedDB is unavailable.
+  useEffect(() => {
+    if (!autoSave || initialState || sharedFromUrl || typeof indexedDB === 'undefined') return
+    ;(async () => {
+      try {
+        const data = await loadImageFromIdb(IDB_IMAGE_KEY)
+        if (data) {
+          // Use reset() so the image load is the initial history entry, not an
+          // undoable step. `state` here is the layout already restored from
+          // localStorage (the effect captures it from the first render).
+          reset({ ...state, backgroundImageData: data })
+        }
+      } catch { /* ignore — image simply won't be restored */ }
+    })()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps -- intentionally runs once at mount
 
   // Drop a selection that no longer exists (e.g. after an undo removes its layer).
   useEffect(() => {
@@ -1111,18 +1125,6 @@ export default function CoverGenerator({ initialState, onStateChange, className 
             />
           </div>
         </div>
-        {quotaWarning && (
-          <div role="alert" className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" aria-hidden="true" />
-            <span>Background image is too large to save — it will not be restored on reload. Upload it again after reopening the app.</span>
-            <button
-              type="button"
-              className="ml-auto shrink-0 text-amber-600 hover:text-amber-800 cursor-pointer"
-              aria-label="Dismiss warning"
-              onClick={() => setQuotaWarning(false)}
-            >✕</button>
-          </div>
-        )}
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs text-gray-400">Exports at {exportWidth}×{exportHeight}px · click a layer to select · drag to move · Ctrl+Z to undo</p>
           {autoSave && (
