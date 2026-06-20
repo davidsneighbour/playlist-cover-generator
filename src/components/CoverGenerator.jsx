@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
-import { reorder, bringToFront, sendToBack, displayIndexToArrayIndex, duplicateById } from '../lib/layers'
+import { reorder, bringToFront, sendToBack, moveUp, moveDown, displayIndexToArrayIndex, duplicateById } from '../lib/layers'
 import { TEMPLATES, getTemplate, instantiateTemplate } from '../lib/templates'
 import { BUILTIN_FONTS, googleFontCssUrl, addFont, googleFontsListUrl, filterFontNames } from '../lib/fonts'
 import { BLEND_MODES, createImageLayer, clampOpacity, centeredPosition, coverDimensions, scaleDimensions, dimensionPercent, aspectHeight, aspectWidth } from '../lib/images'
@@ -925,6 +925,27 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     }, `nudge-${selectedTextId ?? ''}-${selectedImageId ?? ''}-${selectedShapeId ?? ''}`)
   }, [update, selectedTextId, selectedImageId, selectedShapeId])
 
+  // Move the selected layer one step in z-order (Ctrl+] forward, Ctrl+[ back).
+  const moveZOrder = useCallback((direction) => {
+    const fn = direction === 'up' ? moveUp : moveDown
+    update(prev => {
+      if (selectedTextId != null) {
+        const next = fn(prev.texts, selectedTextId)
+        return next === prev.texts ? prev : { ...prev, texts: next }
+      }
+      if (selectedImageId != null) {
+        const next = fn(prev.images || [], selectedImageId)
+        return next === (prev.images || []) ? prev : { ...prev, images: next }
+      }
+      if (selectedShapeId != null) {
+        const next = fn(prev.shapes || [], selectedShapeId)
+        return next === (prev.shapes || []) ? prev : { ...prev, shapes: next }
+      }
+      return prev
+    })
+    announce(direction === 'up' ? 'Moved layer forward' : 'Moved layer back')
+  }, [update, selectedTextId, selectedImageId, selectedShapeId, announce])
+
   // Delete the selected layer; arrow keys nudge it (Shift = by grid spacing).
   // Ignored while a field is focused or the help overlay is open, and only when
   // something is selected, so plain arrows still scroll the page otherwise.
@@ -935,6 +956,11 @@ export default function CoverGenerator({ initialState, onStateChange, className 
       if (selectedTextId == null && selectedImageId == null && selectedShapeId == null) return
       if (e.key === 'Escape') {
         selectText(null)
+        return
+      }
+      if (e.ctrlKey && (e.key === ']' || e.key === '[')) {
+        e.preventDefault()
+        moveZOrder(e.key === ']' ? 'up' : 'down')
         return
       }
       if (isDeleteKey(e.key)) {
@@ -953,7 +979,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [helpOpen, contextMenu, selectedTextId, selectedImageId, selectedShapeId, selectText, deleteText, deleteImage, deleteShape, nudgeSelected, state.grid.spacing, state.texts, state.images, state.shapes])
+  }, [helpOpen, contextMenu, selectedTextId, selectedImageId, selectedShapeId, selectText, deleteText, deleteImage, deleteShape, nudgeSelected, moveZOrder, state.grid.spacing, state.texts, state.images, state.shapes])
 
   // Export PNG
   const exportPNG = useCallback(async () => {

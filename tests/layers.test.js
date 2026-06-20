@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { reorder, bringToFront, sendToBack, displayIndexToArrayIndex, duplicateById } from '../src/lib/layers'
+import { reorder, bringToFront, sendToBack, moveUp, moveDown, displayIndexToArrayIndex, duplicateById } from '../src/lib/layers'
 
 // Helper: build a layer list of objects with ids a, b, c, ... and read it back as a string.
 const make = (...ids) => ids.map(id => ({ id, content: id.toUpperCase() }))
@@ -84,6 +84,46 @@ describe('sendToBack', () => {
     const layers = make('a', 'b', 'c')
     sendToBack(layers, 'c')
     expect(ids(layers)).toBe('abc')
+  })
+})
+
+describe('moveUp', () => {
+  it('moves a layer one step toward the front', () => {
+    expect(ids(moveUp(make('a', 'b', 'c'), 'a'))).toBe('bac')
+  })
+
+  it('moves the middle layer one step up', () => {
+    expect(ids(moveUp(make('a', 'b', 'c'), 'b'))).toBe('acb')
+  })
+
+  it('returns the same reference when already at the front', () => {
+    const layers = make('a', 'b', 'c')
+    expect(moveUp(layers, 'c')).toBe(layers)
+  })
+
+  it('returns the same reference when id is not found', () => {
+    const layers = make('a', 'b', 'c')
+    expect(moveUp(layers, 'z')).toBe(layers)
+  })
+})
+
+describe('moveDown', () => {
+  it('moves a layer one step toward the back', () => {
+    expect(ids(moveDown(make('a', 'b', 'c'), 'c'))).toBe('acb')
+  })
+
+  it('moves the middle layer one step down', () => {
+    expect(ids(moveDown(make('a', 'b', 'c'), 'b'))).toBe('bac')
+  })
+
+  it('returns the same reference when already at the back', () => {
+    const layers = make('a', 'b', 'c')
+    expect(moveDown(layers, 'a')).toBe(layers)
+  })
+
+  it('returns the same reference when id is not found', () => {
+    const layers = make('a', 'b', 'c')
+    expect(moveDown(layers, 'z')).toBe(layers)
   })
 })
 

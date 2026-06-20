@@ -45,6 +45,20 @@ export function sendToBack(layers, id) {
   return next
 }
 
+// Move the layer with the given id one step toward the front (higher array index).
+export function moveUp(layers, id) {
+  const i = layers.findIndex(l => l.id === id)
+  if (i < 0 || i === layers.length - 1) return layers
+  return reorder(layers, i, i + 1)
+}
+
+// Move the layer with the given id one step toward the back (lower array index).
+export function moveDown(layers, id) {
+  const i = layers.findIndex(l => l.id === id)
+  if (i <= 0) return layers
+  return reorder(layers, i, i - 1)
+}
+
 // The layer list is shown front-to-back (top layer first), so a position in the
 // displayed list maps to the reverse position in the paint-order array.
 export function displayIndexToArrayIndex(length, displayIndex) {

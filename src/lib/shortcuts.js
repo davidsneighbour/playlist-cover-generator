@@ -11,6 +11,8 @@ export const SHORTCUTS = [
   { id: 'redo', keys: ['mod', 'Shift', 'Z'], description: 'Redo' },
   { id: 'redo-alt', keys: ['Ctrl', 'Y'], description: 'Redo (alternative)' },
   { id: 'delete', keys: ['Delete'], description: 'Delete the selected layer' },
+  { id: 'zorder-up', keys: ['Ctrl', ']'], description: 'Move selected layer one step forward' },
+  { id: 'zorder-down', keys: ['Ctrl', '['], description: 'Move selected layer one step back' },
   { id: 'nudge', keys: ['↑', '↓', '←', '→'], description: 'Nudge the selected layer by 1px' },
   { id: 'nudge-grid', keys: ['Shift', '↑↓←→'], description: 'Nudge by the grid spacing' },
   { id: 'help', keys: ['F1'], description: 'Open or close this help' },
