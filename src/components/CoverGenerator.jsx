@@ -21,6 +21,7 @@ import { buildZip } from '../lib/zip'
 import { actionAnnouncement, layerNoun } from '../lib/a11y'
 import { buildLayerList } from '../lib/layerList'
 import { averageRgb, pickContrastColor } from '../lib/color'
+import { alignLayer } from '../lib/align'
 import { isOpen as isCardOpen, toggleOpen, togglePin, openCard } from '../lib/accordion'
 import { AccordionContext, CollapsibleCard } from './Accordion'
 import {
@@ -28,6 +29,8 @@ import {
   Square, Circle, Triangle, GripVertical, Copy, BringToFront, SendToBack,
   FileImage, FileCode, Save, FolderOpen, Link, Package, CircleHelp,
   Type, Blend, Image as ImageIcon, Eye, EyeOff, Lock, LockOpen, Loader2, Check, FilePlus, Minus,
+  AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal,
+  AlignStartVertical, AlignCenterVertical, AlignEndVertical,
 } from 'lucide-react'
 import { DEFAULT_CANVAS_WIDTH, DEFAULT_CANVAS_HEIGHT, RULER, DUP_OFFSET } from '../lib/constants'
 import { TopRuler, LeftRuler } from './Rulers'
@@ -860,6 +863,22 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     })
   }, [update])
 
+  // Align the currently selected layer to the canvas in one undo step.
+  const alignSelected = useCallback((alignment) => {
+    const cw = state.canvasWidth || DEFAULT_CANVAS_WIDTH
+    const ch = state.canvasHeight || DEFAULT_CANVAS_HEIGHT
+    if (selectedTextId != null) {
+      const t = state.texts.find(t => t.id === selectedTextId)
+      if (t && !t.locked) updateText(selectedTextId, alignLayer(t, cw, ch, alignment))
+    } else if (selectedImageId != null) {
+      const img = (state.images || []).find(i => i.id === selectedImageId)
+      if (img && !img.locked) updateImage(selectedImageId, alignLayer(img, cw, ch, alignment))
+    } else if (selectedShapeId != null) {
+      const s = (state.shapes || []).find(s => s.id === selectedShapeId)
+      if (s && !s.locked) updateShape(selectedShapeId, alignLayer(s, cw, ch, alignment))
+    }
+  }, [state, selectedTextId, selectedImageId, selectedShapeId, updateText, updateImage, updateShape])
+
   // Color overlay (a single full-canvas fill). One object, edited in place.
   const updateOverlay = useCallback((patch, coalesceKey) => {
     update(prev => ({ ...prev, overlay: { ...(prev.overlay || DEFAULT_OVERLAY), ...patch } }), coalesceKey)
@@ -1095,6 +1114,20 @@ export default function CoverGenerator({ initialState, onStateChange, className 
     ]
   }, [contextMenu, duplicateText, duplicateImage, duplicateShape, handleBringToFront, handleImageToFront, handleShapeToFront, handleSendToBack, handleImageToBack, handleShapeToBack, deleteText, deleteImage, deleteShape])
 
+  const AlignToolbar = () => (
+    <div>
+      <p className="text-xs text-gray-500 mb-1">Align to canvas</p>
+      <div className="flex gap-1">
+        <button type="button" className="btn-icon flex-1" title="Align left" aria-label="Align left" onClick={() => alignSelected('left')}><AlignStartHorizontal className="h-3.5 w-3.5" /></button>
+        <button type="button" className="btn-icon flex-1" title="Center horizontally" aria-label="Center horizontally" onClick={() => alignSelected('center')}><AlignCenterHorizontal className="h-3.5 w-3.5" /></button>
+        <button type="button" className="btn-icon flex-1" title="Align right" aria-label="Align right" onClick={() => alignSelected('right')}><AlignEndHorizontal className="h-3.5 w-3.5" /></button>
+        <button type="button" className="btn-icon flex-1" title="Align top" aria-label="Align top" onClick={() => alignSelected('top')}><AlignStartVertical className="h-3.5 w-3.5" /></button>
+        <button type="button" className="btn-icon flex-1" title="Center vertically" aria-label="Center vertically" onClick={() => alignSelected('middle')}><AlignCenterVertical className="h-3.5 w-3.5" /></button>
+        <button type="button" className="btn-icon flex-1" title="Align bottom" aria-label="Align bottom" onClick={() => alignSelected('bottom')}><AlignEndVertical className="h-3.5 w-3.5" /></button>
+      </div>
+    </div>
+  )
+
   return (
     <div className={`flex flex-col md:flex-row gap-6 p-4 md:p-6 min-h-screen bg-gray-50 md:items-start ${className}`}>
       <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
@@ -1115,7 +1148,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
       {/* Canvas — adapts to the template's aspect ratio, stays on the left while controls scroll */}
       <div ref={canvasColRef} className="w-full md:w-[45%] md:shrink-0 md:sticky md:top-6 md:self-start lg:w-125 flex flex-col items-center gap-3">
         <div
-          className={showRulers ? 'inline-grid' : 'w-full max-w-[600px]'}
+          className={showRulers ? 'inline-grid' : 'w-full max-w-150'}
           style={showRulers ? { gridTemplateColumns: `${RULER}px auto`, gridTemplateRows: `${RULER}px auto` } : undefined}
         >
           {showRulers && <div className="bg-gray-50" aria-hidden="true" />}
@@ -1516,6 +1549,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               <NumberInput label="Y position" value={selectedText.y} min={0} max={canvasH} onChange={v => updateText(selectedText.id, { y: v }, `y-${selectedText.id}`)} />
             </div>
             <NumberInput label="Rotation (°)" value={selectedText.rotation ?? 0} min={-180} max={180} onChange={v => updateText(selectedText.id, { rotation: v }, `text-rotation-${selectedText.id}`)} hint="−180 to 180" />
+            <AlignToolbar />
 
             <div className="mt-2">
               <label className="block text-xs text-gray-500 mb-1">Opacity ({Math.round((selectedText.opacity ?? 1) * 100)}%)</label>
@@ -1614,6 +1648,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               <NumberInput label="Y position" value={selectedImage.y} min={-canvasH} max={canvasH} onChange={v => updateImage(selectedImage.id, { y: v }, `img-y-${selectedImage.id}`)} />
             </div>
             <NumberInput label="Rotation (°)" value={selectedImage.rotation ?? 0} min={-180} max={180} onChange={v => updateImage(selectedImage.id, { rotation: v }, `img-rotation-${selectedImage.id}`)} hint="−180 to 180" />
+            <AlignToolbar />
             <button className="w-full btn-secondary text-sm" onClick={() => deleteImage(selectedImage.id)}><Trash2 className="h-4 w-4" />Delete image</button>
           </CollapsibleCard>
           )
@@ -1700,6 +1735,7 @@ export default function CoverGenerator({ initialState, onStateChange, className 
               <NumberInput label="Y position" value={selectedShape.y} min={0} max={canvasH} onChange={v => updateShape(selectedShape.id, { y: v }, `shape-y-${selectedShape.id}`)} />
             </div>
             <NumberInput label="Rotation (°)" value={selectedShape.rotation ?? 0} min={-180} max={180} onChange={v => updateShape(selectedShape.id, { rotation: v }, `shape-rotation-${selectedShape.id}`)} hint="−180 to 180" />
+            <AlignToolbar />
             <button className="w-full btn-secondary text-sm" onClick={() => deleteShape(selectedShape.id)}><Trash2 className="h-4 w-4" />Delete shape</button>
           </CollapsibleCard>
         )}
